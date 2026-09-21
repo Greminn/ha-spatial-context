@@ -1,0 +1,12 @@
+{
+  "domain": "spatial_context",
+  "name": "Spatial Context",
+  "codeowners": ["@Greminn"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "panel_custom", "websocket_api", "image_upload", "mqtt"],
+  "documentation": "https://github.com/Greminn/ha-spatial-context",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Greminn/ha-spatial-context/issues",
+  "requirements": [],
+  "version": "0.1.0-beta.1"
+}

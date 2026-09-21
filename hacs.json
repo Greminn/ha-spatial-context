@@ -1,0 +1,7 @@
+{
+  "name": "Spatial Context",
+  "content_in_root": false,
+  "hacs": "2.0.0",
+  "homeassistant": "2024.10.0",
+  "render_readme": true
+}

@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Spatial Context",
+        "description": "Trace each floor's layout and place your devices on it, so an AI assistant can be given real physical context for your home."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Spatial Context is already set up."
+    }
+  }
+}

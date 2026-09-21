@@ -1,0 +1,10 @@
+node_modules/
+frontend/dist/
+__pycache__/
+# The built panel bundle IS committed (custom_components/spatial_context/www/
+# spatial-context-panel.js) — HACS/a manual copy installs this repo directly
+# with no build step, so the compiled JS has to already be here. Only a dev
+# sourcemap (never produced by `npm run build`, only `build:watch`) is ignored.
+custom_components/spatial_context/www/*.js.map
+.env
+.DS_Store
