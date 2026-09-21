@@ -46,9 +46,31 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 ## Installation
 
-**Beta** (see [Status](#status) below) — not yet submitted to the HACS default repository. Add as a custom repository in HACS (`Greminn/ha-spatial-context`, category "Integration"), or copy `custom_components/spatial_context/` into your `/config/custom_components/` directory manually. Releases are tagged as pre-releases while in beta, so if installing via HACS, enable **Show beta versions** for this repository (or globally in HACS settings) to see it.
+**Beta** (see [Status](#status) below) — not yet submitted to the HACS default repository, so it needs to be added as a **custom repository** first.
 
-Then: **Settings → Devices & Services → Add Integration → Spatial Context**, and it'll appear in your sidebar.
+### Option 1: HACS, one click
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
+
+### Option 2: HACS, manually
+
+1. In HACS: **⋮ (top-right) → Custom repositories**.
+2. Paste this repository's full URL into **Repository**:
+   ```
+   https://github.com/Greminn/ha-spatial-context
+   ```
+3. Set **Type** to **Integration**, then **Add**.
+4. Find **Spatial Context** in HACS and install it.
+
+Either way, this is a beta release (tagged as a pre-release), so enable **Show beta versions** for this repository — or globally in HACS's own settings — if you don't see it.
+
+### Option 3: manual copy, no HACS
+
+Copy `custom_components/spatial_context/` from this repository into your Home Assistant's `/config/custom_components/` directory.
+
+### After installing
+
+**Settings → Devices & Services → Add Integration → Spatial Context**, and it'll appear in your sidebar.
 
 ## Development (frontend)
 
