@@ -17,6 +17,27 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 
+def _build_mac_to_device_id(device_registry: dr.DeviceRegistry) -> dict[str, str]:
+    """MAC address -> device_id, built once by scanning every device's own
+    `connections` set directly.
+
+    Not `device_registry.async_get_device_by_connection()` — recent HA
+    versions require a `config_entry_id` argument on that helper (device
+    connections are no longer guaranteed unique across config entries, the
+    same reality zigbee_mesh.py's IEEE-to-device-id map already works
+    around the same way), which doesn't fit this generic "any AP, from any
+    integration" lookup at all. Direct iteration + a plain dict avoids that
+    entirely and is also just one pass instead of one registry call per
+    Wi-Fi client entity.
+    """
+    mac_to_device_id: dict[str, str] = {}
+    for device in device_registry.devices:
+        for connection_type, value in device.connections:
+            if connection_type == dr.CONNECTION_NETWORK_MAC:
+                mac_to_device_id[value] = device.id
+    return mac_to_device_id
+
+
 def _build_signal_strength_by_device(hass: HomeAssistant, entity_registry: er.EntityRegistry) -> dict[str, float]:
     """device_id -> dBm, from any entity with the standard `signal_strength`
     device_class on that same device.
@@ -57,6 +78,7 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
     signal_by_device = _build_signal_strength_by_device(hass, entity_registry)
+    mac_to_device_id = _build_mac_to_device_id(device_registry)
 
     links: list[dict[str, Any]] = []
     for entry in entity_registry.entities.values():
@@ -71,16 +93,14 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
         if not ap_mac:
             continue
 
-        ap_device = device_registry.async_get_device_by_connection(
-            (dr.CONNECTION_NETWORK_MAC, ap_mac)
-        )
-        if ap_device is None:
+        ap_device_id = mac_to_device_id.get(dr.format_mac(ap_mac))
+        if ap_device_id is None:
             continue
 
         links.append(
             {
                 "source_device_id": entry.device_id,
-                "target_device_id": ap_device.id,
+                "target_device_id": ap_device_id,
                 "rssi_dbm": signal_by_device.get(entry.device_id),
             }
         )

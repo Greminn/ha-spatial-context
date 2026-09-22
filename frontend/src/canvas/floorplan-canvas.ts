@@ -29,6 +29,7 @@ import {
   findWallAt,
 } from "./pin-tool";
 import { addTracePoint, startTrace, type PendingTrace } from "./polygon-tool";
+import { fetchIconPathByName } from "./icon-cache";
 import { wallMaterial } from "./materials";
 import { qualityColor } from "./mesh-colors";
 import { GROUP_ICON_PATH, pinColor, pinIconPath } from "./pin-icons";
@@ -1316,6 +1317,31 @@ export class FloorplanCanvas extends LitElement {
     `;
   }
 
+  /** icon_override -> resolved path data (or null if unresolvable), filled
+   * in lazily by _iconForOverride. Deliberately not a reactive @state —
+   * icon-cache.ts's own module-level cache already dedupes the fetch
+   * itself; this is just a synchronous read of whatever's resolved so
+   * far, with requestUpdate() called explicitly once a fetch lands. */
+  private _resolvedIconOverrides = new Map<string, string | null>();
+
+  /** Path data for a pin's icon override, or null if it's not yet resolved
+   * (a fetch is kicked off in the background; render() picks it up via
+   * requestUpdate() once it lands) or permanently unresolvable. Callers
+   * fall back to the domain-default icon whenever this returns null. */
+  private _iconForOverride(override: string): string | null {
+    if (this._resolvedIconOverrides.has(override)) {
+      return this._resolvedIconOverrides.get(override) ?? null;
+    }
+    this._resolvedIconOverrides.set(override, null);
+    void fetchIconPathByName(override).then((path) => {
+      if (path !== null) {
+        this._resolvedIconOverrides.set(override, path);
+        this.requestUpdate();
+      }
+    });
+    return null;
+  }
+
   /** Groups by exact (x,y) — placement already snaps a new pin onto an
    * existing one's exact coordinates when co-locating (see place-mode
    * click handling below), so exact equality is enough to detect a
@@ -1345,7 +1371,10 @@ export class FloorplanCanvas extends LitElement {
       const selected = pin.id === this.selectedPinId;
       const entity = this.entityLookup.get(pin.entity_id);
       const domain = entity?.domain ?? pin.entity_id.split(".")[0] ?? "";
-      const iconPath = pinIconPath(domain);
+      const overridePath = pin.icon_override
+        ? this._iconForOverride(pin.icon_override)
+        : null;
+      const iconPath = overridePath ?? pinIconPath(domain);
       return this._renderPinMarker(
         x,
         y,
