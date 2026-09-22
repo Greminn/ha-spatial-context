@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .frontend import async_register_sidebar_panel, async_register_static_paths
+from .services import async_setup_services
 from .websocket_api import async_register_commands
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up integration-wide resources: WebSocket commands + frontend panel."""
     async_register_commands(hass)
+    await async_setup_services(hass)
 
     try:
         await async_register_static_paths(hass)
