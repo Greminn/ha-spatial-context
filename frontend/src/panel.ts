@@ -860,6 +860,20 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
+  private _onWallThicknessChange = (
+    e: CustomEvent<{ thicknessCm: number }>,
+  ) => {
+    const wall = this._selectedWall;
+    if (!wall) return;
+    if (!Number.isFinite(e.detail.thicknessCm) || e.detail.thicknessCm <= 0)
+      return;
+    this._updateLayout({
+      walls: this._layout.walls.map((w) =>
+        w.id === wall.id ? { ...w, thickness_cm: e.detail.thicknessCm } : w,
+      ),
+    });
+  };
+
   private _onWallEditVertices = () => {
     if (!this._selectedWallId) return;
     this._editingWallId =
@@ -1399,6 +1413,7 @@ export class SpatialContextPanel extends LitElement {
             @pin-set-height-click=${this._onPinSetHeight}
             @pin-delete-click=${this._onPinDelete}
             @wall-material-change=${this._onWallMaterialChange}
+            @wall-thickness-change=${this._onWallThicknessChange}
             @wall-edit-vertices-click=${this._onWallEditVertices}
             @wall-delete-click=${this._onWallDelete}
             @opening-set-width-click=${this._onOpeningSetWidth}

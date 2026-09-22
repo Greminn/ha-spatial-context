@@ -30,7 +30,7 @@ import {
 } from "./pin-tool";
 import { addTracePoint, startTrace, type PendingTrace } from "./polygon-tool";
 import { fetchIconPathByName } from "./icon-cache";
-import { wallMaterial } from "./materials";
+import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
 import { qualityColor } from "./mesh-colors";
 import { GROUP_ICON_PATH, pinColor, pinIconPath } from "./pin-icons";
 import { sharedStyles } from "../styles";
@@ -1450,18 +1450,45 @@ export class FloorplanCanvas extends LitElement {
     `;
   }
 
+  /** The wall's `stroke-width` CSS value, including its unit. Once the
+   * floor is calibrated, this is the wall's *real* thickness converted
+   * through that calibration and left UNITLESS — plain SVG user-unit
+   * strokes scale with the viewBox exactly like the wall's own points or
+   * the background image already do, so a 24cm wall genuinely draws about
+   * twice as thick on screen as a 12cm one, and both grow together as you
+   * zoom in to trace precisely. Before calibration there's no real-world
+   * conversion to use yet, so this falls back to a small constant CSS
+   * pixel width instead (a "px" length is *not* affected by the viewBox
+   * transform, so it stays legible at any zoom rather than being
+   * meaningless without a real scale to interpret it against). */
+  private _wallStrokeWidth(wall: Wall, material: WallMaterial): string {
+    if (this.scale) {
+      const [[x1, y1], [x2, y2]] = this.scale.points;
+      const unitDistance = distance(x1, y1, x2, y2) || 1;
+      const unitsPerMeter = unitDistance / this.scale.meters;
+      const thicknessUnits = (wallThicknessCm(wall) / 100) * unitsPerMeter;
+      return `${clamp(thicknessUnits, 0.5, 40)}`;
+    }
+    const px = clamp(
+      4 + (material.attenuationDbPerCm * wallThicknessCm(wall)) / 3,
+      4,
+      8,
+    );
+    return `${px}px`;
+  }
+
   private _renderWall(wall: Wall) {
     const points = this._effectivePoints("wall", wall.id, wall.points);
     const pointsAttr = points.map(([x, y]) => `${x},${y}`).join(" ");
     const selected = wall.id === this.selectedWallId;
     const isEditing = this.editingWallId === wall.id;
     const material = wallMaterial(wall.material);
-    const strokeWidth = clamp(4 + material.attenuationDb / 3, 4, 8);
+    const strokeWidth = this._wallStrokeWidth(wall, material);
     return svg`
       <polyline
         class="wall-line ${selected || isEditing ? "selected" : ""}"
         points=${pointsAttr}
-        style="stroke:${material.color}; stroke-width:${strokeWidth}px"
+        style="stroke:${material.color}; stroke-width:${strokeWidth}"
       >
         <title>${material.label}</title>
       </polyline>

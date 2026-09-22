@@ -14,7 +14,7 @@ import type {
   WifiMesh,
   ZigbeeMesh,
 } from "./types";
-import { DEFAULT_WALL_MATERIAL } from "./canvas/materials";
+import { DEFAULT_WALL_MATERIAL, wallMaterial } from "./canvas/materials";
 
 /** Thin wrapper over the five spatial_context/* WebSocket commands + core's image upload API. */
 export class HaClient {
@@ -178,7 +178,12 @@ export function newWall(
   points: [number, number][],
   material = DEFAULT_WALL_MATERIAL,
 ): Wall {
-  return { id: newId("wall"), material, points };
+  return {
+    id: newId("wall"),
+    material,
+    thickness_cm: wallMaterial(material).defaultThicknessCm,
+    points,
+  };
 }
 
 export function newOpening(

@@ -69,6 +69,10 @@ _PIN_SCHEMA = {
 _WALL_SCHEMA = {
     vol.Required("id"): str,
     vol.Required("material"): str,
+    # Optional, not Required — a wall saved before this field existed and
+    # never individually re-edited since would round-trip through a save
+    # without one, and that must not fail validation.
+    vol.Optional("thickness_cm"): vol.Any(vol.Coerce(float), None),
     vol.Required("points"): [[vol.Coerce(float)]],
 }
 

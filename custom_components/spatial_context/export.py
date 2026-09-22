@@ -12,17 +12,59 @@ from . import registry_snapshot
 from .storage import async_get_floor_layout
 
 # Mirrors frontend/src/canvas/materials.ts — keep both in sync if this list
-# changes. attenuation_db is an approximate 2.4GHz RF signal loss for a
-# single wall of that material, useful context for reasoning about
-# Zigbee/Wi-Fi mesh coverage.
+# changes. attenuation_db_per_cm is an approximate 2.4GHz RF signal loss
+# *per centimetre* of that material — a wall's total attenuation is that
+# rate times its actual thickness_cm (see _wall_attenuation_db), not a
+# single flat number, since a thicker wall of the same material blocks
+# more. default_thickness_cm is only the fallback for a wall saved before
+# thickness_cm existed at all.
 _WALL_MATERIALS = {
-    "timber_frame": {"label": "Timber framed (drywall)", "attenuation_db": 3},
-    "brick_veneer": {"label": "Brick veneer", "attenuation_db": 6},
-    "concrete_block": {"label": "Concrete / block", "attenuation_db": 12},
-    "glass": {"label": "Glass", "attenuation_db": 2},
-    "steel_frame": {"label": "Steel frame", "attenuation_db": 10},
+    "timber_frame": {
+        "label": "Timber framed (drywall)",
+        "attenuation_db_per_cm": 0.3,
+        "default_thickness_cm": 10,
+    },
+    "brick_veneer": {
+        "label": "Brick veneer",
+        "attenuation_db_per_cm": 0.55,
+        "default_thickness_cm": 11,
+    },
+    "concrete_block": {
+        "label": "Concrete / block",
+        "attenuation_db_per_cm": 0.6,
+        "default_thickness_cm": 20,
+    },
+    "glass": {
+        "label": "Glass",
+        "attenuation_db_per_cm": 2,
+        "default_thickness_cm": 1,
+    },
+    "steel_frame": {
+        "label": "Steel frame",
+        "attenuation_db_per_cm": 1,
+        "default_thickness_cm": 10,
+    },
 }
 _DEFAULT_WALL_MATERIAL = "timber_frame"
+
+
+def _wall_thickness_cm(wall: dict) -> float:
+    """A wall's effective thickness — its own stored value, or its
+    material's default when missing (a wall saved before thickness_cm
+    existed)."""
+    material = _WALL_MATERIALS.get(
+        wall.get("material", _DEFAULT_WALL_MATERIAL),
+        _WALL_MATERIALS[_DEFAULT_WALL_MATERIAL],
+    )
+    return wall.get("thickness_cm") or material["default_thickness_cm"]
+
+
+def _wall_attenuation_db(wall: dict) -> float:
+    material = _WALL_MATERIALS.get(
+        wall.get("material", _DEFAULT_WALL_MATERIAL),
+        _WALL_MATERIALS[_DEFAULT_WALL_MATERIAL],
+    )
+    return material["attenuation_db_per_cm"] * _wall_thickness_cm(wall)
 
 
 def _meters_per_unit(scale: dict | None) -> float | None:
@@ -113,10 +155,8 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
                     wall.get("material", _DEFAULT_WALL_MATERIAL),
                     _WALL_MATERIALS[_DEFAULT_WALL_MATERIAL],
                 )["label"],
-                "attenuation_db": _WALL_MATERIALS.get(
-                    wall.get("material", _DEFAULT_WALL_MATERIAL),
-                    _WALL_MATERIALS[_DEFAULT_WALL_MATERIAL],
-                )["attenuation_db"],
+                "thickness_cm": _wall_thickness_cm(wall),
+                "attenuation_db": _wall_attenuation_db(wall),
                 "points": wall["points"],
                 "points_m": (
                     [[px * meters_per_unit, py * meters_per_unit] for px, py in wall["points"]]

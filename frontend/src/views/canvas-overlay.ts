@@ -10,7 +10,7 @@ import type {
   Room,
   Wall,
 } from "../types";
-import { WALL_MATERIALS } from "../canvas/materials";
+import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { sharedStyles } from "../styles";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -84,6 +84,9 @@ export class CanvasOverlay extends LitElement {
       .hint {
         font-size: 0.8rem;
         color: var(--sc-fg-secondary);
+      }
+      .wall-thickness {
+        width: 52px;
       }
       .pin-stack {
         position: absolute;
@@ -416,6 +419,20 @@ export class CanvasOverlay extends LitElement {
                 </option>`,
             )}
           </select>
+          <input
+            type="number"
+            class="wall-thickness"
+            title="Wall thickness (cm)"
+            min="1"
+            max="100"
+            step="0.5"
+            .value=${String(wallThicknessCm(wall))}
+            @change=${(e: Event) =>
+              this._fire("wall-thickness-change", {
+                thicknessCm: Number((e.target as HTMLInputElement).value),
+              })}
+          />
+          <span class="hint">cm</span>
           <button
             title=${this.editingWall ? "Done editing" : "Edit vertices"}
             class=${this.editingWall ? "active" : ""}

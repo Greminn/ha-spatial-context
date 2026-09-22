@@ -24,6 +24,13 @@ export interface Wall {
   id: string;
   /** Material catalog id — see canvas/materials.ts. */
   material: string;
+  /** Real wall thickness in centimetres — scales the material's per-cm RF
+   * attenuation rate, and (once the floor is calibrated) the wall's drawn
+   * line width. Optional only because a wall saved before this field
+   * existed won't have one; use canvas/materials.ts's wallThicknessCm(wall)
+   * rather than reading this raw, which falls back to the material's own
+   * default thickness. */
+  thickness_cm?: number;
   points: [number, number][];
 }
 
