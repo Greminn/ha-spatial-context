@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from .const import DOMAIN
 from .export import async_get_map_data
 
+
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Register services for the Spatial Context integration."""
 

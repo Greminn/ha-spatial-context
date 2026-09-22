@@ -7,16 +7,14 @@ __init__.py.
 
 from __future__ import annotations
 
-
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
 from . import registry_snapshot, wifi_mesh, zigbee_mesh
+from .export import async_get_map_data
 from .storage import async_get_floor_layout, async_save_floor_layout, async_set_floor_building_id
-
-
 
 
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/list_floors"})
@@ -180,9 +178,6 @@ async def ws_list_placeable_entities(
     connection.send_result(msg["id"], {"entities": entities})
 
 
-from .export import async_get_map_data
-
-
 @websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/export_snapshot"}
 )
@@ -204,7 +199,6 @@ async def ws_export_snapshot(
         msg["id"],
         await async_get_map_data(hass),
     )
-
 
 
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/get_zigbee_mesh"})
