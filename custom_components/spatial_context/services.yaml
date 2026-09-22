@@ -1,0 +1,5 @@
+get_map:
+  name: Get map
+  description: Returns the full spatial context map, including floors, rooms, walls, and devices.
+  target: {}
+  fields: {}
