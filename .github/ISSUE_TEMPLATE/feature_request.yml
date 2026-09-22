@@ -1,0 +1,26 @@
+name: Feature request
+description: An idea for something Spatial Context should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem or use case is this for?
+      description: What are you trying to do, or what's missing/annoying right now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to see?
+      description: Your idea for how this could work — doesn't need to be a full spec, a rough sketch is fine.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've already tried or considered as a workaround?
+    validations:
+      required: false

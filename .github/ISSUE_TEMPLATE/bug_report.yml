@@ -1,0 +1,55 @@
+name: Bug report
+description: Something isn't working right
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug — what you did, and what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen instead?
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: false
+
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: "e.g. 2026.9.3"
+    validations:
+      required: true
+
+  - type: input
+    id: sc-version
+    attributes:
+      label: Spatial Context version
+      description: Settings → Devices & Services → Spatial Context, or the panel's own header subtitle.
+      placeholder: "e.g. 0.1.0-beta.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Browser console errors, Home Assistant logs (Settings → System → Logs), or a screenshot of what you're seeing.
+      render: shell
+    validations:
+      required: false
