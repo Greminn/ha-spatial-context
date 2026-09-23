@@ -112,7 +112,7 @@ export class AppHeader extends LitElement {
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
-            v0.3.0-beta.1 · Floor plan &amp; device mapping
+            v0.3.0-beta.2 · Floor plan &amp; device mapping
           </div>
         </div>
       </div>
