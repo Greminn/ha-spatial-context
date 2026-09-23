@@ -4,7 +4,7 @@
 
 A Home Assistant custom integration for tracing your home's floor plans and placing your real devices on them — so an AI assistant (or anything else) can be given real physical/spatial grounding for your home, not just entity names.
 
-![Spatial Context — Top Floor, traced with rooms, walls, and placed devices](ha-spatial-context_screenshot.jpeg)
+![Spatial Context — Top Floor, traced with rooms, walls, and placed devices](docs/screenshot-main.jpeg)
 
 ## What it does
 
@@ -31,7 +31,7 @@ One tool is active at a time; clicking the active tool again returns to Select. 
 | Icon | Name | What it does |
 |---|---|---|
 | <img src="https://api.iconify.design/mdi/image.svg?color=%23888888" width="20"> | **Background** | Upload, replace, or remove the current floor's background image, and adjust its opacity. |
-| <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Toggle a live mesh overlay — Zigbee, Wi-Fi, or Matter/Thread — drawn between your placed devices, quality-graded (LQI/RSSI where available). Off by default; picking a layer and hitting Load/Refresh/Connect fetches it. Closing this menu turns the overlay back off. |
+| <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Toggle a live mesh overlay — Zigbee, Wi-Fi, or Matter/Thread — drawn between your placed devices, quality-graded (LQI/RSSI where available). Off by default; picking a layer and hitting Load/Refresh/Connect fetches it. Click any line for details on what it connects and its link quality. A link to a device on a *different* floor draws as a dashed line toward that floor (its real direction, using your Property tab placements) instead of just disappearing — click its marker to jump straight there. Closing this menu turns the overlay back off. |
 | <img src="https://api.iconify.design/mdi/content-save.svg?color=%23888888" width="20"> | **Save** | Save the current floor's (or Property tab's) layout, including whatever pan/zoom you're currently looking at — that view is restored next time you open this floor/tab. A dot badge shows when there are unsaved changes. |
 | <img src="https://api.iconify.design/mdi/download.svg?color=%23888888" width="20"> | **Export** | Download a denormalized JSON snapshot (floors → rooms → devices, in real metres once calibrated) for use outside Home Assistant. |
 | <img src="https://api.iconify.design/mdi/delete-sweep.svg?color=%23888888" width="20"> | **Reset Floor / Reset Property** | Clear the current floor's rooms/walls/devices/background (or, on the Property tab, every building placement and the site photo) entirely, to start over. Asks for confirmation first, and only takes effect once you also hit Save. |
@@ -45,6 +45,16 @@ The Property tab is a separate, whole-property view — upload a site/aerial pho
 - **Place Building**: pick a building from the dropdown in the top-left toolbar, then click the site photo to drop it there.
 - Select a placement to **drag it into position**, **drag a corner to resize it** (the opposite corner stays fixed, and the shape is locked to that building's real proportions — computed from its traced rooms/walls, so it can't be squashed into an unrealistic shape), or **drag the handle above it to rotate** it to match the photo's orientation.
 - The selection panel also offers **Rename** (a label override), **Delete**, and **Go to floor** — jumps straight to that building's own floor tab.
+
+## Screenshots
+
+| Property tab | Zigbee mesh |
+|---|---|
+| ![Property tab — Top Floor and Garage placed on a site photo](docs/screenshot-property.jpeg) | ![Zigbee mesh overlay, including a cross-floor link stub down to Bottom Floor](docs/screenshot-zigbee-mesh.jpeg) |
+
+| Wi-Fi mesh | Matter mesh |
+|---|---|
+| ![Wi-Fi mesh overlay](docs/screenshot-wifi-mesh.jpeg) | ![Matter mesh overlay](docs/screenshot-matter-mesh.jpeg) |
 
 ## Getting a background image
 
