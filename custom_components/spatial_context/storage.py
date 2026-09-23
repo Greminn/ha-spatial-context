@@ -33,8 +33,9 @@ def _lock(hass: HomeAssistant) -> asyncio.Lock:
 async def _async_load_all(hass: HomeAssistant) -> dict[str, Any]:
     data = await _store(hass).async_load()
     if not data or "floors" not in data:
-        return {"floors": {}, "property": None}
+        return {"floors": {}, "property": None, "settings": _empty_settings()}
     data.setdefault("property", None)
+    data.setdefault("settings", _empty_settings())
     return data
 
 
@@ -89,6 +90,34 @@ def _empty_property() -> dict[str, Any]:
         # garage never aligned to anything).
         "placements": [],
     }
+
+
+def _empty_settings() -> dict[str, Any]:
+    return {
+        # "metric" or "imperial" — display/input unit for wall thickness,
+        # device height, scale calibration, and door/window width. Shared
+        # by every viewer (see websocket_api.py's get/save_settings), same
+        # as floors/property — this is a fact about the house, not a
+        # per-browser preference, so it deliberately doesn't live in
+        # localStorage. Storage everywhere else stays real metric SI
+        # regardless of this setting; only display/input converts.
+        "unit_system": "metric",
+    }
+
+
+async def async_get_settings(hass: HomeAssistant) -> dict[str, Any]:
+    """Return the stored app-wide settings, or defaults."""
+    async with _lock(hass):
+        data = await _async_load_all(hass)
+        return {**_empty_settings(), **(data.get("settings") or {})}
+
+
+async def async_save_settings(hass: HomeAssistant, settings: dict[str, Any]) -> None:
+    """Replace-save the app-wide settings."""
+    async with _lock(hass):
+        data = await _async_load_all(hass)
+        data["settings"] = settings
+        await _store(hass).async_save(data)
 
 
 async def async_get_floor_layout(hass: HomeAssistant, floor_id: str) -> dict[str, Any]:

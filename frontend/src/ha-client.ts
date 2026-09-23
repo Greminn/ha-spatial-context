@@ -12,6 +12,7 @@ import type {
   PropertyLayout,
   PropertyPlacement,
   Room,
+  Settings,
   Wall,
   WifiMesh,
   ZigbeeMesh,
@@ -93,6 +94,19 @@ export class HaClient {
       background_scale: layout.background_scale,
       view_box: layout.view_box,
       placements: layout.placements,
+    });
+  }
+
+  async getSettings(): Promise<Settings> {
+    return this.hass.connection.sendMessagePromise<Settings>({
+      type: "spatial_context/get_settings",
+    });
+  }
+
+  async saveSettings(settings: Settings): Promise<{ success: boolean }> {
+    return this.hass.connection.sendMessagePromise({
+      type: "spatial_context/save_settings",
+      unit_system: settings.unit_system,
     });
   }
 
@@ -285,6 +299,10 @@ export function newPlacement(
     rotation_deg: 0,
     aspect_ratio: aspectRatio,
   };
+}
+
+export function emptySettings(): Settings {
+  return { unit_system: "metric" };
 }
 
 export function emptyPropertyLayout(): PropertyLayout {

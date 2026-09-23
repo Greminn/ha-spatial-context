@@ -17,8 +17,10 @@ from .export import async_get_map_data
 from .storage import (
     async_get_floor_layout,
     async_get_property_layout,
+    async_get_settings,
     async_save_floor_layout,
     async_save_property_layout,
+    async_save_settings,
     async_set_floor_building_id,
 )
 
@@ -249,6 +251,41 @@ async def ws_save_property_layout(
     connection.send_result(msg["id"], {"success": True})
 
 
+_SETTINGS_SCHEMA = {
+    vol.Required("unit_system"): vol.In(["metric", "imperial"]),
+}
+
+
+@websocket_api.websocket_command({vol.Required("type"): "spatial_context/get_settings"})
+@websocket_api.async_response
+async def ws_get_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Return app-wide settings (currently just unit_system), shared by
+    every viewer of the panel — see storage.py's async_get_settings."""
+    settings = await async_get_settings(hass)
+    connection.send_result(msg["id"], settings)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "spatial_context/save_settings",
+        **_SETTINGS_SCHEMA,
+    }
+)
+@websocket_api.async_response
+async def ws_save_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Replace-save app-wide settings."""
+    await async_save_settings(hass, {"unit_system": msg["unit_system"]})
+    connection.send_result(msg["id"], {"success": True})
+
+
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/list_areas"})
 @websocket_api.async_response
 async def ws_list_areas(
@@ -349,6 +386,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_building_id)
     websocket_api.async_register_command(hass, ws_get_property_layout)
     websocket_api.async_register_command(hass, ws_save_property_layout)
+    websocket_api.async_register_command(hass, ws_get_settings)
+    websocket_api.async_register_command(hass, ws_save_settings)
     websocket_api.async_register_command(hass, ws_list_areas)
     websocket_api.async_register_command(hass, ws_list_placeable_entities)
     websocket_api.async_register_command(hass, ws_export_snapshot)

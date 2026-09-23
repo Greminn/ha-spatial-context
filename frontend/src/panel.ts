@@ -17,6 +17,8 @@ import type {
   ResolvedMeshLink,
   ResolvedMeshStub,
   Room,
+  Settings,
+  UnitSystem,
   Wall,
   WifiMesh,
   ZigbeeMesh,
@@ -29,6 +31,7 @@ import {
   emptyFloorLayout,
   emptyPin,
   emptyPropertyLayout,
+  emptySettings,
   newId,
   newOpening,
   newPlacement,
@@ -36,6 +39,12 @@ import {
   newWall,
 } from "./ha-client";
 import { findRoomForPoint, rayBoxExit } from "./canvas/geometry";
+import {
+  formatLarge,
+  largeUnitLabel,
+  parseLarge,
+  unitsPerDisplayUnit,
+} from "./units";
 import { sharedStyles } from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
@@ -177,6 +186,11 @@ export class SpatialContextPanel extends LitElement {
   private _matterUnsubscribe: (() => void) | null = null;
   @state() private _backgroundPopoverOpen = false;
   @state() private _meshPopoverOpen = false;
+  /** Shared across every viewer of the panel (see ha-client.ts's
+   * getSettings/saveSettings) — not per-browser, same as floors/property. */
+  @state() private _settings: Settings = emptySettings();
+  @state() private _settingsPopoverOpen = false;
+  @state() private _moreOptionsPopoverOpen = false;
 
   // --- Property tab ---------------------------------------------------
   @state() private _view: "floor" | "property" = "floor";
@@ -619,39 +633,52 @@ export class SpatialContextPanel extends LitElement {
     return stub ? `${stub.fromPin.id}|${stub.targetDeviceId}` : null;
   }
 
-  private get _scaleReadout(): string | null {
+  /** Canvas/stored units per real metre, from the current floor's Scale
+   * calibration — null when uncalibrated. Shared by _scaleReadout,
+   * _defaultOpeningWidth, and the .unitsPerMeter prop passed down to
+   * canvas-overlay.ts (which converts opening width) so this ratio is
+   * computed in exactly one place. */
+  private _unitsPerMeter(): number | null {
     const scale = this._layout.scale;
     if (!scale) return null;
     const [[x1, y1], [x2, y2]] = scale.points;
     const unitDistance = Math.hypot(x2 - x1, y2 - y1) || 1;
-    const unitsPerMeter = unitDistance / scale.meters;
-    return `Scale: 1 m ≈ ${unitsPerMeter.toFixed(1)} units`;
+    return unitDistance / scale.meters;
   }
 
-  /** ~0.9m in stored units when calibrated, else a fixed fallback. */
+  private get _scaleReadout(): string | null {
+    const unitsPerMeter = this._unitsPerMeter();
+    if (unitsPerMeter === null) return null;
+    const system = this._settings.unit_system;
+    const unitsPerDisplay = unitsPerDisplayUnit(unitsPerMeter, system);
+    return `Scale: 1 ${largeUnitLabel(system)} ≈ ${unitsPerDisplay.toFixed(1)} units`;
+  }
+
+  /** ~0.9m in stored units when calibrated, else a fixed fallback. Always
+   * a real 0.9m default regardless of the display unit system — this is
+   * an internal initial value, never user-facing text. */
   private _defaultOpeningWidth(): number {
-    const scale = this._layout.scale;
-    if (!scale) return 30;
-    const [[x1, y1], [x2, y2]] = scale.points;
-    const unitDistance = Math.hypot(x2 - x1, y2 - y1) || 1;
-    const unitsPerMeter = unitDistance / scale.meters;
-    return 0.9 * unitsPerMeter;
+    const unitsPerMeter = this._unitsPerMeter();
+    return unitsPerMeter === null ? 30 : 0.9 * unitsPerMeter;
   }
 
   private async _init(): Promise<void> {
-    const [floors, entities, areas, propertyLayout] = await Promise.all([
-      this._client.listFloors(),
-      this._client.listPlaceableEntities(),
-      this._client.listAreas(),
-      // Loaded eagerly (not just when the Property tab itself is opened) —
-      // cross-building mesh stubs (_projectStubTowardBuilding) need each
-      // building's placement even while just viewing a floor.
-      this._client.getPropertyLayout(),
-    ]);
+    const [floors, entities, areas, propertyLayout, settings] =
+      await Promise.all([
+        this._client.listFloors(),
+        this._client.listPlaceableEntities(),
+        this._client.listAreas(),
+        // Loaded eagerly (not just when the Property tab itself is opened) —
+        // cross-building mesh stubs (_projectStubTowardBuilding) need each
+        // building's placement even while just viewing a floor.
+        this._client.getPropertyLayout(),
+        this._client.getSettings(),
+      ]);
     this._floors = floors;
     this._entities = entities;
     this._areas = areas;
     this._propertyLayout = propertyLayout;
+    this._settings = settings;
     if (floors.length > 0) {
       await this._selectFloor(floors[0]!.floor_id, { skipDirtyCheck: true });
     }
@@ -998,6 +1025,8 @@ export class SpatialContextPanel extends LitElement {
   private _onToggleBackgroundPopover = () => {
     this._backgroundPopoverOpen = !this._backgroundPopoverOpen;
     this._meshPopoverOpen = false;
+    this._settingsPopoverOpen = false;
+    this._moreOptionsPopoverOpen = false;
   };
 
   /** The popover's open/closed state doubles as the Connectivity Map's
@@ -1009,6 +1038,8 @@ export class SpatialContextPanel extends LitElement {
     const opening = !this._meshPopoverOpen;
     this._meshPopoverOpen = opening;
     this._backgroundPopoverOpen = false;
+    this._settingsPopoverOpen = false;
+    this._moreOptionsPopoverOpen = false;
     if (!opening) {
       this._unsubscribeMatter();
       // Reset to the neutral "nothing picked" state so the *next* open
@@ -1018,6 +1049,30 @@ export class SpatialContextPanel extends LitElement {
       this._selectedMeshLink = null;
       this._selectedMeshStub = null;
     }
+  };
+
+  private _onToggleSettingsPopover = () => {
+    this._settingsPopoverOpen = !this._settingsPopoverOpen;
+    this._backgroundPopoverOpen = false;
+    this._meshPopoverOpen = false;
+    this._moreOptionsPopoverOpen = false;
+  };
+
+  private _onToggleMoreOptionsPopover = () => {
+    this._moreOptionsPopoverOpen = !this._moreOptionsPopoverOpen;
+    this._backgroundPopoverOpen = false;
+    this._meshPopoverOpen = false;
+    this._settingsPopoverOpen = false;
+  };
+
+  /** Instant-apply, no dirty-tracking — this is a small shared app-wide
+   * preference (see types.ts's Settings), not floor/property content, so
+   * it persists the moment you pick it rather than waiting for Save. */
+  private _onUnitSystemSelect = (system: UnitSystem) => {
+    this._settingsPopoverOpen = false;
+    if (this._settings.unit_system === system) return;
+    this._settings = { ...this._settings, unit_system: system };
+    void this._client.saveSettings(this._settings);
   };
 
   // Selecting a layer only changes which one is selected — it never fetches
@@ -1330,12 +1385,15 @@ export class SpatialContextPanel extends LitElement {
   private _onPinSetHeight = () => {
     const pin = this._selectedPin;
     if (!pin) return;
+    const system = this._settings.unit_system;
+    const unitWord = system === "imperial" ? "feet" : "metres";
+    const example = system === "imperial" ? "6" : "1.8";
     const input = window.prompt(
-      "Mounting height in metres above floor level (e.g. 1.8 for a high wall mount; blank to clear):",
-      pin.height_m === null ? "" : String(pin.height_m),
+      `Mounting height in ${unitWord} above floor level (e.g. ${example} for a high wall mount; blank to clear):`,
+      pin.height_m === null ? "" : formatLarge(pin.height_m, system),
     );
     if (input === null) return;
-    const parsed = input.trim() === "" ? null : Number(input);
+    const parsed = input.trim() === "" ? null : parseLarge(input, system);
     this._patchPin(pin.id, {
       height_m: parsed !== null && Number.isFinite(parsed) ? parsed : null,
     });
@@ -1409,15 +1467,13 @@ export class SpatialContextPanel extends LitElement {
     this._editingWallId = null;
   };
 
-  private _onOpeningSetWidth = () => {
+  /** Width is edited live in canvas-overlay.ts's selection panel (a
+   * number input + cm/m-or-in/ft picker), not via a prompt — this just
+   * applies the already-converted canvas-unit value it fires. */
+  private _onOpeningWidthChange = (e: CustomEvent<{ width: number }>) => {
     const opening = this._selectedOpening;
     if (!opening) return;
-    const input = window.prompt(
-      "Width along the wall (stored units):",
-      String(opening.width),
-    );
-    const width = input ? Number(input) : NaN;
-    if (!Number.isFinite(width) || width <= 0) return;
+    const width = e.detail.width;
     this._updateLayout({
       openings: this._layout.openings.map((o) =>
         o.id === opening.id ? { ...o, width } : o,
@@ -1695,11 +1751,13 @@ export class SpatialContextPanel extends LitElement {
   private _onScaleLineComplete = (
     e: CustomEvent<{ points: [number, number][] }>,
   ) => {
+    const system = this._settings.unit_system;
+    const unitWord = system === "imperial" ? "feet" : "metres";
     const input = window.prompt(
-      "Real-world distance between these two points, in metres:",
+      `Real-world distance between these two points, in ${unitWord}:`,
     );
-    const meters = input ? Number(input) : NaN;
-    if (!Number.isFinite(meters) || meters <= 0) return;
+    const meters = input ? parseLarge(input, system) : null;
+    if (meters === null || !Number.isFinite(meters) || meters <= 0) return;
     const points = e.detail.points as [[number, number], [number, number]];
     this._updateLayout({ scale: { points, meters } });
     this._mode = "select";
@@ -1748,12 +1806,9 @@ export class SpatialContextPanel extends LitElement {
         .propertySelected=${this._view === "property"}
         .dirty=${this._view === "property" ? this._propertyDirty : this._dirty}
         .saving=${this._view === "property" ? this._propertySaving : this._saving}
-        .resetTitle=${this._view === "property" ? "Reset property" : "Reset floor"}
         @floor-selected=${this._onFloorSelected}
         @property-selected=${this._onPropertySelected}
         @save-click=${this._onSaveClick}
-        @export-click=${this._onExportClick}
-        @reset-click=${this._onResetClick}
       >
         <icon-popover
           icon="mdi:image"
@@ -1897,6 +1952,56 @@ export class SpatialContextPanel extends LitElement {
               </icon-popover>`
             : nothing
         }
+        <icon-popover
+          slot="end"
+          icon="mdi:tune"
+          label="Settings"
+          .open=${this._settingsPopoverOpen}
+          @toggle=${this._onToggleSettingsPopover}
+        >
+          <span class="popover-row hint" style="padding: 8px 16px 4px"
+            >Units</span
+          >
+          <button
+            class="menu-item ${this._settings.unit_system === "metric" ? "active" : ""}"
+            @click=${() => this._onUnitSystemSelect("metric")}
+          >
+            <ha-icon icon="mdi:ruler"></ha-icon> Metric (m / cm)
+          </button>
+          <button
+            class="menu-item ${this._settings.unit_system === "imperial" ? "active" : ""}"
+            @click=${() => this._onUnitSystemSelect("imperial")}
+          >
+            <ha-icon icon="mdi:ruler"></ha-icon> Imperial (ft / in)
+          </button>
+        </icon-popover>
+        <icon-popover
+          slot="end"
+          icon="mdi:dots-vertical"
+          label="More options"
+          .open=${this._moreOptionsPopoverOpen}
+          @toggle=${this._onToggleMoreOptionsPopover}
+        >
+          <button
+            class="menu-item"
+            @click=${() => {
+              this._moreOptionsPopoverOpen = false;
+              this._onExportClick();
+            }}
+          >
+            <ha-icon icon="mdi:download"></ha-icon> Export JSON
+          </button>
+          <button
+            class="menu-item danger"
+            @click=${() => {
+              this._moreOptionsPopoverOpen = false;
+              this._onResetClick();
+            }}
+          >
+            <ha-icon icon="mdi:delete-sweep"></ha-icon>
+            ${this._view === "property" ? "Reset property" : "Reset floor"}
+          </button>
+        </icon-popover>
       </app-header>
 
       <div class="main">
@@ -1946,6 +2051,7 @@ export class SpatialContextPanel extends LitElement {
                     .walls=${this._layout.walls}
                     .openings=${this._layout.openings}
                     .scale=${this._layout.scale}
+                    .unitSystem=${this._settings.unit_system}
                     .meshLinks=${this._meshLinksForCurrentFloor}
                     .meshStubs=${this._meshStubsForCurrentFloor}
                     .entityLookup=${this._entityLookup}
@@ -1995,6 +2101,8 @@ export class SpatialContextPanel extends LitElement {
                     .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
                     .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
                     .scaleReadout=${this._scaleReadout}
+                    .unitSystem=${this._settings.unit_system}
+                    .unitsPerMeter=${this._unitsPerMeter()}
                     .selectedRoom=${this._selectedRoom}
                     .editingRoom=${!!this._editingRoomId}
                     .areas=${this._areasForCurrentFloor}
@@ -2032,7 +2140,7 @@ export class SpatialContextPanel extends LitElement {
                     @wall-thickness-change=${this._onWallThicknessChange}
                     @wall-edit-vertices-click=${this._onWallEditVertices}
                     @wall-delete-click=${this._onWallDelete}
-                    @opening-set-width-click=${this._onOpeningSetWidth}
+                    @opening-width-change=${this._onOpeningWidthChange}
                     @opening-delete-click=${this._onOpeningDelete}
                     @pin-stack-choose=${this._onPinStackChoose}
                     @pin-stack-dismiss=${this._onPinStackDismiss}

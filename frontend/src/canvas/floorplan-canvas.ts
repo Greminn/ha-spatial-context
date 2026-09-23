@@ -11,6 +11,7 @@ import type {
   ResolvedMeshStub,
   Room,
   Scale,
+  UnitSystem,
   Wall,
   ViewBox,
 } from "../types";
@@ -39,6 +40,7 @@ import { fetchIconPathByName } from "./icon-cache";
 import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
 import { qualityColor } from "./mesh-colors";
 import { GENERIC_DEVICE_ICON_PATH, GROUP_ICON_PATH } from "./pin-icons";
+import { formatLarge, largeUnitLabel } from "../units";
 import { sharedStyles } from "../styles";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
@@ -213,7 +215,10 @@ export class FloorplanCanvas extends LitElement {
         stroke: var(--sc-danger) !important;
       }
       .opening-line {
-        stroke-width: 6;
+        /* Width is set inline per-opening from its own wall's real
+         * thickness (see _renderOpening/_wallStrokeWidth) — matches the
+         * wall it's drawn on instead of one fixed width for every door
+         * and window regardless of what wall they're set into. */
         cursor: pointer;
       }
       .opening-line.door {
@@ -314,6 +319,7 @@ export class FloorplanCanvas extends LitElement {
   @property({ attribute: false }) walls: Wall[] = [];
   @property({ attribute: false }) openings: Opening[] = [];
   @property({ attribute: false }) scale: Scale | null = null;
+  @property({ attribute: false }) unitSystem: UnitSystem = "metric";
   @property({ attribute: false }) meshLinks: ResolvedMeshLink[] = [];
   @property({ attribute: false }) meshStubs: ResolvedMeshStub[] = [];
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
@@ -1680,6 +1686,14 @@ export class FloorplanCanvas extends LitElement {
     const [[x1, y1], [x2, y2]] = ends;
     const selected = opening.id === this.selectedOpeningId;
     const hr = this._pxToUnits(VERTEX_RADIUS_PX);
+    // A door/window's crossing-line matches its own wall's real drawn
+    // thickness, exactly like the wall itself (_renderWall) — a door set
+    // into a thick concrete wall reads visibly thicker than one on a thin
+    // timber partition, instead of every opening sharing one fixed width.
+    const wall = this.walls.find((w) => w.id === opening.wallId);
+    const strokeWidth = wall
+      ? this._wallStrokeWidth(wall, wallMaterial(wall.material))
+      : undefined;
     return svg`
       <line
         class="opening-line ${opening.type} ${selected ? "selected" : ""}"
@@ -1687,6 +1701,7 @@ export class FloorplanCanvas extends LitElement {
         y1=${y1}
         x2=${x2}
         y2=${y2}
+        style=${strokeWidth ? `stroke-width:${strokeWidth}` : nothing}
       >
         <title>${opening.type}</title>
       </line>
@@ -1707,7 +1722,8 @@ export class FloorplanCanvas extends LitElement {
     return svg`
       <line class="scale-line" x1=${x1} y1=${y1} x2=${x2} y2=${y2}></line>
       <text class="scale-label" x=${(x1 + x2) / 2} y=${(y1 + y2) / 2 - 6}>
-        ${this.scale.meters} m
+        ${formatLarge(this.scale.meters, this.unitSystem)}
+        ${largeUnitLabel(this.unitSystem)}
       </text>
     `;
   }

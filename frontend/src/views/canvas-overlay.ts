@@ -1,5 +1,5 @@
-import { LitElement, html, css, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { LitElement, html, css, nothing, type PropertyValues } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
 import type {
   AreaMeta,
   CanvasMode,
@@ -10,11 +10,21 @@ import type {
   ResolvedMeshLink,
   ResolvedMeshStub,
   Room,
+  UnitSystem,
   Wall,
 } from "../types";
 import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
+import {
+  canvasUnitsToDisplayAs,
+  defaultSmallSubUnit,
+  displayToCanvasUnitsAs,
+  formatSmallAs,
+  parseSmallAs,
+  smallSubUnitsFor,
+  type SmallSubUnit,
+} from "../units";
 import { sharedStyles } from "../styles";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -92,6 +102,10 @@ export class CanvasOverlay extends LitElement {
       .wall-thickness {
         width: 52px;
       }
+      .small-unit-select {
+        width: 52px;
+        padding: 4px;
+      }
       .pin-stack {
         position: absolute;
         bottom: 12px;
@@ -152,6 +166,12 @@ export class CanvasOverlay extends LitElement {
   @property({ attribute: false }) selectedPin: Pin | null = null;
   @property({ attribute: false }) selectedWall: Wall | null = null;
   @property({ type: Boolean }) editingWall = false;
+  @property({ attribute: false }) unitSystem: UnitSystem = "metric";
+  /** Canvas units per real metre, from the current floor's Scale
+   * calibration — null when uncalibrated. Only needed for opening width
+   * (see displayToCanvasUnitsAs), since thickness_cm/height_m are already
+   * absolute real values. */
+  @property({ type: Number }) unitsPerMeter: number | null = null;
   @property({ attribute: false }) pinStack: Pin[] | null = null;
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
     new Map();
@@ -165,10 +185,79 @@ export class CanvasOverlay extends LitElement {
   @property({ attribute: false }) alignTargetFloorId: string | null = null;
   @property({ type: Boolean }) alignTargetHasBackground = true;
 
+  /** Which of the system's two sub-units (cm/m, or in/ft) the wall
+   * thickness / opening width inputs currently display in — null means
+   * "use the system default" (defaultSmallSubUnit). Reset to null
+   * whenever a *different* wall/opening gets selected (see willUpdate)
+   * so a fresh selection always starts from the default, but switching
+   * units on the currently-selected one sticks until you select something
+   * else. */
+  @state() private _wallThicknessUnit: SmallSubUnit | null = null;
+  @state() private _openingWidthUnit: SmallSubUnit | null = null;
+
+  override willUpdate(changed: PropertyValues<this>) {
+    if (
+      changed.has("selectedWall") &&
+      changed.get("selectedWall")?.id !== this.selectedWall?.id
+    ) {
+      this._wallThicknessUnit = null;
+    }
+    if (
+      changed.has("selectedOpening") &&
+      changed.get("selectedOpening")?.id !== this.selectedOpening?.id
+    ) {
+      this._openingWidthUnit = null;
+    }
+  }
+
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
       new CustomEvent(name, { detail, bubbles: true, composed: true }),
     );
+  }
+
+  /** cm/m or in/ft picker for a "small" quantity input (wall thickness,
+   * opening width) — the value itself round-trips through units.ts's
+   * formatSmallAs/parseSmallAs, this only ever changes which sub-unit is
+   * displayed, never the underlying stored value. */
+  private _unitSelect(
+    current: SmallSubUnit,
+    onSelect: (unit: SmallSubUnit) => void,
+  ) {
+    return html`
+      <select
+        class="small-unit-select"
+        @change=${(e: Event) =>
+          onSelect((e.target as HTMLSelectElement).value as SmallSubUnit)}
+      >
+        ${smallSubUnitsFor(this.unitSystem).map(
+          (unit) =>
+            html`<option value=${unit} ?selected=${unit === current}>
+              ${unit}
+            </option>`,
+        )}
+      </select>
+    `;
+  }
+
+  /** Cosmetic number-input bounds per sub-unit — the underlying value is
+   * validated for finite/>0 in the @change handlers regardless, these
+   * just keep the spinner/step sane for each unit's typical range. */
+  private _thicknessInputAttrs(unit: SmallSubUnit): {
+    min: string;
+    max: string;
+    step: string;
+  } {
+    switch (unit) {
+      case "cm":
+        return { min: "1", max: "100", step: "0.5" };
+      case "m":
+        return { min: "0.01", max: "1", step: "0.01" };
+      case "in":
+        return { min: "0.5", max: "40", step: "0.1" };
+      case "ft":
+        return { min: "0.02", max: "1.5", step: "0.01" };
+    }
   }
 
   private _modeButton(mode: CanvasMode, icon: string, label: string) {
@@ -412,6 +501,9 @@ export class CanvasOverlay extends LitElement {
     }
     if (this.selectedWall) {
       const wall = this.selectedWall;
+      const wallUnit =
+        this._wallThicknessUnit ?? defaultSmallSubUnit(this.unitSystem);
+      const wallAttrs = this._thicknessInputAttrs(wallUnit);
       return html`
         <div class="selection-panel floating-panel">
           <span class="hint">Wall material</span>
@@ -431,17 +523,24 @@ export class CanvasOverlay extends LitElement {
           <input
             type="number"
             class="wall-thickness"
-            title="Wall thickness (cm)"
-            min="1"
-            max="100"
-            step="0.5"
-            .value=${String(wallThicknessCm(wall))}
-            @change=${(e: Event) =>
-              this._fire("wall-thickness-change", {
-                thicknessCm: Number((e.target as HTMLInputElement).value),
-              })}
+            title="Wall thickness (${wallUnit})"
+            min=${wallAttrs.min}
+            max=${wallAttrs.max}
+            step=${wallAttrs.step}
+            .value=${formatSmallAs(wallThicknessCm(wall), wallUnit)}
+            @change=${(e: Event) => {
+              const cm = parseSmallAs(
+                (e.target as HTMLInputElement).value,
+                wallUnit,
+              );
+              if (cm === null || !Number.isFinite(cm) || cm <= 0) return;
+              this._fire("wall-thickness-change", { thicknessCm: cm });
+            }}
           />
-          <span class="hint">cm</span>
+          ${this._unitSelect(
+            wallUnit,
+            (unit) => (this._wallThicknessUnit = unit),
+          )}
           <button
             title=${this.editingWall ? "Done editing" : "Edit vertices"}
             class=${this.editingWall ? "active" : ""}
@@ -460,15 +559,48 @@ export class CanvasOverlay extends LitElement {
       `;
     }
     if (this.selectedOpening) {
+      const opening = this.selectedOpening;
+      const openingUnit =
+        this._openingWidthUnit ?? defaultSmallSubUnit(this.unitSystem);
+      const openingAttrs = this._thicknessInputAttrs(openingUnit);
+      const unitsPerMeter = this.unitsPerMeter;
       return html`
         <div class="selection-panel floating-panel">
-          <span class="hint">${this.selectedOpening.type}</span>
-          <button
-            title="Set width"
-            @click=${() => this._fire("opening-set-width-click")}
-          >
-            <ha-icon icon="mdi:arrow-expand-horizontal"></ha-icon>
-          </button>
+          <span class="hint">${opening.type}</span>
+          <input
+            type="number"
+            class="wall-thickness"
+            title="Width (${unitsPerMeter !== null ? openingUnit : "stored units"})"
+            min=${unitsPerMeter !== null ? openingAttrs.min : "1"}
+            step=${unitsPerMeter !== null ? openingAttrs.step : "1"}
+            .value=${
+              unitsPerMeter !== null
+                ? canvasUnitsToDisplayAs(
+                    opening.width,
+                    unitsPerMeter,
+                    openingUnit,
+                  )
+                : String(opening.width)
+            }
+            @change=${(e: Event) => {
+              const raw = (e.target as HTMLInputElement).value;
+              const width =
+                unitsPerMeter !== null
+                  ? displayToCanvasUnitsAs(raw, unitsPerMeter, openingUnit)
+                  : Number(raw);
+              if (width === null || !Number.isFinite(width) || width <= 0)
+                return;
+              this._fire("opening-width-change", { width });
+            }}
+          />
+          ${
+            unitsPerMeter !== null
+              ? this._unitSelect(
+                  openingUnit,
+                  (unit) => (this._openingWidthUnit = unit),
+                )
+              : html`<span class="hint">Calibrate Scale for real units</span>`
+          }
           <button
             class="danger"
             title="Delete"

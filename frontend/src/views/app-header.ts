@@ -86,9 +86,6 @@ export class AppHeader extends LitElement {
         border-radius: 50%;
         background: var(--sc-danger);
       }
-      .icon-button.danger ha-icon {
-        color: var(--sc-danger);
-      }
     `,
   ];
 
@@ -97,7 +94,6 @@ export class AppHeader extends LitElement {
   @property({ type: Boolean }) propertySelected = false;
   @property({ type: Boolean }) dirty = false;
   @property({ type: Boolean }) saving = false;
-  @property({ type: String }) resetTitle = "Reset floor";
 
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
@@ -132,20 +128,7 @@ export class AppHeader extends LitElement {
           <ha-icon icon="mdi:content-save"></ha-icon>
           ${this.dirty ? html`<span class="dirty-dot"></span>` : nothing}
         </button>
-        <button
-          class="icon-button"
-          title="Export"
-          @click=${() => this._fire("export-click")}
-        >
-          <ha-icon icon="mdi:download"></ha-icon>
-        </button>
-        <button
-          class="icon-button danger"
-          title=${this.resetTitle}
-          @click=${() => this._fire("reset-click")}
-        >
-          <ha-icon icon="mdi:delete-sweep"></ha-icon>
-        </button>
+        <slot name="end"></slot>
       </div>
     `;
   }

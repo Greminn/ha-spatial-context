@@ -52,6 +52,17 @@ export interface Scale {
   meters: number;
 }
 
+export type UnitSystem = "metric" | "imperial";
+
+/** App-wide preferences, shared across every viewer of the panel (see
+ * ha-client.ts's getSettings/saveSettings and storage.py's `settings` key)
+ * — not per-browser, the same shared-storage model as floors/property.
+ * Storage everywhere else stays real metric SI regardless of this value;
+ * it only governs what units a prompt/input displays and accepts. */
+export interface Settings {
+  unit_system: UnitSystem;
+}
+
 export type OpeningType = "door" | "window";
 
 /** A door or window along a wall. `x`/`y` is the opening's centre point;

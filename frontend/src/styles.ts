@@ -97,4 +97,7 @@ export const sharedStyles = css`
   .menu-item.active ha-icon {
     color: white;
   }
+  .menu-item.danger ha-icon {
+    color: var(--sc-danger);
+  }
 `;
