@@ -33,7 +33,8 @@ def _lock(hass: HomeAssistant) -> asyncio.Lock:
 async def _async_load_all(hass: HomeAssistant) -> dict[str, Any]:
     data = await _store(hass).async_load()
     if not data or "floors" not in data:
-        return {"floors": {}}
+        return {"floors": {}, "property": None}
+    data.setdefault("property", None)
     return data
 
 
@@ -58,11 +59,35 @@ def _empty_floor() -> dict[str, Any]:
         # genuinely separate structure (a detached Garage, say) stays null
         # forever unless it's deliberately aligned to something too.
         "building_id": None,
+        # Saved pan/zoom (see websocket_api.py's _VIEW_BOX_SCHEMA), restored
+        # whenever this floor is opened — None on a floor whose view was
+        # never explicitly saved.
+        "view_box": None,
         "rooms": [],
         "pins": [],
         "walls": [],
         "openings": [],
         "scale": None,
+    }
+
+
+def _empty_property() -> dict[str, Any]:
+    return {
+        "background_image_id": None,
+        "background_opacity": 0.85,
+        "background_offset_x": 0.0,
+        "background_offset_y": 0.0,
+        "background_scale": 1.0,
+        # Saved pan/zoom, restored whenever the Property tab is opened.
+        "view_box": None,
+        # Each placement is a labeled, rotatable rectangle marking one
+        # building's footprint on the property photo. `floor_id` is the
+        # representative/anchor floor used for navigation ("go to floor")
+        # and as the name/icon fallback; `building_id` mirrors
+        # FloorLayout.building_id when the anchor floor has one (null for a
+        # standalone floor acting as its own building, e.g. a detached
+        # garage never aligned to anything).
+        "placements": [],
     }
 
 
@@ -141,4 +166,22 @@ async def async_save_floor_layout(
             ]
 
         data["floors"][floor_id] = layout
+        await _store(hass).async_save(data)
+
+
+async def async_get_property_layout(hass: HomeAssistant) -> dict[str, Any]:
+    """Return the stored whole-property layout, or an empty skeleton."""
+    async with _lock(hass):
+        data = await _async_load_all(hass)
+        return {**_empty_property(), **(data.get("property") or {})}
+
+
+async def async_save_property_layout(
+    hass: HomeAssistant,
+    layout: dict[str, Any],
+) -> None:
+    """Replace-save the single whole-property layout."""
+    async with _lock(hass):
+        data = await _async_load_all(hass)
+        data["property"] = layout
         await _store(hass).async_save(data)

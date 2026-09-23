@@ -12,6 +12,8 @@ import type {
   OpeningType,
   Pin,
   PlaceableEntity,
+  PropertyLayout,
+  PropertyPlacement,
   ResolvedMeshLink,
   Room,
   Wall,
@@ -24,8 +26,10 @@ import {
   backgroundImageUrl,
   emptyFloorLayout,
   emptyPin,
+  emptyPropertyLayout,
   newId,
   newOpening,
+  newPlacement,
   newRoom,
   newWall,
 } from "./ha-client";
@@ -33,10 +37,18 @@ import { findRoomForPoint } from "./canvas/geometry";
 import { sharedStyles } from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
+import "./canvas/property-canvas";
+import {
+  DEFAULT_PLACEMENT_HEIGHT,
+  DEFAULT_PLACEMENT_WIDTH,
+} from "./canvas/property-canvas";
+import type { PropertyCanvas } from "./canvas/property-canvas";
 import "./views/app-header";
 import "./views/canvas-overlay";
 import "./views/icon-popover";
 import "./views/entity-picker-sidebar";
+import "./views/property-overlay";
+import type { PropertyBuilding } from "./views/property-overlay";
 
 @customElement("spatial-context-panel")
 export class SpatialContextPanel extends LitElement {
@@ -154,6 +166,20 @@ export class SpatialContextPanel extends LitElement {
   @state() private _backgroundPopoverOpen = false;
   @state() private _meshPopoverOpen = false;
 
+  // --- Property tab ---------------------------------------------------
+  @state() private _view: "floor" | "property" = "floor";
+  @state() private _propertyLayout: PropertyLayout = emptyPropertyLayout();
+  @state() private _propertyDirty = false;
+  @state() private _propertySaving = false;
+  @state() private _selectedPlacementId: string | null = null;
+  @state() private _propertyMode: "select" | "place" = "select";
+  @state() private _armedBuildingKey: string | null = null;
+  /** Set in `_selectFloor` right before `_layout` is overwritten — passed
+   * to floorplan-canvas.ts as `sameBuildingAsPrevious` so it knows whether
+   * to keep the live pan/zoom when the floor just switched to has no
+   * saved view of its own (see that component's `updated()`). */
+  @state() private _sameBuildingAsPreviousFloor = false;
+
   /** Align Floors mode's working state — none of this is persisted until
    * Apply; Cancel or leaving align mode (see _resetAlignState) just drops
    * it. `_alignOffsetX/Y` + `_alignScale` are the live adjustment the user
@@ -167,6 +193,7 @@ export class SpatialContextPanel extends LitElement {
   @state() private _alignScale = 1;
 
   @query("floorplan-canvas") private _canvas?: FloorplanCanvas;
+  @query("property-canvas") private _propertyCanvas?: PropertyCanvas;
   @query("#file-input") private _fileInput?: HTMLInputElement;
 
   private _hass?: HomeAssistant;
@@ -207,6 +234,89 @@ export class SpatialContextPanel extends LitElement {
 
   private get _otherFloors(): FloorMeta[] {
     return this._floors.filter((f) => f.floor_id !== this._currentFloorId);
+  }
+
+  /** Groups floors into "buildings" for the Property tab — floors sharing
+   * a non-null building_id (linked via Align Floors) collapse to one entry;
+   * a floor that's never been aligned to anything (a detached Garage, say)
+   * is its own building, keyed by its own floor_id. */
+  private get _buildings(): PropertyBuilding[] {
+    const groups = new Map<string, FloorMeta[]>();
+    for (const floor of this._floors) {
+      const key = floor.building_id ?? floor.floor_id;
+      const list = groups.get(key);
+      if (list) list.push(floor);
+      else groups.set(key, [floor]);
+    }
+    return [...groups.entries()].map(([key, floors]) => {
+      const primary = floors[0]!;
+      return {
+        key,
+        name:
+          floors.length > 1
+            ? floors.map((f) => f.name).join(" + ")
+            : primary.name,
+        icon: primary.icon || "mdi:home-city",
+        floorId: primary.floor_id,
+        buildingId: primary.building_id,
+        aspectRatio: this._buildingAspectRatio(floors),
+      };
+    });
+  }
+
+  /** Union of every floor's traced footprint in the group (valid without
+   * any further transform since floors sharing a building_id already
+   * share one coordinate system — that's what Align Floors sets up), or a
+   * neutral fallback ratio when nothing's been traced yet on any of them. */
+  private _buildingAspectRatio(floors: FloorMeta[]): number {
+    const bounds = floors
+      .map((f) => f.content_bounds)
+      .filter((b): b is NonNullable<FloorMeta["content_bounds"]> => b !== null);
+    if (bounds.length === 0) {
+      return DEFAULT_PLACEMENT_WIDTH / DEFAULT_PLACEMENT_HEIGHT;
+    }
+    const minX = Math.min(...bounds.map((b) => b.min_x));
+    const minY = Math.min(...bounds.map((b) => b.min_y));
+    const maxX = Math.max(...bounds.map((b) => b.max_x));
+    const maxY = Math.max(...bounds.map((b) => b.max_y));
+    const width = maxX - minX;
+    const height = maxY - minY;
+    return width > 0 && height > 0
+      ? width / height
+      : DEFAULT_PLACEMENT_WIDTH / DEFAULT_PLACEMENT_HEIGHT;
+  }
+
+  private get _floorNameById(): Map<string, string> {
+    return new Map(this._floors.map((f) => [f.floor_id, f.name]));
+  }
+
+  private get _floorIconById(): Map<string, string> {
+    return new Map(
+      this._floors.map((f) => [f.floor_id, f.icon || "mdi:floor-plan"]),
+    );
+  }
+
+  private get _selectedPlacement(): PropertyPlacement | null {
+    return (
+      this._propertyLayout.placements.find(
+        (p) => p.id === this._selectedPlacementId,
+      ) ?? null
+    );
+  }
+
+  /** Which layout's background fields the header's "Background" popover
+   * currently targets — the floor being viewed, or the whole-property
+   * layout when the Property tab is active (see _onFileInputChange etc). */
+  private get _activeBackground(): { imageId: string | null; opacity: number } {
+    return this._view === "property"
+      ? {
+          imageId: this._propertyLayout.background_image_id,
+          opacity: this._propertyLayout.background_opacity,
+        }
+      : {
+          imageId: this._layout.background_image_id,
+          opacity: this._layout.background_opacity,
+        };
   }
 
   /** The live Align Floors overlay to draw, or null outside align mode /
@@ -376,6 +486,7 @@ export class SpatialContextPanel extends LitElement {
     if (!opts.skipDirtyCheck && this._dirty) {
       if (!window.confirm("Discard unsaved changes to this floor?")) return;
     }
+    this._view = "floor";
     const previousBuildingId = this._layout.building_id;
     this._currentFloorId = floorId;
     this._layout = await this._client.getLayout(floorId);
@@ -384,19 +495,17 @@ export class SpatialContextPanel extends LitElement {
     this._dirty = false;
 
     // Two floors sharing a non-null building_id (see Align Floors) are one
-    // physical building in one coordinate system — keep the current pan/
-    // zoom so switching between them lands on the same physical spot on
-    // screen. Anything else (a never-aligned floor, or a genuinely
-    // separate building like a detached Garage) has no meaningful
-    // correspondence to the previous floor's view, so fit fresh instead of
-    // showing whatever unrelated region happened to be in frame.
-    const sameBuilding =
+    // physical building in one coordinate system — when the floor just
+    // switched to has no saved view of its own, keep the current pan/zoom
+    // so switching between them lands on the same physical spot on screen
+    // rather than refitting. Anything else (a never-aligned floor, or a
+    // genuinely separate building like a detached Garage) has no
+    // meaningful correspondence to the previous floor's view. Actually
+    // applying this (and any saved view_box) happens reactively in
+    // floorplan-canvas.ts's `updated()`, driven by these two props.
+    this._sameBuildingAsPreviousFloor =
       this._layout.building_id !== null &&
       this._layout.building_id === previousBuildingId;
-    if (!sameBuilding) {
-      await this.updateComplete;
-      this._canvas?.fitToScreen();
-    }
   }
 
   /** Align Floors' working state only ever makes sense relative to
@@ -425,6 +534,11 @@ export class SpatialContextPanel extends LitElement {
     if (!this._currentFloorId) return;
     this._saving = true;
     try {
+      // Capture the canvas's current pan/zoom into the layout being
+      // saved, without marking merely panning/zooming as its own dirty
+      // change the rest of the time.
+      const viewBox = this._canvas?.getViewBox() ?? this._layout.view_box;
+      this._layout = { ...this._layout, view_box: viewBox };
       await this._client.saveLayout(this._currentFloorId, this._layout);
       this._dirty = false;
       this._floors = this._floors.map((f) =>
@@ -459,6 +573,154 @@ export class SpatialContextPanel extends LitElement {
     void this._selectFloor(e.detail.floorId);
   };
 
+  // --- property tab -----------------------------------------------------
+
+  private _onPropertySelected = () => void this._selectProperty();
+
+  private async _selectProperty(): Promise<void> {
+    if (this._propertyDirty) {
+      if (!window.confirm("Discard unsaved changes to the property view?"))
+        return;
+    }
+    this._propertyLayout = await this._client.getPropertyLayout();
+    this._propertyDirty = false;
+    this._selectedPlacementId = null;
+    this._propertyMode = "select";
+    this._armedBuildingKey = null;
+    this._view = "property";
+  }
+
+  private _updatePropertyLayout(patch: Partial<PropertyLayout>): void {
+    this._propertyLayout = { ...this._propertyLayout, ...patch };
+    this._propertyDirty = true;
+  }
+
+  private async _saveProperty(): Promise<void> {
+    this._propertySaving = true;
+    try {
+      const viewBox =
+        this._propertyCanvas?.getViewBox() ?? this._propertyLayout.view_box;
+      this._propertyLayout = { ...this._propertyLayout, view_box: viewBox };
+      await this._client.savePropertyLayout(this._propertyLayout);
+      this._propertyDirty = false;
+    } finally {
+      this._propertySaving = false;
+    }
+  }
+
+  private _onPropertyModeChange = (
+    e: CustomEvent<{ mode: "select" | "place" }>,
+  ) => {
+    this._propertyMode = e.detail.mode;
+    this._armedBuildingKey = null;
+    this._selectedPlacementId = null;
+  };
+
+  private _onPlacementArm = (e: CustomEvent<{ key: string }>) => {
+    this._armedBuildingKey = e.detail.key;
+    this._propertyMode = "place";
+    this._selectedPlacementId = null;
+  };
+
+  private _onPlacementPlace = (e: CustomEvent<{ x: number; y: number }>) => {
+    if (!this._armedBuildingKey) return;
+    const building = this._buildings.find(
+      (b) => b.key === this._armedBuildingKey,
+    );
+    if (!building) return;
+    const placement = newPlacement(
+      building.floorId,
+      building.buildingId,
+      e.detail.x,
+      e.detail.y,
+      building.aspectRatio,
+    );
+    this._updatePropertyLayout({
+      placements: [...this._propertyLayout.placements, placement],
+    });
+    this._armedBuildingKey = null;
+    this._propertyMode = "select";
+    this._selectedPlacementId = placement.id;
+  };
+
+  private _patchPlacement(id: string, patch: Partial<PropertyPlacement>): void {
+    this._updatePropertyLayout({
+      placements: this._propertyLayout.placements.map((p) =>
+        p.id === id ? { ...p, ...patch } : p,
+      ),
+    });
+  }
+
+  private _onPlacementMove = (
+    e: CustomEvent<{ id: string; dx: number; dy: number }>,
+  ) => {
+    const p = this._propertyLayout.placements.find(
+      (pl) => pl.id === e.detail.id,
+    );
+    if (!p) return;
+    this._patchPlacement(e.detail.id, {
+      x: p.x + e.detail.dx,
+      y: p.y + e.detail.dy,
+    });
+  };
+
+  private _onPlacementResize = (
+    e: CustomEvent<{
+      id: string;
+      width: number;
+      height: number;
+      x: number;
+      y: number;
+    }>,
+  ) => {
+    this._patchPlacement(e.detail.id, {
+      width: e.detail.width,
+      height: e.detail.height,
+      x: e.detail.x,
+      y: e.detail.y,
+    });
+  };
+
+  private _onPlacementRotate = (
+    e: CustomEvent<{ id: string; rotationDeg: number }>,
+  ) => {
+    this._patchPlacement(e.detail.id, { rotation_deg: e.detail.rotationDeg });
+  };
+
+  private _onPlacementSelect = (e: CustomEvent<{ id: string | null }>) => {
+    this._selectedPlacementId = e.detail.id;
+  };
+
+  private _onPlacementRenameClick = () => {
+    const p = this._selectedPlacement;
+    if (!p) return;
+    const current =
+      p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
+    const name = window.prompt("Label (blank to clear override):", current);
+    if (name === null) return;
+    this._patchPlacement(p.id, { label_override: name || null });
+  };
+
+  private _onPlacementDeleteClick = () => {
+    const p = this._selectedPlacement;
+    if (!p) return;
+    const label =
+      p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
+    if (!window.confirm(`Delete the "${label}" placement?`)) return;
+    this._updatePropertyLayout({
+      placements: this._propertyLayout.placements.filter(
+        (pl) => pl.id !== p.id,
+      ),
+    });
+    this._selectedPlacementId = null;
+  };
+
+  private _onPlacementGotoFloorClick = () => {
+    const p = this._selectedPlacement;
+    if (!p) return;
+    void this._selectFloor(p.floor_id);
+  };
+
   // --- toolbar ----------------------------------------------------------
 
   private _onModeChange = (e: CustomEvent<{ mode: CanvasMode }>) => {
@@ -486,10 +748,27 @@ export class SpatialContextPanel extends LitElement {
     this._editingWallId = null;
   };
 
-  private _onSaveClick = () => void this._save();
+  private _onSaveClick = () => {
+    if (this._view === "property") void this._saveProperty();
+    else void this._save();
+  };
   private _onExportClick = () => void this._export();
 
   private _onResetClick = () => {
+    if (this._view === "property") {
+      if (
+        !window.confirm(
+          "Reset the property view? This clears every building placement and the " +
+            "background photo. Nothing is permanent until you hit Save afterward.",
+        )
+      ) {
+        return;
+      }
+      this._propertyLayout = emptyPropertyLayout();
+      this._propertyDirty = true;
+      this._selectedPlacementId = null;
+      return;
+    }
     const floorName =
       this._floors.find((f) => f.floor_id === this._currentFloorId)?.name ??
       "this floor";
@@ -619,23 +898,29 @@ export class SpatialContextPanel extends LitElement {
     if (!file) return;
     try {
       const imageId = await this._client.uploadBackgroundImage(file);
-      this._updateLayout({
-        background_image_id: imageId,
-        background_opacity: 0.85,
-      });
+      const patch = { background_image_id: imageId, background_opacity: 0.85 };
+      if (this._view === "property") this._updatePropertyLayout(patch);
+      else this._updateLayout(patch);
     } catch (err) {
       window.alert(`Background image upload failed: ${(err as Error).message}`);
     }
   };
 
   private _onRemoveBackgroundClick = () => {
-    this._updateLayout({ background_image_id: null });
+    if (this._view === "property") {
+      this._updatePropertyLayout({ background_image_id: null });
+    } else {
+      this._updateLayout({ background_image_id: null });
+    }
   };
 
   private _onOpacityChange = (e: Event) => {
-    this._updateLayout({
-      background_opacity: Number((e.target as HTMLInputElement).value),
-    });
+    const background_opacity = Number((e.target as HTMLInputElement).value);
+    if (this._view === "property") {
+      this._updatePropertyLayout({ background_opacity });
+    } else {
+      this._updateLayout({ background_opacity });
+    }
   };
 
   private _onCancelPending = () => this._canvas?.cancelPending();
@@ -714,6 +999,16 @@ export class SpatialContextPanel extends LitElement {
       background_offset_y: src.background_offset_y * s + oy,
       background_scale: src.background_scale * s,
       building_id: buildingId,
+      // The target's own saved view is a rectangle in its OLD coordinate
+      // space — transform it the same way as everything else rather than
+      // dropping it, so a view saved before this alignment still points
+      // at the same physical spot afterward.
+      view_box: src.view_box
+        ? (() => {
+            const [x, y] = tp([src.view_box!.x, src.view_box!.y]);
+            return { x, y, w: src.view_box!.w * s, h: src.view_box!.h * s };
+          })()
+        : null,
       rooms: src.rooms.map((r) => ({ ...r, points: r.points.map(tp) })),
       walls: src.walls.map((w) => ({ ...w, points: w.points.map(tp) })),
       pins: src.pins.map((p) => {
@@ -1194,9 +1489,12 @@ export class SpatialContextPanel extends LitElement {
       <app-header
         .floors=${this._floors}
         .selectedFloorId=${this._currentFloorId}
-        .dirty=${this._dirty}
-        .saving=${this._saving}
+        .propertySelected=${this._view === "property"}
+        .dirty=${this._view === "property" ? this._propertyDirty : this._dirty}
+        .saving=${this._view === "property" ? this._propertySaving : this._saving}
+        .resetTitle=${this._view === "property" ? "Reset property" : "Reset floor"}
         @floor-selected=${this._onFloorSelected}
+        @property-selected=${this._onPropertySelected}
         @save-click=${this._onSaveClick}
         @export-click=${this._onExportClick}
         @reset-click=${this._onResetClick}
@@ -1216,10 +1514,10 @@ export class SpatialContextPanel extends LitElement {
           />
           <button class="menu-item" @click=${() => this._fileInput?.click()}>
             <ha-icon icon="mdi:image-plus"></ha-icon>
-            ${this._layout.background_image_id ? "Replace background" : "Upload background"}
+            ${this._activeBackground.imageId ? "Replace background" : "Upload background"}
           </button>
           ${
-            this._layout.background_image_id
+            this._activeBackground.imageId
               ? html`<button
                   class="menu-item"
                   @click=${this._onRemoveBackgroundClick}
@@ -1229,7 +1527,7 @@ export class SpatialContextPanel extends LitElement {
               : nothing
           }
           ${
-            this._layout.background_image_id
+            this._activeBackground.imageId
               ? html`<label
                   class="popover-row hint"
                   style="padding: 8px 16px 4px"
@@ -1239,203 +1537,256 @@ export class SpatialContextPanel extends LitElement {
                     min="0.1"
                     max="1"
                     step="0.05"
-                    .value=${String(this._layout.background_opacity)}
+                    .value=${String(this._activeBackground.opacity)}
                     @input=${this._onOpacityChange}
                   />
                 </label>`
               : nothing
           }
         </icon-popover>
-        <icon-popover
-          icon="mdi:layers"
-          label="Connectivity Map"
-          .open=${this._meshPopoverOpen}
-          @toggle=${this._onToggleMeshPopover}
-        >
-          <div class="layer-list">
-            <button
-              class="menu-item ${this._networkType === "zigbee" ? "active" : ""}"
-              @click=${() => this._onNetworkTypeSelect("zigbee")}
-            >
-              <ha-icon icon="mdi:zigbee"></ha-icon> Zigbee Mesh
-            </button>
-            <button
-              class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
-              @click=${() => this._onNetworkTypeSelect("wifi")}
-            >
-              <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Coverage
-            </button>
-            <button
-              class="menu-item ${this._networkType === "matter" ? "active" : ""}"
-              @click=${() => this._onNetworkTypeSelect("matter")}
-            >
-              <ha-icon icon="mdi:router-wireless"></ha-icon> Matter Network
-            </button>
-          </div>
-          ${
-            this._networkType === null
-              ? html`<span class="hint" style="padding: 4px 16px 8px"
-                  >Pick a network above to load it.</span
-                >`
-              : html`
-                  <div class="quality-legend">
-                    <span
-                      class="legend-gradient"
-                      style="background: linear-gradient(to right, ${qualityColor(
-                        "weak",
-                      )}, ${qualityColor("medium")}, ${qualityColor("strong")})"
-                    ></span>
-                    <div class="legend-labels">
-                      <span>Weak</span><span>Strong</span>
-                    </div>
-                  </div>
-                  ${
-                    this._networkType === "matter" && this._matterUnsubscribe
-                      ? html`<span class="hint" style="padding: 4px 16px 8px"
-                          >● Live</span
-                        >`
-                      : html`<button
-                          class="menu-item"
-                          ?disabled=${meshLoading}
-                          @click=${this._onLoadMesh}
-                        >
-                          <ha-icon icon="mdi:refresh"></ha-icon>
-                          ${
-                            meshLoading
-                              ? this._networkType === "zigbee"
-                                ? `Loading… ${this._zigbeeMeshElapsedSeconds}s (usually 1-2 min)`
-                                : "Loading…"
-                              : this._networkType === "matter"
-                                ? "Connect"
-                                : meshFetchedAt
-                                  ? "Refresh Mesh"
-                                  : "Load Mesh"
-                          }
-                        </button>`
-                  }
-                  ${
-                    meshError
-                      ? html`<span
-                          class="hint"
-                          style="color: var(--sc-danger); padding: 0 16px 8px"
-                          >${meshError}</span
-                        >`
-                      : meshFetchedAt && this._networkType !== "matter"
-                        ? html`<span class="hint" style="padding: 0 16px 8px"
-                            >${this._meshAgeLabel(meshFetchedAt)}</span
-                          >`
-                        : nothing
-                  }
-                `
-          }
-        </icon-popover>
+        ${
+          this._view === "floor"
+            ? html`<icon-popover
+                icon="mdi:layers"
+                label="Connectivity Map"
+                .open=${this._meshPopoverOpen}
+                @toggle=${this._onToggleMeshPopover}
+              >
+                <div class="layer-list">
+                  <button
+                    class="menu-item ${this._networkType === "zigbee" ? "active" : ""}"
+                    @click=${() => this._onNetworkTypeSelect("zigbee")}
+                  >
+                    <ha-icon icon="mdi:zigbee"></ha-icon> Zigbee Mesh
+                  </button>
+                  <button
+                    class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
+                    @click=${() => this._onNetworkTypeSelect("wifi")}
+                  >
+                    <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Coverage
+                  </button>
+                  <button
+                    class="menu-item ${this._networkType === "matter" ? "active" : ""}"
+                    @click=${() => this._onNetworkTypeSelect("matter")}
+                  >
+                    <ha-icon icon="mdi:router-wireless"></ha-icon> Matter
+                    Network
+                  </button>
+                </div>
+                ${
+                  this._networkType === null
+                    ? html`<span class="hint" style="padding: 4px 16px 8px"
+                        >Pick a network above to load it.</span
+                      >`
+                    : html`
+                        <div class="quality-legend">
+                          <span
+                            class="legend-gradient"
+                            style="background: linear-gradient(to right, ${qualityColor(
+                              "weak",
+                            )}, ${qualityColor("medium")}, ${qualityColor("strong")})"
+                          ></span>
+                          <div class="legend-labels">
+                            <span>Weak</span><span>Strong</span>
+                          </div>
+                        </div>
+                        ${
+                          this._networkType === "matter" &&
+                          this._matterUnsubscribe
+                            ? html`<span
+                                class="hint"
+                                style="padding: 4px 16px 8px"
+                                >● Live</span
+                              >`
+                            : html`<button
+                                class="menu-item"
+                                ?disabled=${meshLoading}
+                                @click=${this._onLoadMesh}
+                              >
+                                <ha-icon icon="mdi:refresh"></ha-icon>
+                                ${
+                                  meshLoading
+                                    ? this._networkType === "zigbee"
+                                      ? `Loading… ${this._zigbeeMeshElapsedSeconds}s (usually 1-2 min)`
+                                      : "Loading…"
+                                    : this._networkType === "matter"
+                                      ? "Connect"
+                                      : meshFetchedAt
+                                        ? "Refresh Mesh"
+                                        : "Load Mesh"
+                                }
+                              </button>`
+                        }
+                        ${
+                          meshError
+                            ? html`<span
+                                class="hint"
+                                style="color: var(--sc-danger); padding: 0 16px 8px"
+                                >${meshError}</span
+                              >`
+                            : meshFetchedAt && this._networkType !== "matter"
+                              ? html`<span
+                                  class="hint"
+                                  style="padding: 0 16px 8px"
+                                  >${this._meshAgeLabel(meshFetchedAt)}</span
+                                >`
+                              : nothing
+                        }
+                      `
+                }
+              </icon-popover>`
+            : nothing
+        }
       </app-header>
 
       <div class="main">
-        <div class="canvas-area">
-          <floorplan-canvas
-            .rooms=${this._layout.rooms}
-            .pins=${this._layout.pins}
-            .walls=${this._layout.walls}
-            .openings=${this._layout.openings}
-            .scale=${this._layout.scale}
-            .meshLinks=${this._meshLinksForCurrentFloor}
-            .entityLookup=${this._entityLookup}
-            .backgroundImageUrl=${backgroundImageUrl(this._layout.background_image_id)}
-            .backgroundOpacity=${this._layout.background_opacity}
-            .backgroundOffsetX=${this._layout.background_offset_x}
-            .backgroundOffsetY=${this._layout.background_offset_y}
-            .backgroundScale=${this._layout.background_scale}
-            .alignOverlay=${this._alignOverlay}
-            .mode=${this._mode}
-            .armedEntityId=${this._armedEntityId}
-            .armedOpeningType=${this._armedOpeningType}
-            .selectedRoomId=${this._selectedRoomId}
-            .editingRoomId=${this._editingRoomId}
-            .selectedPinId=${this._selectedPinId}
-            .selectedWallId=${this._selectedWallId}
-            .editingWallId=${this._editingWallId}
-            .selectedOpeningId=${this._selectedOpeningId}
-            @room-trace-complete=${this._onRoomTraceComplete}
-            @room-vertex-changed=${this._onRoomVertexChanged}
-            @room-select=${this._onRoomSelect}
-            @wall-trace-complete=${this._onWallTraceComplete}
-            @wall-vertex-changed=${this._onWallVertexChanged}
-            @wall-select=${this._onWallSelect}
-            @opening-place=${this._onOpeningPlace}
-            @opening-select=${this._onOpeningSelect}
-            @opening-update=${this._onOpeningUpdate}
-            @pin-place=${this._onPinPlace}
-            @pin-move=${this._onPinMove}
-            @pin-select=${this._onPinSelect}
-            @pin-stack-select=${this._onPinStackSelect}
-            @scale-line-complete=${this._onScaleLineComplete}
-            @pending-changed=${this._onPendingChanged}
-            @align-drag=${this._onAlignDrag}
-          ></floorplan-canvas>
-
-          <canvas-overlay
-            .mode=${this._mode}
-            .armedOpeningType=${this._armedOpeningType}
-            .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
-            .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
-            .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
-            .scaleReadout=${this._scaleReadout}
-            .selectedRoom=${this._selectedRoom}
-            .editingRoom=${!!this._editingRoomId}
-            .areas=${this._areasForCurrentFloor}
-            .selectedPin=${this._selectedPin}
-            .selectedWall=${this._selectedWall}
-            .editingWall=${!!this._editingWallId}
-            .selectedOpening=${this._selectedOpening}
-            .pinStack=${this._pinStack}
-            .entityLookup=${this._entityLookup}
-            .otherFloors=${this._otherFloors}
-            .alignTargetFloorId=${this._alignTargetFloorId}
-            .alignTargetHasBackground=${
-              !this._alignTargetLayout ||
-              !!this._alignTargetLayout.background_image_id
-            }
-            @mode-change=${this._onModeChange}
-            @align-target-change=${this._onAlignTargetChange}
-            @align-scale-click=${this._onAlignScaleClick}
-            @align-apply-click=${this._onAlignApply}
-            @align-cancel-click=${this._onAlignCancel}
-            @add-opening-click=${this._onAddOpeningClick}
-            @cancel-pending-click=${this._onCancelPending}
-            @finish-wall-click=${this._onFinishWall}
-            @room-rename-click=${this._onRoomRename}
-            @room-area-change=${this._onRoomAreaChange}
-            @room-edit-vertices-click=${this._onRoomEditVertices}
-            @room-delete-click=${this._onRoomDelete}
-            @pin-set-label-click=${this._onPinSetLabel}
-            @pin-set-icon-click=${this._onPinSetIcon}
-            @pin-set-height-click=${this._onPinSetHeight}
-            @pin-delete-click=${this._onPinDelete}
-            @wall-material-change=${this._onWallMaterialChange}
-            @wall-thickness-change=${this._onWallThicknessChange}
-            @wall-edit-vertices-click=${this._onWallEditVertices}
-            @wall-delete-click=${this._onWallDelete}
-            @opening-set-width-click=${this._onOpeningSetWidth}
-            @opening-delete-click=${this._onOpeningDelete}
-            @pin-stack-choose=${this._onPinStackChoose}
-            @pin-stack-dismiss=${this._onPinStackDismiss}
-            @pin-stack-remove-click=${this._onPinStackRemove}
-          ></canvas-overlay>
-        </div>
         ${
-          this._mode === "place"
-            ? html`<entity-picker-sidebar
-                .entities=${this._entities}
-                .placedEntityIds=${this._placedEntityIds}
-                .armedEntityId=${this._armedEntityId}
-                .floors=${this._floors}
-                .areas=${this._areas}
-                .currentFloorId=${this._currentFloorId}
-                @entity-armed=${this._onEntityArmed}
-                @clear-all-pins=${this._onClearAllPins}
-              ></entity-picker-sidebar>`
-            : nothing
+          this._view === "property"
+            ? html`
+                <div class="canvas-area">
+                  <property-canvas
+                    .placements=${this._propertyLayout.placements}
+                    .floorNameById=${this._floorNameById}
+                    .floorIconById=${this._floorIconById}
+                    .backgroundImageUrl=${backgroundImageUrl(
+                      this._propertyLayout.background_image_id,
+                    )}
+                    .backgroundOpacity=${this._propertyLayout.background_opacity}
+                    .backgroundOffsetX=${this._propertyLayout.background_offset_x}
+                    .backgroundOffsetY=${this._propertyLayout.background_offset_y}
+                    .backgroundScale=${this._propertyLayout.background_scale}
+                    .initialViewBox=${this._propertyLayout.view_box}
+                    .mode=${this._propertyMode}
+                    .selectedPlacementId=${this._selectedPlacementId}
+                    @placement-place=${this._onPlacementPlace}
+                    @placement-move=${this._onPlacementMove}
+                    @placement-resize=${this._onPlacementResize}
+                    @placement-rotate=${this._onPlacementRotate}
+                    @placement-select=${this._onPlacementSelect}
+                  ></property-canvas>
+                  <property-overlay
+                    .mode=${this._propertyMode}
+                    .buildings=${this._buildings}
+                    .armedBuildingKey=${this._armedBuildingKey}
+                    .selectedPlacement=${this._selectedPlacement}
+                    .floorNameById=${this._floorNameById}
+                    @property-mode-change=${this._onPropertyModeChange}
+                    @placement-arm=${this._onPlacementArm}
+                    @placement-rename-click=${this._onPlacementRenameClick}
+                    @placement-delete-click=${this._onPlacementDeleteClick}
+                    @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
+                  ></property-overlay>
+                </div>
+              `
+            : html`
+                <div class="canvas-area">
+                  <floorplan-canvas
+                    .rooms=${this._layout.rooms}
+                    .pins=${this._layout.pins}
+                    .walls=${this._layout.walls}
+                    .openings=${this._layout.openings}
+                    .scale=${this._layout.scale}
+                    .meshLinks=${this._meshLinksForCurrentFloor}
+                    .entityLookup=${this._entityLookup}
+                    .backgroundImageUrl=${backgroundImageUrl(this._layout.background_image_id)}
+                    .backgroundOpacity=${this._layout.background_opacity}
+                    .backgroundOffsetX=${this._layout.background_offset_x}
+                    .backgroundOffsetY=${this._layout.background_offset_y}
+                    .backgroundScale=${this._layout.background_scale}
+                    .alignOverlay=${this._alignOverlay}
+                    .initialViewBox=${this._layout.view_box}
+                    .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
+                    .mode=${this._mode}
+                    .armedEntityId=${this._armedEntityId}
+                    .armedOpeningType=${this._armedOpeningType}
+                    .selectedRoomId=${this._selectedRoomId}
+                    .editingRoomId=${this._editingRoomId}
+                    .selectedPinId=${this._selectedPinId}
+                    .selectedWallId=${this._selectedWallId}
+                    .editingWallId=${this._editingWallId}
+                    .selectedOpeningId=${this._selectedOpeningId}
+                    @room-trace-complete=${this._onRoomTraceComplete}
+                    @room-vertex-changed=${this._onRoomVertexChanged}
+                    @room-select=${this._onRoomSelect}
+                    @wall-trace-complete=${this._onWallTraceComplete}
+                    @wall-vertex-changed=${this._onWallVertexChanged}
+                    @wall-select=${this._onWallSelect}
+                    @opening-place=${this._onOpeningPlace}
+                    @opening-select=${this._onOpeningSelect}
+                    @opening-update=${this._onOpeningUpdate}
+                    @pin-place=${this._onPinPlace}
+                    @pin-move=${this._onPinMove}
+                    @pin-select=${this._onPinSelect}
+                    @pin-stack-select=${this._onPinStackSelect}
+                    @scale-line-complete=${this._onScaleLineComplete}
+                    @pending-changed=${this._onPendingChanged}
+                    @align-drag=${this._onAlignDrag}
+                  ></floorplan-canvas>
+
+                  <canvas-overlay
+                    .mode=${this._mode}
+                    .armedOpeningType=${this._armedOpeningType}
+                    .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
+                    .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
+                    .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
+                    .scaleReadout=${this._scaleReadout}
+                    .selectedRoom=${this._selectedRoom}
+                    .editingRoom=${!!this._editingRoomId}
+                    .areas=${this._areasForCurrentFloor}
+                    .selectedPin=${this._selectedPin}
+                    .selectedWall=${this._selectedWall}
+                    .editingWall=${!!this._editingWallId}
+                    .selectedOpening=${this._selectedOpening}
+                    .pinStack=${this._pinStack}
+                    .entityLookup=${this._entityLookup}
+                    .otherFloors=${this._otherFloors}
+                    .alignTargetFloorId=${this._alignTargetFloorId}
+                    .alignTargetHasBackground=${
+                      !this._alignTargetLayout ||
+                      !!this._alignTargetLayout.background_image_id
+                    }
+                    @mode-change=${this._onModeChange}
+                    @align-target-change=${this._onAlignTargetChange}
+                    @align-scale-click=${this._onAlignScaleClick}
+                    @align-apply-click=${this._onAlignApply}
+                    @align-cancel-click=${this._onAlignCancel}
+                    @add-opening-click=${this._onAddOpeningClick}
+                    @cancel-pending-click=${this._onCancelPending}
+                    @finish-wall-click=${this._onFinishWall}
+                    @room-rename-click=${this._onRoomRename}
+                    @room-area-change=${this._onRoomAreaChange}
+                    @room-edit-vertices-click=${this._onRoomEditVertices}
+                    @room-delete-click=${this._onRoomDelete}
+                    @pin-set-label-click=${this._onPinSetLabel}
+                    @pin-set-icon-click=${this._onPinSetIcon}
+                    @pin-set-height-click=${this._onPinSetHeight}
+                    @pin-delete-click=${this._onPinDelete}
+                    @wall-material-change=${this._onWallMaterialChange}
+                    @wall-thickness-change=${this._onWallThicknessChange}
+                    @wall-edit-vertices-click=${this._onWallEditVertices}
+                    @wall-delete-click=${this._onWallDelete}
+                    @opening-set-width-click=${this._onOpeningSetWidth}
+                    @opening-delete-click=${this._onOpeningDelete}
+                    @pin-stack-choose=${this._onPinStackChoose}
+                    @pin-stack-dismiss=${this._onPinStackDismiss}
+                    @pin-stack-remove-click=${this._onPinStackRemove}
+                  ></canvas-overlay>
+                </div>
+                ${
+                  this._mode === "place"
+                    ? html`<entity-picker-sidebar
+                        .entities=${this._entities}
+                        .placedEntityIds=${this._placedEntityIds}
+                        .armedEntityId=${this._armedEntityId}
+                        .floors=${this._floors}
+                        .areas=${this._areas}
+                        .currentFloorId=${this._currentFloorId}
+                        @entity-armed=${this._onEntityArmed}
+                        @clear-all-pins=${this._onClearAllPins}
+                      ></entity-picker-sidebar>`
+                    : nothing
+                }
+              `
         }
       </div>
     `;

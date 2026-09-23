@@ -14,7 +14,13 @@ from homeassistant.core import HomeAssistant
 
 from . import registry_snapshot, wifi_mesh, zigbee_mesh
 from .export import async_get_map_data
-from .storage import async_get_floor_layout, async_save_floor_layout, async_set_floor_building_id
+from .storage import (
+    async_get_floor_layout,
+    async_get_property_layout,
+    async_save_floor_layout,
+    async_save_property_layout,
+    async_set_floor_building_id,
+)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/list_floors"})
@@ -93,6 +99,36 @@ _SCALE_SCHEMA = vol.Any(
     None,
 )
 
+_VIEW_BOX_SCHEMA = vol.Any(
+    {
+        vol.Required("x"): vol.Coerce(float),
+        vol.Required("y"): vol.Coerce(float),
+        vol.Required("w"): vol.Coerce(float),
+        vol.Required("h"): vol.Coerce(float),
+    },
+    None,
+)
+
+_PLACEMENT_SCHEMA = {
+    vol.Required("id"): str,
+    # None for a standalone floor acting as its own building (never
+    # aligned to anything, e.g. a detached Garage) — mirrors
+    # FloorLayout.building_id.
+    vol.Optional("building_id"): vol.Any(str, None),
+    vol.Required("floor_id"): str,
+    vol.Optional("label_override"): vol.Any(str, None),
+    vol.Required("x"): vol.Coerce(float),
+    vol.Required("y"): vol.Coerce(float),
+    vol.Required("width"): vol.Coerce(float),
+    vol.Required("height"): vol.Coerce(float),
+    vol.Required("rotation_deg"): vol.Coerce(float),
+    # width/height's locked ratio, captured from the building's traced
+    # footprint at placement time (see registry_snapshot.py's
+    # _content_bounds) — resize preserves this instead of letting the
+    # rectangle be freely squashed/stretched away from the real shape.
+    vol.Required("aspect_ratio"): vol.Coerce(float),
+}
+
 
 @websocket_api.websocket_command(
     {
@@ -104,6 +140,7 @@ _SCALE_SCHEMA = vol.Any(
         vol.Required("background_offset_y"): vol.Coerce(float),
         vol.Required("background_scale"): vol.Coerce(float),
         vol.Required("building_id"): vol.Any(str, None),
+        vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("rooms"): [_ROOM_SCHEMA],
         vol.Required("pins"): [_PIN_SCHEMA],
         vol.Required("walls"): [_WALL_SCHEMA],
@@ -126,6 +163,7 @@ async def ws_save_layout(
         "background_offset_y": msg["background_offset_y"],
         "background_scale": msg["background_scale"],
         "building_id": msg["building_id"],
+        "view_box": msg["view_box"],
         "rooms": msg["rooms"],
         "pins": msg["pins"],
         "walls": msg["walls"],
@@ -154,6 +192,53 @@ async def ws_set_building_id(
     (see Align Floors, panel.ts's _onAlignApply) without touching the rest
     of its layout."""
     await async_set_floor_building_id(hass, msg["floor_id"], msg["building_id"])
+    connection.send_result(msg["id"], {"success": True})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "spatial_context/get_property_layout"}
+)
+@websocket_api.async_response
+async def ws_get_property_layout(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Return the whole-property layout (background photo + building
+    placements — see the Property tab), or an empty skeleton."""
+    layout = await async_get_property_layout(hass)
+    connection.send_result(msg["id"], layout)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "spatial_context/save_property_layout",
+        vol.Required("background_image_id"): vol.Any(str, None),
+        vol.Required("background_opacity"): vol.Coerce(float),
+        vol.Required("background_offset_x"): vol.Coerce(float),
+        vol.Required("background_offset_y"): vol.Coerce(float),
+        vol.Required("background_scale"): vol.Coerce(float),
+        vol.Required("view_box"): _VIEW_BOX_SCHEMA,
+        vol.Required("placements"): [_PLACEMENT_SCHEMA],
+    }
+)
+@websocket_api.async_response
+async def ws_save_property_layout(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Full replace-save of the whole-property layout."""
+    layout = {
+        "background_image_id": msg["background_image_id"],
+        "background_opacity": msg["background_opacity"],
+        "background_offset_x": msg["background_offset_x"],
+        "background_offset_y": msg["background_offset_y"],
+        "background_scale": msg["background_scale"],
+        "view_box": msg["view_box"],
+        "placements": msg["placements"],
+    }
+    await async_save_property_layout(hass, layout)
     connection.send_result(msg["id"], {"success": True})
 
 
@@ -255,6 +340,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_layout)
     websocket_api.async_register_command(hass, ws_save_layout)
     websocket_api.async_register_command(hass, ws_set_building_id)
+    websocket_api.async_register_command(hass, ws_get_property_layout)
+    websocket_api.async_register_command(hass, ws_save_property_layout)
     websocket_api.async_register_command(hass, ws_list_areas)
     websocket_api.async_register_command(hass, ws_list_placeable_entities)
     websocket_api.async_register_command(hass, ws_export_snapshot)

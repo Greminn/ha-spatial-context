@@ -15,13 +15,26 @@ export class FloorTabs extends LitElement {
       button {
         height: 100%;
         border-radius: 0;
-        padding: 0 32px;
+        padding: 0 24px;
         font-size: 14px;
         font-weight: 400;
         letter-spacing: normal;
         text-transform: none;
         color: var(--sc-fg);
         border-bottom: 2px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button ha-icon {
+        --mdc-icon-size: 18px;
+      }
+      .divider {
+        width: 1px;
+        height: 24px;
+        align-self: center;
+        background: var(--sc-divider);
+        margin: 0 4px;
       }
       button:hover {
         background: transparent;
@@ -45,13 +58,18 @@ export class FloorTabs extends LitElement {
 
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) selectedFloorId: string | null = null;
+  @property({ type: Boolean }) propertySelected = false;
 
   override render() {
     return html`
       ${this.floors.map(
         (floor) => html`
           <button
-            class=${floor.floor_id === this.selectedFloorId ? "active" : ""}
+            class=${
+              !this.propertySelected && floor.floor_id === this.selectedFloorId
+                ? "active"
+                : ""
+            }
             @click=${() =>
               this.dispatchEvent(
                 new CustomEvent("floor-selected", {
@@ -61,10 +79,25 @@ export class FloorTabs extends LitElement {
                 }),
               )}
           >
+            <ha-icon icon=${floor.icon || "mdi:floor-plan"}></ha-icon>
             <span class=${floor.has_layout ? "" : "unset"}>${floor.name}</span>
           </button>
         `,
       )}
+      <span class="divider"></span>
+      <button
+        class=${this.propertySelected ? "active" : ""}
+        @click=${() =>
+          this.dispatchEvent(
+            new CustomEvent("property-selected", {
+              bubbles: true,
+              composed: true,
+            }),
+          )}
+      >
+        <ha-icon icon="mdi:map"></ha-icon>
+        <span>Property</span>
+      </button>
     `;
   }
 }

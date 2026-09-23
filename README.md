@@ -8,7 +8,7 @@ A Home Assistant custom integration for tracing your home's floor plans and plac
 
 ## What it does
 
-Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with an RF-attenuation material) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter mesh topology directly on the map.
+Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo, to see how everything relates at a glance. Your chosen pan/zoom on each tab is remembered across visits once saved.
 
 ## Toolbar (top-left, over the canvas)
 
@@ -19,7 +19,7 @@ One tool is active at a time; clicking the active tool again returns to Select. 
 | <img src="https://api.iconify.design/mdi/cursor-default-click.svg?color=%23888888" width="20"> | **Select** | The default mode — click anything to select it and edit it (rename, change area/material, edit vertices, delete) via the panel that appears bottom-left. | Click a room, wall, door/window, or device pin. Drag a selected shape's vertex handles to reshape it, or drag a pin to move it. Dragging empty canvas pans the view. |
 | <img src="https://api.iconify.design/mdi/hand-back-right-outline.svg?color=%23888888" width="20"> | **Pan** | Move around the floor plan without any risk of accidentally selecting or dragging something — every drag pans, even over walls/pins. | Click the tool, then drag anywhere. Mouse wheel/trackpad scroll also pans in any mode; the **+ / −** buttons (bottom-right) zoom. |
 | <img src="https://api.iconify.design/mdi/vector-square.svg?color=%23888888" width="20"> | **Trace Room** | Draw a room's outline as a polygon. | Click each corner in order; click back near your starting point to close the loop. Select the finished room to assign it to a real HA area and rename it. |
-| <img src="https://api.iconify.design/mdi/wall.svg?color=%23888888" width="20"> | **Trace Wall** | Draw a wall as a line (open or closed), tagged with a material for RF-attenuation reasoning. | Click each point along the wall; click **Finish Wall** in the hint bar to end it as an open run, or click back near the start to close it into a loop. Select the finished wall to set its material (timber-framed, brick veneer, concrete/block, glass, steel frame). |
+| <img src="https://api.iconify.design/mdi/wall.svg?color=%23888888" width="20"> | **Trace Wall** | Draw a wall as a line (open or closed), tagged with a material and real thickness for RF-attenuation reasoning. | Click each point along the wall; click **Finish Wall** in the hint bar to end it as an open run, or click back near the start to close it into a loop. Select the finished wall to set its material (timber-framed, brick veneer, concrete/block, aerated/foam concrete block, ceramic/Poroton block, glass, steel frame) and its thickness in cm — attenuation is that material's per-cm rate × the wall's actual thickness, and once the floor is calibrated the drawn line width scales to match. |
 | <img src="https://api.iconify.design/mdi/door.svg?color=%23888888" width="20"> | **Add Door** | Place a door along an existing wall. | Click on a traced wall at the point where the door sits. |
 | <img src="https://api.iconify.design/mdi/window-closed-variant.svg?color=%23888888" width="20"> | **Add Window** | Place a window along an existing wall. | Same as Add Door — click on a traced wall at the point where the window sits. |
 | <img src="https://api.iconify.design/mdi/ruler.svg?color=%23888888" width="20"> | **Set Scale** | Calibrate the floor's real-world scale, so every other measurement (device spacing, exports) is in metres instead of arbitrary drawing units. | Click two points a known real-world distance apart (e.g. two ends of a wall you've measured), then enter that distance in metres when prompted. Re-run any time to recalibrate. |
@@ -32,9 +32,19 @@ One tool is active at a time; clicking the active tool again returns to Select. 
 |---|---|---|
 | <img src="https://api.iconify.design/mdi/image.svg?color=%23888888" width="20"> | **Background** | Upload, replace, or remove the current floor's background image, and adjust its opacity. |
 | <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Toggle a live mesh overlay — Zigbee, Wi-Fi, or Matter/Thread — drawn between your placed devices, quality-graded (LQI/RSSI where available). Off by default; picking a layer and hitting Load/Refresh/Connect fetches it. Closing this menu turns the overlay back off. |
-| <img src="https://api.iconify.design/mdi/content-save.svg?color=%23888888" width="20"> | **Save** | Save the current floor's layout. A dot badge shows when there are unsaved changes. |
+| <img src="https://api.iconify.design/mdi/content-save.svg?color=%23888888" width="20"> | **Save** | Save the current floor's (or Property tab's) layout, including whatever pan/zoom you're currently looking at — that view is restored next time you open this floor/tab. A dot badge shows when there are unsaved changes. |
 | <img src="https://api.iconify.design/mdi/download.svg?color=%23888888" width="20"> | **Export** | Download a denormalized JSON snapshot (floors → rooms → devices, in real metres once calibrated) for use outside Home Assistant. |
-| <img src="https://api.iconify.design/mdi/delete-sweep.svg?color=%23888888" width="20"> | **Reset Floor** | Clear the current floor's rooms/walls/devices/background entirely, to re-trace from scratch. Asks for confirmation first, and only takes effect once you also hit Save. |
+| <img src="https://api.iconify.design/mdi/delete-sweep.svg?color=%23888888" width="20"> | **Reset Floor / Reset Property** | Clear the current floor's rooms/walls/devices/background (or, on the Property tab, every building placement and the site photo) entirely, to start over. Asks for confirmation first, and only takes effect once you also hit Save. |
+
+## Floor tabs & the Property tab
+
+The tab bar shows one tab per HA floor (with that floor's own icon, or a generic floor icon if it hasn't been given one), plus a fixed **Property** tab (<img src="https://api.iconify.design/mdi/map.svg?color=%23888888" width="16">) at the end.
+
+The Property tab is a separate, whole-property view — upload a site/aerial photo (same **Background** menu as a floor), then place a labeled, rotatable rectangle for each *building*: two floors linked via **Align Floors** collapse to a single placement (so a multi-story house shows as one shape), while a floor that's never been aligned to anything (a detached garage, say) gets its own.
+
+- **Place Building**: pick a building from the dropdown in the top-left toolbar, then click the site photo to drop it there.
+- Select a placement to **drag it into position**, **drag a corner to resize it** (the opposite corner stays fixed, and the shape is locked to that building's real proportions — computed from its traced rooms/walls, so it can't be squashed into an unrealistic shape), or **drag the handle above it to rotate** it to match the photo's orientation.
+- The selection panel also offers **Rename** (a label override), **Delete**, and **Go to floor** — jumps straight to that building's own floor tab.
 
 ## Getting a background image
 

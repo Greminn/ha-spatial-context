@@ -94,8 +94,10 @@ export class AppHeader extends LitElement {
 
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) selectedFloorId: string | null = null;
+  @property({ type: Boolean }) propertySelected = false;
   @property({ type: Boolean }) dirty = false;
   @property({ type: Boolean }) saving = false;
+  @property({ type: String }) resetTitle = "Reset floor";
 
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
@@ -110,13 +112,14 @@ export class AppHeader extends LitElement {
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
-            v0.1.0-beta.1 · Floor plan &amp; device mapping
+            v0.2.0-beta.1 · Floor plan &amp; device mapping
           </div>
         </div>
       </div>
       <floor-tabs
         .floors=${this.floors}
         .selectedFloorId=${this.selectedFloorId}
+        .propertySelected=${this.propertySelected}
       ></floor-tabs>
       <div class="actions">
         <slot></slot>
@@ -138,7 +141,7 @@ export class AppHeader extends LitElement {
         </button>
         <button
           class="icon-button danger"
-          title="Reset floor"
+          title=${this.resetTitle}
           @click=${() => this._fire("reset-click")}
         >
           <ha-icon icon="mdi:delete-sweep"></ha-icon>

@@ -10,6 +10,7 @@ import type {
   Room,
   Scale,
   Wall,
+  ViewBox,
 } from "../types";
 import {
   centroid,
@@ -47,13 +48,6 @@ const SNAP_THRESHOLD_PX = 10;
 const VERTEX_RADIUS_PX = 6;
 const MIDPOINT_RADIUS_PX = 4;
 const PIN_RADIUS_PX = 12;
-
-interface ViewBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 /** What's currently being vertex-edited — a room (closed ring, min 3 points)
  * or a wall (open polyline, min 2 points). Only one at a time. */
@@ -298,6 +292,16 @@ export class FloorplanCanvas extends LitElement {
   @property({ type: Number }) backgroundOffsetY = 0;
   @property({ type: Number }) backgroundScale = 1;
   @property({ attribute: false }) alignOverlay: AlignOverlay | null = null;
+  /** The currently-selected floor's saved pan/zoom — applied (see
+   * `updated()`) whenever this reference changes, i.e. on every floor
+   * switch, in preference to the same-building/fit-fresh fallback below. */
+  @property({ attribute: false }) initialViewBox: ViewBox | null = null;
+  /** Whether the floor just switched TO shares a building_id with the one
+   * switched FROM — when `initialViewBox` is null, this decides whether to
+   * keep the current live pan/zoom (same building, existing continuity
+   * behavior) or fit fresh (different/no building). See panel.ts's
+   * `_selectFloor`. */
+  @property({ type: Boolean }) sameBuildingAsPrevious = false;
   @property({ attribute: false }) mode: CanvasMode = "select";
   @property({ attribute: false }) armedEntityId: string | null = null;
   @property({ attribute: false }) armedOpeningType: OpeningType | null = null;
@@ -422,6 +426,19 @@ export class FloorplanCanvas extends LitElement {
       };
       img.src = this.backgroundImageUrl;
     }
+    if (changed.has("initialViewBox")) {
+      if (this.initialViewBox) {
+        this._viewBox = { ...this.initialViewBox };
+        this._hasFittedOnce = true;
+      } else if (!this.sameBuildingAsPrevious) {
+        this.fitToScreen();
+        this._hasFittedOnce =
+          this._contentBounds() !== null || !this.backgroundImageUrl;
+      }
+      // else: same building, no saved view for the floor just switched to
+      // — leave the live pan/zoom exactly as it was (existing continuity
+      // behavior for floors that haven't explicitly saved a view yet).
+    }
     if (changed.has("alignOverlay")) {
       const prev = changed.get("alignOverlay") as
         AlignOverlay | null | undefined;
@@ -480,6 +497,12 @@ export class FloorplanCanvas extends LitElement {
       w: BASE_WIDTH,
       h: this._naturalHeight,
     };
+  }
+
+  /** The live pan/zoom right now — read by panel.ts at Save time so the
+   * current viewing angle gets persisted alongside everything else. */
+  getViewBox(): ViewBox {
+    return { ...this._viewBox };
   }
 
   /**

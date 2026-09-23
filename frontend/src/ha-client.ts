@@ -9,6 +9,8 @@ import type {
   OpeningType,
   Pin,
   PlaceableEntity,
+  PropertyLayout,
+  PropertyPlacement,
   Room,
   Wall,
   WifiMesh,
@@ -49,6 +51,7 @@ export class HaClient {
       background_offset_y: layout.background_offset_y,
       background_scale: layout.background_scale,
       building_id: layout.building_id,
+      view_box: layout.view_box,
       rooms: layout.rooms,
       pins: layout.pins,
       walls: layout.walls,
@@ -69,6 +72,27 @@ export class HaClient {
       type: "spatial_context/set_building_id",
       floor_id: floorId,
       building_id: buildingId,
+    });
+  }
+
+  async getPropertyLayout(): Promise<PropertyLayout> {
+    return this.hass.connection.sendMessagePromise<PropertyLayout>({
+      type: "spatial_context/get_property_layout",
+    });
+  }
+
+  async savePropertyLayout(
+    layout: PropertyLayout,
+  ): Promise<{ success: boolean }> {
+    return this.hass.connection.sendMessagePromise({
+      type: "spatial_context/save_property_layout",
+      background_image_id: layout.background_image_id,
+      background_opacity: layout.background_opacity,
+      background_offset_x: layout.background_offset_x,
+      background_offset_y: layout.background_offset_y,
+      background_scale: layout.background_scale,
+      view_box: layout.view_box,
+      placements: layout.placements,
     });
   }
 
@@ -196,6 +220,53 @@ export function newOpening(
   return { id: newId("opening"), wallId, type, x, y, width };
 }
 
+/** New placements are sized to this on their longer side, with the other
+ * side derived from `aspectRatio` — the actual on-screen starting size is
+ * cosmetic, since the user resizes it into place; what matters is starting
+ * proportional to the real building rather than an arbitrary rectangle. */
+const NEW_PLACEMENT_LONG_SIDE = 220;
+
+export function newPlacement(
+  floorId: string,
+  buildingId: string | null,
+  x: number,
+  y: number,
+  aspectRatio: number,
+): PropertyPlacement {
+  const width =
+    aspectRatio >= 1
+      ? NEW_PLACEMENT_LONG_SIDE
+      : NEW_PLACEMENT_LONG_SIDE * aspectRatio;
+  const height =
+    aspectRatio >= 1
+      ? NEW_PLACEMENT_LONG_SIDE / aspectRatio
+      : NEW_PLACEMENT_LONG_SIDE;
+  return {
+    id: newId("placement"),
+    building_id: buildingId,
+    floor_id: floorId,
+    label_override: null,
+    x,
+    y,
+    width,
+    height,
+    rotation_deg: 0,
+    aspect_ratio: aspectRatio,
+  };
+}
+
+export function emptyPropertyLayout(): PropertyLayout {
+  return {
+    background_image_id: null,
+    background_opacity: 0.85,
+    background_offset_x: 0,
+    background_offset_y: 0,
+    background_scale: 1,
+    view_box: null,
+    placements: [],
+  };
+}
+
 export function emptyFloorLayout(): FloorLayout {
   return {
     background_image_id: null,
@@ -204,6 +275,7 @@ export function emptyFloorLayout(): FloorLayout {
     background_offset_y: 0,
     background_scale: 1,
     building_id: null,
+    view_box: null,
     rooms: [],
     pins: [],
     walls: [],

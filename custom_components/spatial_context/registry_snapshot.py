@@ -19,7 +19,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.loader import async_get_integration
 
-from .storage import async_floor_has_layout, async_get_all_layouts
+from .storage import async_get_all_layouts
 
 # Entity domains that represent an actual kind of physical device worth a
 # pin/icon on the map. Deliberately excludes domains that are inherently
@@ -52,18 +52,51 @@ _PLACEABLE_DOMAINS = frozenset(
 )
 
 
+def _content_bounds(layout: dict[str, Any]) -> dict[str, float] | None:
+    """A floor's traced footprint extent (rooms + walls only, not pins) —
+    used by the Property tab to lock a building's placement rectangle to
+    its real proportions instead of letting it be freely squashed/
+    stretched (see websocket_api.py's _PLACEMENT_SCHEMA `aspect_ratio`).
+    Two floors sharing a building_id (Align Floors) already share one
+    coordinate system, so their bounds can be unioned directly by the
+    frontend without any further transform.
+    """
+    points: list[list[float]] = []
+    for room in layout.get("rooms", []):
+        points.extend(room.get("points", []))
+    for wall in layout.get("walls", []):
+        points.extend(wall.get("points", []))
+    if not points:
+        return None
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return {"min_x": min(xs), "min_y": min(ys), "max_x": max(xs), "max_y": max(ys)}
+
+
 async def async_list_floors(hass: HomeAssistant) -> list[dict[str, Any]]:
-    """List every floor known to HA, annotated with whether it has a saved layout."""
+    """List every floor known to HA, annotated with whether it has a saved
+    layout, which building it belongs to, and its traced footprint extent.
+
+    `building_id` lets the frontend group floors into buildings (see the
+    Property tab) without a per-floor round-trip — Top Floor + Bottom Floor
+    of the same house share a non-null building_id (set by Align Floors);
+    a floor that's never been aligned to anything (a detached Garage, say)
+    comes back with building_id None and is its own building.
+    """
     floor_registry = fr.async_get(hass)
+    all_layouts = await async_get_all_layouts(hass)
     floors = []
     for floor in floor_registry.async_list_floors():
+        layout = all_layouts.get(floor.floor_id)
         floors.append(
             {
                 "floor_id": floor.floor_id,
                 "name": floor.name,
                 "level": floor.level,
                 "icon": floor.icon,
-                "has_layout": await async_floor_has_layout(hass, floor.floor_id),
+                "has_layout": layout is not None,
+                "building_id": layout.get("building_id") if layout else None,
+                "content_bounds": _content_bounds(layout) if layout else None,
             }
         )
     # Matches HA's own Settings -> Areas page: highest level first (top

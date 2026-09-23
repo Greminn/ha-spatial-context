@@ -55,6 +55,18 @@ export interface Opening {
   width: number;
 }
 
+/** The canvas's visible region in its own stored coordinate space — what
+ * `fitToScreen()`/pan/zoom actually manipulate. Persisted per floor (and
+ * once for the Property tab) so a chosen viewing angle survives switching
+ * away and back, captured at Save time from whatever the canvas is
+ * currently showing (see panel.ts's `_save`/`_saveProperty`). */
+export interface ViewBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface FloorLayout {
   background_image_id: string | null;
   background_opacity: number;
@@ -74,11 +86,26 @@ export interface FloorLayout {
    * current pan/zoom (same building) or fit fresh (different building) —
    * see panel.ts's _selectFloor. */
   building_id: string | null;
+  /** Saved pan/zoom — restored whenever this floor is opened, in
+   * preference to the same-building/fit-fresh fallback above. Null on a
+   * floor whose view was never explicitly saved. */
+  view_box: ViewBox | null;
   rooms: Room[];
   pins: Pin[];
   walls: Wall[];
   openings: Opening[];
   scale: Scale | null;
+}
+
+/** A floor's traced footprint extent (rooms + walls only), in that floor's
+ * own stored coordinate space. Two floors sharing a building_id already
+ * share one coordinate system (Align Floors), so their bounds can be
+ * unioned directly — see panel.ts's `_buildings`. */
+export interface ContentBounds {
+  min_x: number;
+  min_y: number;
+  max_x: number;
+  max_y: number;
 }
 
 export interface FloorMeta {
@@ -87,6 +114,45 @@ export interface FloorMeta {
   level: number | null;
   icon: string | null;
   has_layout: boolean;
+  /** Non-null when this floor has been linked to another via Align Floors
+   * (see FloorLayout.building_id) — floors sharing a building_id collapse
+   * to one placement on the Property tab. Null means this floor is its own
+   * building (e.g. a detached Garage never aligned to anything). */
+  building_id: string | null;
+  content_bounds: ContentBounds | null;
+}
+
+/** One building's labeled, rotatable footprint on the Property tab's
+ * site photo. `floor_id` is the representative/anchor floor used for
+ * navigation ("go to floor") and as the name/icon fallback; `building_id`
+ * mirrors that floor's own FloorLayout.building_id (null for a standalone
+ * floor acting as its own building). `x`/`y` is the rectangle's *center*,
+ * `rotation_deg` is applied about that center. */
+export interface PropertyPlacement {
+  id: string;
+  building_id: string | null;
+  floor_id: string;
+  label_override: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation_deg: number;
+  /** width/height's locked ratio, captured from the building's traced
+   * footprint at placement time — resize preserves this instead of
+   * letting the rectangle be freely squashed/stretched. */
+  aspect_ratio: number;
+}
+
+export interface PropertyLayout {
+  background_image_id: string | null;
+  background_opacity: number;
+  background_offset_x: number;
+  background_offset_y: number;
+  background_scale: number;
+  /** Saved pan/zoom, restored whenever the Property tab is opened. */
+  view_box: ViewBox | null;
+  placements: PropertyPlacement[];
 }
 
 export interface AreaMeta {
