@@ -13,6 +13,28 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Where a ray from (px, py) in direction (dx, dy) exits an axis-aligned
+ * box, or null if it's already heading away from every edge (dx/dy both
+ * zero, or the box is degenerate). Assumes (px, py) starts inside the box
+ * — used to project a cross-floor mesh stub from a pin out to the edge of
+ * the floor's traced content in a real compass bearing (see panel.ts's
+ * `_projectStubTowardBuilding`). */
+export function rayBoxExit(
+  px: number,
+  py: number,
+  dx: number,
+  dy: number,
+  box: { minX: number; minY: number; maxX: number; maxY: number },
+): { x: number; y: number } | null {
+  const tx =
+    dx > 0 ? (box.maxX - px) / dx : dx < 0 ? (box.minX - px) / dx : Infinity;
+  const ty =
+    dy > 0 ? (box.maxY - py) / dy : dy < 0 ? (box.minY - py) / dy : Infinity;
+  const t = Math.min(tx, ty);
+  if (!isFinite(t) || t <= 0) return null;
+  return { x: px + dx * t, y: py + dy * t };
+}
+
 /** Even-odd ray casting point-in-polygon test. */
 export function pointInPolygon(
   x: number,

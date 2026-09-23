@@ -1,5 +1,6 @@
 import { LitElement, html, svg, css, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import { mdiFloorPlan } from "@mdi/js";
 import type {
   CanvasMode,
   Opening,
@@ -7,6 +8,7 @@ import type {
   PlaceableEntity,
   Pin,
   ResolvedMeshLink,
+  ResolvedMeshStub,
   Room,
   Scale,
   Wall,
@@ -24,16 +26,19 @@ import {
   snapToAxis,
 } from "./geometry";
 import {
+  findMeshLinkAt,
+  findMeshStubAt,
   findOpeningAt,
   findPinsAt,
   findVertexAt,
   findWallAt,
 } from "./pin-tool";
 import { addTracePoint, startTrace, type PendingTrace } from "./polygon-tool";
+import { pinDisplayLabel, pinIntegrationDomain } from "./device-display";
 import { fetchIconPathByName } from "./icon-cache";
 import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
 import { qualityColor } from "./mesh-colors";
-import { GROUP_ICON_PATH, pinColor, pinIconPath } from "./pin-icons";
+import { GENERIC_DEVICE_ICON_PATH, GROUP_ICON_PATH } from "./pin-icons";
 import { sharedStyles } from "../styles";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
@@ -48,6 +53,7 @@ const SNAP_THRESHOLD_PX = 10;
 const VERTEX_RADIUS_PX = 6;
 const MIDPOINT_RADIUS_PX = 4;
 const PIN_RADIUS_PX = 12;
+const MESH_STUB_RADIUS_PX = 10;
 
 /** What's currently being vertex-edited — a room (closed ring, min 3 points)
  * or a wall (open polyline, min 2 points). Only one at a time. */
@@ -75,6 +81,8 @@ type DownHit =
   | { type: "wall"; wall: Wall }
   | { type: "opening"; opening: Opening }
   | { type: "openingHandle"; opening: Opening; whichEnd: 0 | 1 }
+  | { type: "meshLink"; link: ResolvedMeshLink }
+  | { type: "meshStub"; stub: ResolvedMeshStub }
   | { type: "empty" };
 
 type Gesture =
@@ -146,7 +154,30 @@ export class FloorplanCanvas extends LitElement {
       .mesh-link {
         stroke-width: 2;
         opacity: 0.85;
+        cursor: pointer;
+      }
+      .mesh-link.selected {
+        stroke-width: 4;
+        opacity: 1;
+      }
+      .mesh-stub-line {
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+        opacity: 0.85;
+        cursor: pointer;
+      }
+      .mesh-stub-line.selected {
+        stroke-width: 4;
+        opacity: 1;
+      }
+      .mesh-stub-label {
+        fill: var(--sc-fg-secondary);
+        font-size: 12px;
+        text-anchor: middle;
         pointer-events: none;
+        paint-order: stroke;
+        stroke: var(--sc-bg);
+        stroke-width: 3px;
       }
       .room-poly {
         fill: var(--sc-accent);
@@ -242,22 +273,22 @@ export class FloorplanCanvas extends LitElement {
         cursor: pointer;
       }
       .pin-dot {
-        /* Per-domain color is set inline per-instance (see pin-icons.ts's
-         * pinColor) — this is only the fallback for the brief moment before
-         * that style attribute is present. */
+        /* One uniform color for every device — a per-domain tint would
+         * mean deriving something from an arbitrarily-chosen entity's
+         * domain again, which this app deliberately never does anymore
+         * (see canvas/device-display.ts). */
         fill: var(--sc-accent);
         stroke: white;
         stroke-width: 2;
         pointer-events: none;
       }
       .pin-dot.selected {
-        /* Selection always wins over a domain's own color — the inline
-         * style is left empty for a selected pin (see _renderPinMarker)
-         * precisely so this class rule isn't fighting a same-specificity
-         * inline fill. */
         fill: var(--sc-danger);
       }
       .pin-icon {
+        pointer-events: none;
+      }
+      .pin-brand-icon {
         pointer-events: none;
       }
       .pin-icon path {
@@ -284,6 +315,7 @@ export class FloorplanCanvas extends LitElement {
   @property({ attribute: false }) openings: Opening[] = [];
   @property({ attribute: false }) scale: Scale | null = null;
   @property({ attribute: false }) meshLinks: ResolvedMeshLink[] = [];
+  @property({ attribute: false }) meshStubs: ResolvedMeshStub[] = [];
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
     new Map();
   @property({ attribute: false }) backgroundImageUrl: string | null = null;
@@ -311,6 +343,13 @@ export class FloorplanCanvas extends LitElement {
   @property({ attribute: false }) selectedPinId: string | null = null;
   @property({ attribute: false }) selectedWallId: string | null = null;
   @property({ attribute: false }) selectedOpeningId: string | null = null;
+  /** `${fromPin.id}|${toPin.id}` of the currently-selected mesh link, or
+   * null — links have no id of their own, so panel.ts derives this key
+   * from whichever ResolvedMeshLink it's holding as selected. */
+  @property({ attribute: false }) selectedMeshLinkKey: string | null = null;
+  /** `${fromPin.id}|${targetDeviceId}` of the currently-selected mesh
+   * stub, or null — mirrors selectedMeshLinkKey. */
+  @property({ attribute: false }) selectedMeshStubKey: string | null = null;
 
   @state() private _viewBox: ViewBox = {
     x: 0,
@@ -670,6 +709,12 @@ export class FloorplanCanvas extends LitElement {
     const pinsHere = findPinsAt(this.pins, image.x, image.y, hitR);
     if (pinsHere.length > 1) return { type: "pinStack", pins: pinsHere };
     if (pinsHere.length === 1) return { type: "pin", pin: pinsHere[0]! };
+    // Checked before openings/walls/rooms to match the mesh overlay's own
+    // z-order (drawn on top of them, below pins — see render()).
+    const meshLink = findMeshLinkAt(this.meshLinks, image.x, image.y, hitR);
+    if (meshLink) return { type: "meshLink", link: meshLink };
+    const meshStub = findMeshStubAt(this.meshStubs, image.x, image.y, hitR);
+    if (meshStub) return { type: "meshStub", stub: meshStub };
     if (this.selectedOpeningId) {
       const selectedOpening = this.openings.find(
         (o) => o.id === this.selectedOpeningId,
@@ -1132,6 +1177,20 @@ export class FloorplanCanvas extends LitElement {
           },
         }),
       );
+    } else if (hit.type === "meshLink") {
+      const key = `${hit.link.fromPin.id}|${hit.link.toPin.id}`;
+      this.dispatchEvent(
+        new CustomEvent("mesh-link-select", {
+          detail: { link: this.selectedMeshLinkKey === key ? null : hit.link },
+        }),
+      );
+    } else if (hit.type === "meshStub") {
+      const key = `${hit.stub.fromPin.id}|${hit.stub.targetDeviceId}`;
+      this.dispatchEvent(
+        new CustomEvent("mesh-stub-select", {
+          detail: { stub: this.selectedMeshStubKey === key ? null : hit.stub },
+        }),
+      );
     } else if (
       this._editingTarget &&
       this._selectedVertexIndex !== null &&
@@ -1167,6 +1226,12 @@ export class FloorplanCanvas extends LitElement {
       );
       this.dispatchEvent(
         new CustomEvent("opening-select", { detail: { openingId: null } }),
+      );
+      this.dispatchEvent(
+        new CustomEvent("mesh-link-select", { detail: { link: null } }),
+      );
+      this.dispatchEvent(
+        new CustomEvent("mesh-stub-select", { detail: { stub: null } }),
       );
     }
   }
@@ -1249,7 +1314,7 @@ export class FloorplanCanvas extends LitElement {
 
   private _pinLabel(pin: Pin): string {
     if (pin.label_override) return pin.label_override;
-    return this.entityLookup.get(pin.entity_id)?.name ?? pin.entity_id;
+    return pinDisplayLabel(pin.device_id, this.entityLookup.values());
   }
 
   private _renderRoom(room: Room) {
@@ -1326,9 +1391,10 @@ export class FloorplanCanvas extends LitElement {
   }
 
   private _renderMeshLink(link: ResolvedMeshLink) {
+    const key = `${link.fromPin.id}|${link.toPin.id}`;
     return svg`
       <line
-        class="mesh-link"
+        class="mesh-link ${key === this.selectedMeshLinkKey ? "selected" : ""}"
         x1=${link.fromPin.x}
         y1=${link.fromPin.y}
         x2=${link.toPin.x}
@@ -1337,6 +1403,42 @@ export class FloorplanCanvas extends LitElement {
       >
         <title>${link.detail ?? link.quality}</title>
       </line>
+    `;
+  }
+
+  /** A cross-floor link's other end, rendered as a dashed line to a small
+   * floor-icon marker (real position for an aligned building, a projected
+   * edge point in the true bearing otherwise — see panel.ts's
+   * `_meshStubsForCurrentFloor`) — distinct from a normal solid
+   * `.mesh-link` line so it reads as "continues elsewhere," not a second
+   * real device on this floor. */
+  private _renderMeshStub(stub: ResolvedMeshStub) {
+    const key = `${stub.fromPin.id}|${stub.targetDeviceId}`;
+    const selected = key === this.selectedMeshStubKey;
+    const r = this._pxToUnits(MESH_STUB_RADIUS_PX);
+    return svg`
+      <line
+        class="mesh-stub-line ${selected ? "selected" : ""}"
+        x1=${stub.fromPin.x}
+        y1=${stub.fromPin.y}
+        x2=${stub.x}
+        y2=${stub.y}
+        style="stroke:${qualityColor(stub.quality)}"
+      >
+        <title>${stub.targetLabel} (${stub.targetFloorName})</title>
+      </line>
+      ${this._renderPinMarker(
+        stub.x,
+        stub.y,
+        r,
+        { kind: "path", d: mdiFloorPlan },
+        "var(--sc-fg-secondary)",
+        selected,
+        `${stub.targetLabel} (${stub.targetFloorName})`,
+      )}
+      <text class="mesh-stub-label" x=${stub.x} y=${stub.y + r + 14}
+        >${stub.targetFloorName}</text
+      >
     `;
   }
 
@@ -1363,6 +1465,47 @@ export class FloorplanCanvas extends LitElement {
       }
     });
     return null;
+  }
+
+  /** integration_domain -> whether its brands.home-assistant.io logo has
+   * failed to load (404, no brand icon submitted for that integration) —
+   * once known-failed, _iconForPin stops trying to render that `<image>`
+   * again and falls back to GENERIC_DEVICE_ICON_PATH instead of repeatedly
+   * requesting a URL known not to exist. */
+  @state() private _failedBrandIcons = new Set<string>();
+
+  /** Which icon to draw for a placed device — icon_override first (a
+   * human's own explicit choice), then that device's integration's own
+   * brand logo (a real device-level fact — see device-display.ts), then a
+   * generic fallback. Never derived from any entity's domain. */
+  private _iconForPin(
+    pin: Pin,
+  ):
+    | { kind: "path"; d: string }
+    | { kind: "image"; href: string; integrationDomain: string } {
+    if (pin.icon_override) {
+      const overridePath = this._iconForOverride(pin.icon_override);
+      if (overridePath) return { kind: "path", d: overridePath };
+    }
+    const integrationDomain = pinIntegrationDomain(
+      pin.device_id,
+      this.entityLookup.values(),
+    );
+    if (integrationDomain && !this._failedBrandIcons.has(integrationDomain)) {
+      return {
+        kind: "image",
+        href: `https://brands.home-assistant.io/_/${integrationDomain}/icon.png`,
+        integrationDomain,
+      };
+    }
+    return { kind: "path", d: GENERIC_DEVICE_ICON_PATH };
+  }
+
+  private _onBrandIconError(integrationDomain: string): void {
+    if (this._failedBrandIcons.has(integrationDomain)) return;
+    this._failedBrandIcons = new Set(this._failedBrandIcons).add(
+      integrationDomain,
+    );
   }
 
   /** Groups by exact (x,y) — placement already snaps a new pin onto an
@@ -1392,18 +1535,12 @@ export class FloorplanCanvas extends LitElement {
       const x = live?.x ?? pin.x;
       const y = live?.y ?? pin.y;
       const selected = pin.id === this.selectedPinId;
-      const entity = this.entityLookup.get(pin.entity_id);
-      const domain = entity?.domain ?? pin.entity_id.split(".")[0] ?? "";
-      const overridePath = pin.icon_override
-        ? this._iconForOverride(pin.icon_override)
-        : null;
-      const iconPath = overridePath ?? pinIconPath(domain);
       return this._renderPinMarker(
         x,
         y,
         r,
-        iconPath,
-        pinColor(domain),
+        this._iconForPin(pin),
+        "var(--sc-accent)",
         selected,
         this._pinLabel(pin),
       );
@@ -1415,7 +1552,7 @@ export class FloorplanCanvas extends LitElement {
       group.x,
       group.y,
       r,
-      GROUP_ICON_PATH,
+      { kind: "path", d: GROUP_ICON_PATH },
       "var(--sc-accent)",
       selected,
       label,
@@ -1426,7 +1563,9 @@ export class FloorplanCanvas extends LitElement {
     x: number,
     y: number,
     r: number,
-    iconPath: string,
+    icon:
+      | { kind: "path"; d: string }
+      | { kind: "image"; href: string; integrationDomain: string },
     color: string,
     selected: boolean,
     label: string,
@@ -1442,16 +1581,32 @@ export class FloorplanCanvas extends LitElement {
           r=${r}
           style="fill:${selected ? "" : color}"
         ></circle>
-        <svg
-          x=${x - iconSize / 2}
-          y=${y - iconSize / 2}
-          width=${iconSize}
-          height=${iconSize}
-          viewBox="0 0 24 24"
-          class="pin-icon"
-        >
-          <path d=${iconPath}></path>
-        </svg>
+        ${
+          icon.kind === "path"
+            ? svg`
+              <svg
+                x=${x - iconSize / 2}
+                y=${y - iconSize / 2}
+                width=${iconSize}
+                height=${iconSize}
+                viewBox="0 0 24 24"
+                class="pin-icon"
+              >
+                <path d=${icon.d}></path>
+              </svg>
+            `
+            : svg`
+              <image
+                x=${x - iconSize / 2}
+                y=${y - iconSize / 2}
+                width=${iconSize}
+                height=${iconSize}
+                href=${icon.href}
+                class="pin-brand-icon"
+                @error=${() => this._onBrandIconError(icon.integrationDomain)}
+              ></image>
+            `
+        }
         <circle class="pin-hit" cx=${x} cy=${y} r=${r * 1.4}></circle>
       </g>
     `;
@@ -1650,6 +1805,7 @@ export class FloorplanCanvas extends LitElement {
           ${this.walls.map((wall) => this._renderWall(wall))}
           ${this.openings.map((opening) => this._renderOpening(opening))}
           ${this.meshLinks.map((link) => this._renderMeshLink(link))}
+          ${this.meshStubs.map((stub) => this._renderMeshStub(stub))}
           ${this.mode === "trace" || this.mode === "wall" ? this._renderPendingTrace() : nothing}
           ${this._renderScaleLine()}
           ${this.mode === "scale" ? this._renderPendingScale() : nothing}

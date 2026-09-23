@@ -9,7 +9,17 @@ export interface Room {
 
 export interface Pin {
   id: string;
-  entity_id: string;
+  /** The pin's whole identity — a device only physically exists in one
+   * place, so this is what "already placed" checks and mesh-link
+   * resolution key off. There is deliberately no entity_id here: a human
+   * placing a device should never need to know or choose which of its HA
+   * entities represents it — canvas/device-display.ts derives an icon and
+   * a display name from this purely automatically (entities are AI-agent
+   * plumbing, not something a person interacts with). Null only for a pin
+   * whose original entity no longer resolves to any device (deleted
+   * integration, orphaned registry entry) — never guessed at (see
+   * registry_snapshot.py's async_migrate_pin_device_ids). */
+  device_id: string | null;
   x: number;
   y: number;
   room_id: string | null;
@@ -200,9 +210,12 @@ export interface ExportSnapshot {
       id: string | null;
       name: string;
       devices: {
-        entity_id: string;
+        device_id: string | null;
+        /** Null when device_id has no resolvable placeable entity
+         * (deleted/disabled since placement) — see export.py. */
+        entity_id: string | null;
         name: string;
-        domain: string;
+        domain: string | null;
         device_class: string | null;
         area_name: string | null;
         x: number;
@@ -307,6 +320,27 @@ export interface MatterNetworkTopology {
 export interface ResolvedMeshLink {
   fromPin: Pin;
   toPin: Pin;
+  quality: "strong" | "medium" | "weak" | "unknown";
+  detail?: string;
+}
+
+/** A mesh link where exactly one end is placed on the *currently viewed*
+ * floor — the other end is real (placed on some other floor), just not
+ * drawable as a normal ResolvedMeshLink since its pin isn't on screen.
+ * `x`/`y` is where the stub marker renders in this floor's own coordinate
+ * space: the other pin's real position when both floors share a
+ * building_id (Align Floors — same coordinate system), or a projected
+ * point at the edge of this floor's traced content, in the true bearing
+ * toward the other building's Property-tab placement, when they don't
+ * (see panel.ts's `_meshStubsForCurrentFloor`). */
+export interface ResolvedMeshStub {
+  fromPin: Pin;
+  x: number;
+  y: number;
+  targetDeviceId: string;
+  targetFloorId: string;
+  targetFloorName: string;
+  targetLabel: string;
   quality: "strong" | "medium" | "weak" | "unknown";
   detail?: string;
 }

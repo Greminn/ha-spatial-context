@@ -98,9 +98,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     coordinate space.
     """
     floors_meta = await registry_snapshot.async_list_floors(hass)
-    entity_by_id = {
-        e["entity_id"]: e for e in await registry_snapshot.async_list_placeable_entities(hass)
-    }
+    placeable_entities = await registry_snapshot.async_list_placeable_entities(hass)
 
     exported_floors = []
     for floor_meta in floors_meta:
@@ -114,13 +112,21 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
         room_devices[None] = []
 
         for pin in layout.get("pins", []):
-            entity = entity_by_id.get(pin["entity_id"])
+            # The export is explicitly AI-agent-facing context (unlike the
+            # UI, which a human uses and which never surfaces entity_id at
+            # all — see types.ts's Pin doc comment) — so entity_id/domain
+            # are still worth including here, derived fresh from device_id
+            # via the same automatic ranking the UI's icon uses, rather
+            # than a stored choice.
+            device_id = pin.get("device_id")
+            entity = registry_snapshot.pick_display_entity(device_id, placeable_entities)
             height_m = pin.get("height_m")
             device = {
-                "entity_id": pin["entity_id"],
+                "device_id": device_id,
+                "entity_id": entity["entity_id"] if entity else None,
                 "name": pin.get("label_override")
-                or (entity["name"] if entity else pin["entity_id"]),
-                "domain": entity["domain"] if entity else pin["entity_id"].split(".")[0],
+                or (entity["name"] if entity else "Unknown device"),
+                "domain": entity["domain"] if entity else None,
                 "device_class": entity["device_class"] if entity else None,
                 "area_name": entity["area_name"] if entity else None,
                 "x": pin["x"],

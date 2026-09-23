@@ -61,7 +61,14 @@ _ROOM_SCHEMA = {
 
 _PIN_SCHEMA = {
     vol.Required("id"): str,
-    vol.Required("entity_id"): str,
+    # The pin's whole identity — deliberately no entity_id: a human placing
+    # a device never chooses or sees which HA entity represents it, only
+    # the device (see types.ts's Pin doc comment). Optional/nullable: an
+    # old pin saved before this field existed gets backfilled once at
+    # startup (async_migrate_pin_device_ids below), but an entity that no
+    # longer resolves to any device (deleted integration, orphaned
+    # registry entry) legitimately has none — never guessed at.
+    vol.Optional("device_id"): vol.Any(str, None),
     vol.Required("x"): vol.Coerce(float),
     vol.Required("y"): vol.Coerce(float),
     vol.Optional("room_id"): vol.Any(str, None),

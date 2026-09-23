@@ -7,10 +7,14 @@ import type {
   Opening,
   PlaceableEntity,
   Pin,
+  ResolvedMeshLink,
+  ResolvedMeshStub,
   Room,
   Wall,
 } from "../types";
 import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
+import { pinDisplayLabel } from "../canvas/device-display";
+import { qualityColor } from "../canvas/mesh-colors";
 import { sharedStyles } from "../styles";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -152,6 +156,10 @@ export class CanvasOverlay extends LitElement {
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
     new Map();
   @property({ attribute: false }) selectedOpening: Opening | null = null;
+  @property({ attribute: false }) selectedMeshLink: ResolvedMeshLink | null =
+    null;
+  @property({ attribute: false }) selectedMeshStub: ResolvedMeshStub | null =
+    null;
 
   @property({ attribute: false }) otherFloors: FloorMeta[] = [];
   @property({ attribute: false }) alignTargetFloorId: string | null = null;
@@ -370,9 +378,10 @@ export class CanvasOverlay extends LitElement {
       `;
     }
     if (this.selectedPin) {
+      const pin = this.selectedPin;
       return html`
         <div class="selection-panel floating-panel">
-          <span class="hint">${this._pinLabel(this.selectedPin)}</span>
+          <span class="hint">${this._pinLabel(pin)}</span>
           <button
             title="Set label"
             @click=${() => this._fire("pin-set-label-click")}
@@ -470,12 +479,48 @@ export class CanvasOverlay extends LitElement {
         </div>
       `;
     }
+    if (this.selectedMeshLink) {
+      const link = this.selectedMeshLink;
+      return html`
+        <div class="selection-panel floating-panel">
+          <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
+          <span class="hint"
+            >${this._pinLabel(link.fromPin)} →
+            ${this._pinLabel(link.toPin)}</span
+          >
+          <span class="hint" style="color:${qualityColor(link.quality)}"
+            >${link.detail ?? link.quality}</span
+          >
+        </div>
+      `;
+    }
+    if (this.selectedMeshStub) {
+      const stub = this.selectedMeshStub;
+      return html`
+        <div class="selection-panel floating-panel">
+          <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
+          <span class="hint"
+            >${this._pinLabel(stub.fromPin)} → ${stub.targetLabel}
+            (${stub.targetFloorName})</span
+          >
+          <span class="hint" style="color:${qualityColor(stub.quality)}"
+            >${stub.detail ?? stub.quality}</span
+          >
+          <button
+            title="Go to floor"
+            @click=${() => this._fire("mesh-stub-goto-floor-click")}
+          >
+            <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
+          </button>
+        </div>
+      `;
+    }
     return nothing;
   }
 
   private _pinLabel(pin: Pin): string {
     if (pin.label_override) return pin.label_override;
-    return this.entityLookup.get(pin.entity_id)?.name ?? pin.entity_id;
+    return pinDisplayLabel(pin.device_id, this.entityLookup.values());
   }
 
   private _renderPinStack() {

@@ -1,4 +1,10 @@
-import type { Opening, Pin, Wall } from "../types";
+import type {
+  Opening,
+  Pin,
+  ResolvedMeshLink,
+  ResolvedMeshStub,
+  Wall,
+} from "../types";
 import { distance, pointToPolylineDistance } from "./geometry";
 
 /** Every pin within `radius` (image-space units), nearest first — several
@@ -70,6 +76,56 @@ export function findWallAt(
     const d = pointToPolylineDistance(x, y, wall.points);
     if (d <= closestDist) {
       closest = wall;
+      closestDist = d;
+    }
+  }
+  return closest;
+}
+
+/** Nearest mesh-overlay line whose two-point segment passes within
+ * `radius` of the point, else null. */
+export function findMeshLinkAt(
+  links: ResolvedMeshLink[],
+  x: number,
+  y: number,
+  radius: number,
+): ResolvedMeshLink | null {
+  let closest: ResolvedMeshLink | null = null;
+  let closestDist = radius;
+  for (const link of links) {
+    const d = pointToPolylineDistance(x, y, [
+      [link.fromPin.x, link.fromPin.y],
+      [link.toPin.x, link.toPin.y],
+    ]);
+    if (d <= closestDist) {
+      closest = link;
+      closestDist = d;
+    }
+  }
+  return closest;
+}
+
+/** Nearest cross-floor mesh stub — checking both its marker point and its
+ * line back to the local pin, whichever is closer — within `radius`, else
+ * null. */
+export function findMeshStubAt(
+  stubs: ResolvedMeshStub[],
+  x: number,
+  y: number,
+  radius: number,
+): ResolvedMeshStub | null {
+  let closest: ResolvedMeshStub | null = null;
+  let closestDist = radius;
+  for (const stub of stubs) {
+    const d = Math.min(
+      distance(stub.x, stub.y, x, y),
+      pointToPolylineDistance(x, y, [
+        [stub.fromPin.x, stub.fromPin.y],
+        [stub.x, stub.y],
+      ]),
+    );
+    if (d <= closestDist) {
+      closest = stub;
       closestDist = d;
     }
   }

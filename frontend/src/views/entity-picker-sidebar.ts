@@ -3,56 +3,13 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { sharedStyles } from "../styles";
 
-/** Row avatar icon per domain — `mdi:` name strings (not path data, unlike
- * canvas/pin-icons.ts) since this list is plain HTML, not SVG-nested, so
- * `<ha-icon>` works fine here. Same domain→icon choices as the map pins,
- * so a device looks the same in the picker as it does once placed. */
-const DOMAIN_ICON_NAMES: Record<string, string> = {
-  light: "mdi:lightbulb",
-  switch: "mdi:toggle-switch",
-  sensor: "mdi:eye",
-  binary_sensor: "mdi:eye",
-  climate: "mdi:thermostat",
-  lock: "mdi:lock",
-  cover: "mdi:window-shutter",
-  camera: "mdi:cctv",
-  media_player: "mdi:speaker",
-  fan: "mdi:fan",
-  humidifier: "mdi:air-humidifier",
-  vacuum: "mdi:robot-vacuum",
-  alarm_control_panel: "mdi:shield-home",
-  water_heater: "mdi:water-boiler",
-  device_tracker: "mdi:crosshairs-gps",
-  valve: "mdi:valve",
-  siren: "mdi:bullhorn",
-  assist_satellite: "mdi:microphone-variant",
-};
-
-/** Placement is per physical device, not per entity — a device with several
- * entities (e.g. a combo temp/humidity/motion sensor) still occupies one
- * spot in the house, so it gets one row and one pin. This ranks a device's
- * entities so the "main" one (light over its diagnostic-adjacent sensors,
- * etc.) becomes the entity_id the pin actually stores. */
-const DOMAIN_PRIORITY = [
-  "light",
-  "switch",
-  "climate",
-  "media_player",
-  "lock",
-  "cover",
-  "fan",
-  "vacuum",
-  "alarm_control_panel",
-  "valve",
-  "humidifier",
-  "siren",
-  "water_heater",
-  "camera",
-  "assist_satellite",
-  "device_tracker",
-  "binary_sensor",
-  "sensor",
-];
+/** Fallback row icon when a device's integration has no brand logo on
+ * brands.home-assistant.io (see the `<img>`/`@error` pair below) — one
+ * generic glyph for every device, never derived from any entity's domain
+ * (device_name/integration_domain are real device-level facts duplicated
+ * onto every entity of a device; there's nothing to pick between — see
+ * canvas/device-display.ts). */
+const GENERIC_DEVICE_ICON_NAME = "mdi:devices";
 
 interface DeviceGroup {
   deviceId: string;
@@ -223,7 +180,7 @@ export class EntityPickerSidebar extends LitElement {
   ];
 
   @property({ attribute: false }) entities: PlaceableEntity[] = [];
-  @property({ attribute: false }) placedEntityIds: Set<string> = new Set();
+  @property({ attribute: false }) placedDeviceIds: Set<string> = new Set();
   @property({ attribute: false }) armedEntityId: string | null = null;
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) areas: AreaMeta[] = [];
@@ -273,18 +230,16 @@ export class EntityPickerSidebar extends LitElement {
 
     const devices: DeviceGroup[] = [];
     for (const [deviceId, entities] of groups) {
-      const sorted = [...entities].sort((a, b) => {
-        const categoryRank = (e: PlaceableEntity) =>
-          e.entity_category ? 1 : 0;
-        const domainRank = (e: PlaceableEntity) => {
-          const i = DOMAIN_PRIORITY.indexOf(e.domain);
-          return i === -1 ? DOMAIN_PRIORITY.length : i;
-        };
-        return (
-          categoryRank(a) - categoryRank(b) || domainRank(a) - domainRank(b)
-        );
-      });
-      const primary = sorted[0]!;
+      // Placement is per physical device, not per entity — a device with
+      // several entities (e.g. a combo temp/humidity/motion sensor) still
+      // occupies one spot in the house, so it gets one row and one pin.
+      // Any entity of the group answers deviceName/area/integration
+      // identically (they're device-level facts duplicated onto every
+      // entity of a device — see canvas/device-display.ts), and
+      // primaryEntityId only needs to resolve back to this same device_id
+      // later, so there's nothing to rank or choose between — arbitrarily
+      // the first one.
+      const primary = entities[0]!;
       devices.push({
         deviceId,
         deviceName: primary.device_name ?? primary.name,
@@ -382,7 +337,7 @@ export class EntityPickerSidebar extends LitElement {
           </select>
         </div>
         ${
-          this.placedEntityIds.size > 0
+          this.placedDeviceIds.size > 0
             ? html`<button
                 class="clear-all-button"
                 @click=${() =>
@@ -404,16 +359,9 @@ export class EntityPickerSidebar extends LitElement {
           filtered.length === 0
             ? html`<div class="empty">No matching devices.</div>`
             : filtered.map((device) => {
-                const placed = device.entities.some((e) =>
-                  this.placedEntityIds.has(e.entity_id),
-                );
+                const placed = this.placedDeviceIds.has(device.deviceId);
                 const blockedFloorName = this._blockedFloorName(device);
                 const armed = this.armedEntityId === device.primaryEntityId;
-                const primaryDomain = device.entities.find(
-                  (e) => e.entity_id === device.primaryEntityId,
-                )?.domain;
-                const icon =
-                  DOMAIN_ICON_NAMES[primaryDomain ?? ""] ?? "mdi:help-box";
                 const subtitle = [device.areaName, device.integrationName]
                   .filter((part): part is string => !!part)
                   .join(" - ");
@@ -455,7 +403,7 @@ export class EntityPickerSidebar extends LitElement {
                           : nothing
                       }
                       <ha-icon
-                        icon=${icon}
+                        icon=${GENERIC_DEVICE_ICON_NAME}
                         class=${device.integrationDomain ? "hidden" : ""}
                       ></ha-icon>
                     </span>

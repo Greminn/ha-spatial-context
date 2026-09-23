@@ -17,25 +17,39 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 
-def _build_mac_to_device_id(device_registry: dr.DeviceRegistry) -> dict[str, str]:
-    """MAC address -> device_id, built once by scanning every device's own
-    `connections` set directly.
+def _build_mac_to_device_ids(device_registry: dr.DeviceRegistry) -> dict[str, list[str]]:
+    """MAC address -> every device_id that claims that connection, built
+    once by scanning every device's own `connections` set directly.
 
-    Not `device_registry.async_get_device_by_connection()` — recent HA
-    versions require a `config_entry_id` argument on that helper (device
-    connections are no longer guaranteed unique across config entries, the
-    same reality zigbee_mesh.py's IEEE-to-device-id map already works
-    around the same way), which doesn't fit this generic "any AP, from any
-    integration" lookup at all. Direct iteration + a plain dict avoids that
-    entirely and is also just one pass instead of one registry call per
-    Wi-Fi client entity.
+    Not just an AP-side lookup: the SAME physical Wi-Fi client is very
+    commonly registered as *two* separate HA devices — one from the
+    `unifi` integration's own client-tracking (which is what a
+    device_tracker entity's own `device_id` points at), and one from
+    whatever integration natively controls it (esphome, hue, tuya, ...),
+    which is almost always the device a pin actually gets placed for.
+    Confirmed live: this house's "Kitchen Presence Sensor" exists as two
+    separate device registry entries, one per integration, both carrying
+    the identical MAC in `connections`. A single mac -> device_id dict
+    would silently pick whichever device happened to be registered last;
+    returning every candidate and letting the frontend match against
+    whichever one actually has a placed pin sidesteps that ambiguity
+    entirely (see `async_get_wifi_mesh`).
+
+    Not `device_registry.async_get_device_by_connection()` either — recent
+    HA versions require a `config_entry_id` argument on that helper
+    (device connections are no longer guaranteed unique across config
+    entries, the same reality zigbee_mesh.py's IEEE-to-device-id map
+    already works around the same way), which doesn't fit this generic
+    "any device, from any integration" lookup at all. Direct iteration +
+    a plain dict avoids that entirely and is also just one pass instead of
+    one registry call per Wi-Fi client entity.
     """
-    mac_to_device_id: dict[str, str] = {}
+    mac_to_device_ids: dict[str, list[str]] = {}
     for device in device_registry.devices:
         for connection_type, value in device.connections:
             if connection_type == dr.CONNECTION_NETWORK_MAC:
-                mac_to_device_id[value] = device.id
-    return mac_to_device_id
+                mac_to_device_ids.setdefault(dr.format_mac(value), []).append(device.id)
+    return mac_to_device_ids
 
 
 def _build_signal_strength_by_device(hass: HomeAssistant, entity_registry: er.EntityRegistry) -> dict[str, float]:
@@ -74,15 +88,26 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
 
     No "nodes" — the frontend's mesh-link resolution only ever reads
     `.links`, so there's nothing else worth building here.
+
+    Both ends are resolved via MAC (the client's own `mac` state attribute,
+    and the AP's `ap_mac`), not via any entity's own `device_id` — a
+    device_tracker's `device_id` points at the `unifi`-integration's own
+    client-tracking device, which is frequently a *different* HA device
+    than the one a pin actually gets placed for (see
+    `_build_mac_to_device_ids`). Since a MAC can resolve to more than one
+    candidate device, one link is emitted per (client candidate, AP
+    candidate) pair — harmless duplication, since the frontend only ever
+    draws a link when both ends also resolve to a placed pin, so every
+    candidate except the one actually placed simply fails to match anything.
     """
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
     signal_by_device = _build_signal_strength_by_device(hass, entity_registry)
-    mac_to_device_id = _build_mac_to_device_id(device_registry)
+    mac_to_device_ids = _build_mac_to_device_ids(device_registry)
 
     links: list[dict[str, Any]] = []
     for entry in entity_registry.entities.values():
-        if entry.disabled_by is not None or entry.device_id is None:
+        if entry.disabled_by is not None:
             continue
 
         state = hass.states.get(entry.entity_id)
@@ -90,19 +115,23 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
             continue
 
         ap_mac = state.attributes.get("ap_mac")
-        if not ap_mac:
+        client_mac = state.attributes.get("mac")
+        if not ap_mac or not client_mac:
             continue
 
-        ap_device_id = mac_to_device_id.get(dr.format_mac(ap_mac))
-        if ap_device_id is None:
+        client_device_ids = mac_to_device_ids.get(dr.format_mac(client_mac), [])
+        ap_device_ids = mac_to_device_ids.get(dr.format_mac(ap_mac), [])
+        if not client_device_ids or not ap_device_ids:
             continue
 
-        links.append(
-            {
-                "source_device_id": entry.device_id,
-                "target_device_id": ap_device_id,
-                "rssi_dbm": signal_by_device.get(entry.device_id),
-            }
-        )
+        for client_device_id in client_device_ids:
+            for ap_device_id in ap_device_ids:
+                links.append(
+                    {
+                        "source_device_id": client_device_id,
+                        "target_device_id": ap_device_id,
+                        "rssi_dbm": signal_by_device.get(client_device_id),
+                    }
+                )
 
     return {"links": links}

@@ -92,6 +92,15 @@ def _build_ieee_to_device_id_map(hass: HomeAssistant) -> dict[str, str]:
     """Join key: a Z2M-sourced HA device carries identifier
     ("mqtt", "zigbee2mqtt_<ieeeAddr>") — confirmed live against this
     house's own device registry, not assumed from docs.
+
+    The Zigbee2MQTT Bridge device itself (the coordinator) is the one
+    exception: its identifier is "zigbee2mqtt_bridge_<ieeeAddr>", an extra
+    "bridge_" segment every other device doesn't have — confirmed live,
+    not assumed. A plain `removeprefix("zigbee2mqtt_")` would leave
+    "bridge_<ieeeAddr>" for that one device, which never matches the bare
+    IEEE address Z2M's networkmap reports for the coordinator node, so
+    every link touching the coordinator would silently vanish. Extracting
+    from the last "0x" onward handles both forms uniformly.
     """
     device_registry = dr.async_get(hass)
     mapping: dict[str, str] = {}
@@ -102,8 +111,12 @@ def _build_ieee_to_device_id_map(hass: HomeAssistant) -> dict[str, str]:
             if len(identifier) != 2:
                 continue
             domain, value = identifier
-            if domain == "mqtt" and value.startswith("zigbee2mqtt_"):
-                mapping[value.removeprefix("zigbee2mqtt_")] = device.id
+            if domain != "mqtt" or "zigbee2mqtt" not in value:
+                continue
+            ieee_start = value.rfind("0x")
+            if ieee_start == -1:
+                continue
+            mapping[value[ieee_start:]] = device.id
     return mapping
 
 

@@ -168,19 +168,51 @@ export function backgroundImageUrl(imageId: string | null): string | null {
   return imageId ? `/api/image/serve/${imageId}/original` : null;
 }
 
+/** A pin/room/wall/etc.'s unique id. `crypto.randomUUID()` is the obvious
+ * choice, but the spec restricts it to secure contexts (HTTPS) — plenty of
+ * HA installs are reached over plain HTTP on the LAN, where it's simply
+ * not a function at all. Confirmed live: this broke wall/room/device
+ * creation entirely for real users on plain HTTP (GitHub issues #8 and
+ * #9) — every add silently threw inside newId() before the new
+ * room/wall/pin ever reached state, so it looked like the drawing just
+ * vanished. `crypto.getRandomValues()` has no such secure-context
+ * restriction, so build a standard UUID v4 from that instead when native
+ * randomUUID() isn't available; a non-crypto Math.random() fallback
+ * covers the (effectively never happens) case where crypto itself is
+ * entirely absent — these ids only need to be unique within one floor's
+ * layout, never security-sensitive. */
 export function newId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${uuidV4()}`;
+}
+
+function uuidV4(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80; // variant 10
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 export function emptyPin(
-  entityId: string,
+  deviceId: string | null,
   x: number,
   y: number,
   roomId: string | null,
 ): Pin {
   return {
     id: newId("pin"),
-    entity_id: entityId,
+    device_id: deviceId,
     x,
     y,
     room_id: roomId,

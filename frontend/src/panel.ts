@@ -15,12 +15,14 @@ import type {
   PropertyLayout,
   PropertyPlacement,
   ResolvedMeshLink,
+  ResolvedMeshStub,
   Room,
   Wall,
   WifiMesh,
   ZigbeeMesh,
 } from "./types";
 import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
+import { pinDisplayLabel } from "./canvas/device-display";
 import {
   HaClient,
   backgroundImageUrl,
@@ -33,7 +35,7 @@ import {
   newRoom,
   newWall,
 } from "./ha-client";
-import { findRoomForPoint } from "./canvas/geometry";
+import { findRoomForPoint, rayBoxExit } from "./canvas/geometry";
 import { sharedStyles } from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
@@ -135,6 +137,16 @@ export class SpatialContextPanel extends LitElement {
   @state() private _selectedWallId: string | null = null;
   @state() private _editingWallId: string | null = null;
   @state() private _selectedOpeningId: string | null = null;
+  @state() private _selectedMeshLink: ResolvedMeshLink | null = null;
+  @state() private _selectedMeshStub: ResolvedMeshStub | null = null;
+  /** device_id -> {pin, floorId} for every OTHER floor's placed pins,
+   * refetched on every floor switch — powers the cross-floor mesh stub
+   * feature (_meshStubsForCurrentFloor), which needs to know both WHERE a
+   * link's other end really is and WHICH floor it's on. */
+  @state() private _otherFloorPinsByDeviceId: Map<
+    string,
+    { pin: Pin; floorId: string }
+  > = new Map();
   @state() private _dirty = false;
   @state() private _saving = false;
   @state() private _loading = true;
@@ -218,8 +230,12 @@ export class SpatialContextPanel extends LitElement {
     return new Map(this._entities.map((e) => [e.entity_id, e]));
   }
 
-  private get _placedEntityIds(): Set<string> {
-    return new Set(this._layout.pins.map((p) => p.entity_id));
+  private get _placedDeviceIds(): Set<string> {
+    return new Set(
+      this._layout.pins
+        .map((p) => p.device_id)
+        .filter((id): id is string => id !== null),
+    );
   }
 
   private get _selectedRoom(): Room | null {
@@ -342,81 +358,229 @@ export class SpatialContextPanel extends LitElement {
   }
 
   private get _pinByDeviceId(): Map<string, Pin> {
-    const entityLookup = this._entityLookup;
     const pinByDeviceId = new Map<string, Pin>();
     for (const pin of this._layout.pins) {
-      const deviceId = entityLookup.get(pin.entity_id)?.device_id;
-      if (deviceId) pinByDeviceId.set(deviceId, pin);
+      if (pin.device_id) pinByDeviceId.set(pin.device_id, pin);
     }
     return pinByDeviceId;
   }
 
-  /** Only links where both ends resolve to a pin placed on the currently
-   * viewed floor — a cross-floor relay link (e.g. a repeater linking Top
-   * Floor to Garage) is silently skipped, not drawn as a stub. Each
-   * network's raw shape gets normalized here rather than in its own
-   * backend response, so "how do we grade this" lives in one place. */
-  private get _meshLinksForCurrentFloor(): ResolvedMeshLink[] {
-    // The Connectivity Map popover's open/closed state is this feature's
-    // master on/off switch — closed means off, full stop, regardless of
-    // what's cached from an earlier session with it open.
+  /** Every network type's raw shape, normalized to one common shape before
+   * anything downstream (both `_meshLinksForCurrentFloor` and
+   * `_meshStubsForCurrentFloor` build off this) — so "how do we grade
+   * this" lives in one place. The Connectivity Map popover's open/closed
+   * state is this whole feature's master on/off switch — closed means
+   * off, full stop, regardless of what's cached from an earlier session
+   * with it open. */
+  private get _normalizedMeshLinks(): {
+    sourceDeviceId: string;
+    targetDeviceId: string;
+    quality: "strong" | "medium" | "weak" | "unknown";
+    detail?: string;
+  }[] {
     if (!this._meshPopoverOpen) return [];
 
-    const pinByDeviceId = this._pinByDeviceId;
-    const links: ResolvedMeshLink[] = [];
-
     if (this._networkType === "zigbee" && this._zigbeeMesh) {
-      for (const link of this._zigbeeMesh.links) {
-        if (!link.source_device_id || !link.target_device_id) continue;
-        const fromPin = pinByDeviceId.get(link.source_device_id);
-        const toPin = pinByDeviceId.get(link.target_device_id);
-        if (fromPin && toPin) {
-          links.push({
-            fromPin,
-            toPin,
-            quality: lqiToQuality(link.lqi),
-            detail: `LQI ${link.lqi}`,
-          });
-        }
-      }
-    } else if (this._networkType === "wifi" && this._wifiMesh) {
-      for (const link of this._wifiMesh.links) {
-        const fromPin = pinByDeviceId.get(link.source_device_id);
-        const toPin = pinByDeviceId.get(link.target_device_id);
-        if (fromPin && toPin) {
-          links.push({
-            fromPin,
-            toPin,
-            quality:
-              link.rssi_dbm != null ? dbmToQuality(link.rssi_dbm) : "unknown",
-            ...(link.rssi_dbm != null
-              ? { detail: `${link.rssi_dbm} dBm` }
-              : {}),
-          });
-        }
-      }
-    } else if (this._networkType === "matter" && this._matterTopology) {
+      return this._zigbeeMesh.links
+        .filter((link) => link.source_device_id && link.target_device_id)
+        .map((link) => ({
+          sourceDeviceId: link.source_device_id!,
+          targetDeviceId: link.target_device_id!,
+          quality: lqiToQuality(link.lqi),
+          detail: `LQI ${link.lqi}`,
+        }));
+    }
+    if (this._networkType === "wifi" && this._wifiMesh) {
+      return this._wifiMesh.links.map((link) => ({
+        sourceDeviceId: link.source_device_id,
+        targetDeviceId: link.target_device_id,
+        quality:
+          link.rssi_dbm != null ? dbmToQuality(link.rssi_dbm) : "unknown",
+        ...(link.rssi_dbm != null ? { detail: `${link.rssi_dbm} dBm` } : {}),
+      }));
+    }
+    if (this._networkType === "matter" && this._matterTopology) {
       const deviceIdByNodeId = new Map<string, string>();
       for (const node of this._matterTopology.nodes) {
         if (node.ha_device_id) deviceIdByNodeId.set(node.id, node.ha_device_id);
       }
+      const out: {
+        sourceDeviceId: string;
+        targetDeviceId: string;
+        quality: "strong" | "medium" | "weak" | "unknown";
+        detail?: string;
+      }[] = [];
       for (const conn of this._matterTopology.connections) {
         const sourceDeviceId = deviceIdByNodeId.get(conn.source);
         const targetDeviceId = deviceIdByNodeId.get(conn.target);
         if (!sourceDeviceId || !targetDeviceId) continue;
-        const fromPin = pinByDeviceId.get(sourceDeviceId);
-        const toPin = pinByDeviceId.get(targetDeviceId);
-        if (fromPin && toPin) {
-          links.push({
-            fromPin,
-            toPin,
-            quality: conn.strength,
-            detail: conn.strength,
-          });
-        }
+        out.push({
+          sourceDeviceId,
+          targetDeviceId,
+          quality: conn.strength,
+          detail: conn.strength,
+        });
+      }
+      return out;
+    }
+    return [];
+  }
+
+  /** Only links where both ends resolve to a pin placed on the currently
+   * viewed floor — see `_meshStubsForCurrentFloor` for the case where just
+   * one end does. */
+  private get _meshLinksForCurrentFloor(): ResolvedMeshLink[] {
+    const pinByDeviceId = this._pinByDeviceId;
+    const links: ResolvedMeshLink[] = [];
+    for (const link of this._normalizedMeshLinks) {
+      const fromPin = pinByDeviceId.get(link.sourceDeviceId);
+      const toPin = pinByDeviceId.get(link.targetDeviceId);
+      if (fromPin && toPin) {
+        links.push({
+          fromPin,
+          toPin,
+          quality: link.quality,
+          ...(link.detail ? { detail: link.detail } : {}),
+        });
       }
     }
     return links;
+  }
+
+  /** Which floor a given floor_id's *building* has been placed at on the
+   * Property tab, if any — floors sharing a building_id (Align Floors)
+   * all resolve to the same placement. */
+  private _placementForFloor(floorId: string): PropertyPlacement | null {
+    const floor = this._floors.find((f) => f.floor_id === floorId);
+    if (!floor) return null;
+    return (
+      this._propertyLayout.placements.find((p) =>
+        floor.building_id !== null
+          ? p.building_id === floor.building_id
+          : p.floor_id === floorId,
+      ) ?? null
+    );
+  }
+
+  /** The current floor's traced content extent (rooms + walls), padded —
+   * the box a cross-building stub gets projected to the edge of. Null on
+   * a floor with nothing traced yet. */
+  private _currentFloorContentBounds(): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } | null {
+    const points: [number, number][] = [];
+    for (const room of this._layout.rooms) points.push(...room.points);
+    for (const wall of this._layout.walls) points.push(...wall.points);
+    if (points.length === 0) return null;
+    const xs = points.map(([x]) => x);
+    const ys = points.map(([, y]) => y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const pad = Math.max(maxX - minX, maxY - minY) * 0.05 || 20;
+    return {
+      minX: minX - pad,
+      minY: minY - pad,
+      maxX: maxX + pad,
+      maxY: maxY + pad,
+    };
+  }
+
+  /** For a cross-*building* link (no shared coordinate system) — a real
+   * compass bearing, computed from where each building actually sits on
+   * the Property tab's site photo, adjusted for this floor's own rotation
+   * there, then projected from `localPin` out to the edge of this floor's
+   * traced content. Null whenever there isn't enough placement data to
+   * compute a genuine bearing from (either building never placed on the
+   * Property tab) or nothing's been traced on this floor yet — no stub is
+   * better than a fabricated direction. */
+  private _projectStubTowardBuilding(
+    localPin: Pin,
+    targetFloorId: string,
+  ): { x: number; y: number } | null {
+    if (!this._currentFloorId) return null;
+    const currentPlacement = this._placementForFloor(this._currentFloorId);
+    const targetPlacement = this._placementForFloor(targetFloorId);
+    if (!currentPlacement || !targetPlacement) return null;
+    const bounds = this._currentFloorContentBounds();
+    if (!bounds) return null;
+
+    const angleProperty = Math.atan2(
+      targetPlacement.y - currentPlacement.y,
+      targetPlacement.x - currentPlacement.x,
+    );
+    const rotationRad = (currentPlacement.rotation_deg * Math.PI) / 180;
+    const angleLocal = angleProperty - rotationRad;
+    return rayBoxExit(
+      localPin.x,
+      localPin.y,
+      Math.cos(angleLocal),
+      Math.sin(angleLocal),
+      bounds,
+    );
+  }
+
+  /** Links with exactly one end on the currently-viewed floor — the other
+   * end is real (placed on some other floor), just off-screen. Rendered
+   * as a stub: a line to a marker at the other device's real position
+   * (floors sharing a building_id already share one coordinate system —
+   * Align Floors), or, for a genuinely separate building (e.g. a detached
+   * Garage), a marker projected toward that building's true direction via
+   * the Property tab's own placements. Silently omitted (not drawn at a
+   * guessed position) whenever that direction can't be computed. */
+  private get _meshStubsForCurrentFloor(): ResolvedMeshStub[] {
+    if (!this._currentFloorId) return [];
+    const pinByDeviceId = this._pinByDeviceId;
+    const otherPins = this._otherFloorPinsByDeviceId;
+    const currentFloor = this._floors.find(
+      (f) => f.floor_id === this._currentFloorId,
+    );
+    const stubs: ResolvedMeshStub[] = [];
+
+    for (const link of this._normalizedMeshLinks) {
+      const localIsSource = pinByDeviceId.has(link.sourceDeviceId);
+      const localIsTarget = pinByDeviceId.has(link.targetDeviceId);
+      if (localIsSource === localIsTarget) continue;
+      const localPin = pinByDeviceId.get(
+        localIsSource ? link.sourceDeviceId : link.targetDeviceId,
+      )!;
+      const remoteDeviceId = localIsSource
+        ? link.targetDeviceId
+        : link.sourceDeviceId;
+      const remote = otherPins.get(remoteDeviceId);
+      if (!remote || remote.floorId === this._currentFloorId) continue;
+      const remoteFloor = this._floors.find(
+        (f) => f.floor_id === remote.floorId,
+      );
+      const remoteLabel =
+        remote.pin.label_override ??
+        pinDisplayLabel(remote.pin.device_id, this._entityLookup.values());
+
+      const sameBuilding =
+        currentFloor?.building_id !== null &&
+        currentFloor?.building_id === remoteFloor?.building_id;
+      const point = sameBuilding
+        ? { x: remote.pin.x, y: remote.pin.y }
+        : this._projectStubTowardBuilding(localPin, remote.floorId);
+      if (!point) continue;
+
+      stubs.push({
+        fromPin: localPin,
+        x: point.x,
+        y: point.y,
+        targetDeviceId: remoteDeviceId,
+        targetFloorId: remote.floorId,
+        targetFloorName: remoteFloor?.name ?? remote.floorId,
+        targetLabel: remoteLabel,
+        quality: link.quality,
+        ...(link.detail ? { detail: link.detail } : {}),
+      });
+    }
+    return stubs;
   }
 
   private get _selectedPin(): Pin | null {
@@ -445,6 +609,16 @@ export class SpatialContextPanel extends LitElement {
     );
   }
 
+  private get _selectedMeshLinkKey(): string | null {
+    const link = this._selectedMeshLink;
+    return link ? `${link.fromPin.id}|${link.toPin.id}` : null;
+  }
+
+  private get _selectedMeshStubKey(): string | null {
+    const stub = this._selectedMeshStub;
+    return stub ? `${stub.fromPin.id}|${stub.targetDeviceId}` : null;
+  }
+
   private get _scaleReadout(): string | null {
     const scale = this._layout.scale;
     if (!scale) return null;
@@ -465,14 +639,19 @@ export class SpatialContextPanel extends LitElement {
   }
 
   private async _init(): Promise<void> {
-    const [floors, entities, areas] = await Promise.all([
+    const [floors, entities, areas, propertyLayout] = await Promise.all([
       this._client.listFloors(),
       this._client.listPlaceableEntities(),
       this._client.listAreas(),
+      // Loaded eagerly (not just when the Property tab itself is opened) —
+      // cross-building mesh stubs (_projectStubTowardBuilding) need each
+      // building's placement even while just viewing a floor.
+      this._client.getPropertyLayout(),
     ]);
     this._floors = floors;
     this._entities = entities;
     this._areas = areas;
+    this._propertyLayout = propertyLayout;
     if (floors.length > 0) {
       await this._selectFloor(floors[0]!.floor_id, { skipDirtyCheck: true });
     }
@@ -493,6 +672,7 @@ export class SpatialContextPanel extends LitElement {
     this._resetSelection();
     this._resetAlignState();
     this._dirty = false;
+    void this._loadOtherFloorPins(floorId);
 
     // Two floors sharing a non-null building_id (see Align Floors) are one
     // physical building in one coordinate system — when the floor just
@@ -506,6 +686,28 @@ export class SpatialContextPanel extends LitElement {
     this._sameBuildingAsPreviousFloor =
       this._layout.building_id !== null &&
       this._layout.building_id === previousBuildingId;
+  }
+
+  /** Refetches every OTHER floor's placed pins, for the cross-floor mesh
+   * stub feature (_meshStubsForCurrentFloor) — deliberately fire-and-forget
+   * from _selectFloor rather than awaited, since the floor itself should
+   * render immediately and the mesh overlay is off by default anyway.
+   * Guards against a slow response landing after the user has already
+   * moved on to a different floor. */
+  private async _loadOtherFloorPins(forFloorId: string): Promise<void> {
+    const otherFloors = this._floors.filter((f) => f.floor_id !== forFloorId);
+    const layouts = await Promise.all(
+      otherFloors.map((f) => this._client.getLayout(f.floor_id)),
+    );
+    if (this._currentFloorId !== forFloorId) return;
+    const map = new Map<string, { pin: Pin; floorId: string }>();
+    otherFloors.forEach((floor, i) => {
+      for (const pin of layouts[i]!.pins) {
+        if (pin.device_id)
+          map.set(pin.device_id, { pin, floorId: floor.floor_id });
+      }
+    });
+    this._otherFloorPinsByDeviceId = map;
   }
 
   /** Align Floors' working state only ever makes sense relative to
@@ -526,6 +728,8 @@ export class SpatialContextPanel extends LitElement {
     this._selectedWallId = null;
     this._editingWallId = null;
     this._selectedOpeningId = null;
+    this._selectedMeshLink = null;
+    this._selectedMeshStub = null;
     this._armedEntityId = null;
     this._armedOpeningType = null;
   }
@@ -544,6 +748,11 @@ export class SpatialContextPanel extends LitElement {
       this._floors = this._floors.map((f) =>
         f.floor_id === this._currentFloorId ? { ...f, has_layout: true } : f,
       );
+      // A save can add/move/remove pins, which changes which devices are
+      // "already placed elsewhere" — the entity picker's own copy of that
+      // (fetched once at panel load) would otherwise only catch up on a
+      // full page reload.
+      this._entities = await this._client.listPlaceableEntities();
     } finally {
       this._saving = false;
     }
@@ -806,6 +1015,8 @@ export class SpatialContextPanel extends LitElement {
       // (this session or a fresh page load) never shows a layer already
       // armed — every open should look and behave the same.
       this._networkType = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 
@@ -815,6 +1026,8 @@ export class SpatialContextPanel extends LitElement {
   // (possibly slow, e.g. Zigbee's ~90s) network request.
   private _onNetworkTypeSelect = (type: NetworkType) => {
     this._networkType = type;
+    this._selectedMeshLink = null;
+    this._selectedMeshStub = null;
   };
 
   private _onLoadMesh = () => {
@@ -1130,7 +1343,8 @@ export class SpatialContextPanel extends LitElement {
 
   private _onPinDelete = () => {
     const pin = this._selectedPin;
-    if (!pin || !window.confirm(`Delete pin for ${pin.entity_id}?`)) return;
+    if (!pin || !window.confirm(`Delete pin for ${this._pinLabel(pin)}?`))
+      return;
     this._updateLayout({
       pins: this._layout.pins.filter((p) => p.id !== pin.id),
     });
@@ -1272,6 +1486,8 @@ export class SpatialContextPanel extends LitElement {
       this._selectedWallId = null;
       this._editingWallId = null;
       this._selectedOpeningId = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 
@@ -1303,6 +1519,8 @@ export class SpatialContextPanel extends LitElement {
       this._selectedPinId = null;
       this._pinStackIds = null;
       this._selectedOpeningId = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 
@@ -1329,6 +1547,8 @@ export class SpatialContextPanel extends LitElement {
       this._pinStackIds = null;
       this._selectedWallId = null;
       this._editingWallId = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 
@@ -1347,19 +1567,13 @@ export class SpatialContextPanel extends LitElement {
   private _onPinPlace = (e: CustomEvent<{ x: number; y: number }>) => {
     if (!this._armedEntityId) return;
     const roomId = findRoomForPoint(e.detail.x, e.detail.y, this._layout.rooms);
-    const pin = emptyPin(this._armedEntityId, e.detail.x, e.detail.y, roomId);
-    // Placement is per physical device, not per entity (see
-    // entity-picker-sidebar.ts) — but a device's chosen primary entity can
-    // still carry its own, more specific name (e.g. a UniFi Protect camera
-    // with no plain "camera.xxx" entity at all, only differently-named
-    // "High/Medium/Low resolution channel" streams). Default the pin's
-    // label to the device's own name in that case, so what's shown on the
-    // map matches what the picker showed, not whichever stream/sub-entity
-    // happened to be picked as primary. Still fully overridable per-pin.
     const entity = this._entityLookup.get(this._armedEntityId);
-    if (entity && entity.device_name && entity.device_name !== entity.name) {
-      pin.label_override = entity.device_name;
-    }
+    const pin = emptyPin(
+      entity?.device_id ?? null,
+      e.detail.x,
+      e.detail.y,
+      roomId,
+    );
     // The canvas already snaps onto an existing pin's exact coordinates
     // when co-locating (see floorplan-canvas.ts) — an exact-coordinate
     // match here means the new pin landed deliberately on top of others.
@@ -1393,6 +1607,8 @@ export class SpatialContextPanel extends LitElement {
       this._selectedWallId = null;
       this._editingWallId = null;
       this._selectedOpeningId = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 
@@ -1403,6 +1619,46 @@ export class SpatialContextPanel extends LitElement {
     this._editingWallId = null;
     this._selectedOpeningId = null;
     this._selectedPinId = null;
+    this._selectedMeshLink = null;
+    this._selectedMeshStub = null;
+  };
+
+  private _onMeshLinkSelect = (
+    e: CustomEvent<{ link: ResolvedMeshLink | null }>,
+  ) => {
+    this._selectedMeshLink = e.detail.link;
+    if (e.detail.link !== null) {
+      this._selectedRoomId = null;
+      this._editingRoomId = null;
+      this._selectedPinId = null;
+      this._pinStackIds = null;
+      this._selectedWallId = null;
+      this._editingWallId = null;
+      this._selectedOpeningId = null;
+      this._selectedMeshStub = null;
+    }
+  };
+
+  private _onMeshStubSelect = (
+    e: CustomEvent<{ stub: ResolvedMeshStub | null }>,
+  ) => {
+    this._selectedMeshStub = e.detail.stub;
+    if (e.detail.stub !== null) {
+      this._selectedRoomId = null;
+      this._editingRoomId = null;
+      this._selectedPinId = null;
+      this._pinStackIds = null;
+      this._selectedWallId = null;
+      this._editingWallId = null;
+      this._selectedOpeningId = null;
+      this._selectedMeshLink = null;
+    }
+  };
+
+  private _onMeshStubGotoFloorClick = () => {
+    const stub = this._selectedMeshStub;
+    if (!stub) return;
+    void this._selectFloor(stub.targetFloorId);
   };
 
   private _onPinStackChoose = (e: CustomEvent<{ pinId: string }>) => {
@@ -1433,7 +1689,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _pinLabel(pin: Pin): string {
     if (pin.label_override) return pin.label_override;
-    return this._entityLookup.get(pin.entity_id)?.name ?? pin.entity_id;
+    return pinDisplayLabel(pin.device_id, this._entityLookup.values());
   }
 
   private _onScaleLineComplete = (
@@ -1563,7 +1819,7 @@ export class SpatialContextPanel extends LitElement {
                     class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("wifi")}
                   >
-                    <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Coverage
+                    <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Network
                   </button>
                   <button
                     class="menu-item ${this._networkType === "matter" ? "active" : ""}"
@@ -1610,10 +1866,14 @@ export class SpatialContextPanel extends LitElement {
                                       ? `Loading… ${this._zigbeeMeshElapsedSeconds}s (usually 1-2 min)`
                                       : "Loading…"
                                     : this._networkType === "matter"
-                                      ? "Connect"
-                                      : meshFetchedAt
-                                        ? "Refresh Mesh"
-                                        : "Load Mesh"
+                                      ? "Load Network"
+                                      : this._networkType === "wifi"
+                                        ? meshFetchedAt
+                                          ? "Refresh Network"
+                                          : "Load Network"
+                                        : meshFetchedAt
+                                          ? "Refresh Mesh"
+                                          : "Load Mesh"
                                 }
                               </button>`
                         }
@@ -1687,6 +1947,7 @@ export class SpatialContextPanel extends LitElement {
                     .openings=${this._layout.openings}
                     .scale=${this._layout.scale}
                     .meshLinks=${this._meshLinksForCurrentFloor}
+                    .meshStubs=${this._meshStubsForCurrentFloor}
                     .entityLookup=${this._entityLookup}
                     .backgroundImageUrl=${backgroundImageUrl(this._layout.background_image_id)}
                     .backgroundOpacity=${this._layout.background_opacity}
@@ -1705,6 +1966,8 @@ export class SpatialContextPanel extends LitElement {
                     .selectedWallId=${this._selectedWallId}
                     .editingWallId=${this._editingWallId}
                     .selectedOpeningId=${this._selectedOpeningId}
+                    .selectedMeshLinkKey=${this._selectedMeshLinkKey}
+                    .selectedMeshStubKey=${this._selectedMeshStubKey}
                     @room-trace-complete=${this._onRoomTraceComplete}
                     @room-vertex-changed=${this._onRoomVertexChanged}
                     @room-select=${this._onRoomSelect}
@@ -1718,6 +1981,8 @@ export class SpatialContextPanel extends LitElement {
                     @pin-move=${this._onPinMove}
                     @pin-select=${this._onPinSelect}
                     @pin-stack-select=${this._onPinStackSelect}
+                    @mesh-link-select=${this._onMeshLinkSelect}
+                    @mesh-stub-select=${this._onMeshStubSelect}
                     @scale-line-complete=${this._onScaleLineComplete}
                     @pending-changed=${this._onPendingChanged}
                     @align-drag=${this._onAlignDrag}
@@ -1737,6 +2002,8 @@ export class SpatialContextPanel extends LitElement {
                     .selectedWall=${this._selectedWall}
                     .editingWall=${!!this._editingWallId}
                     .selectedOpening=${this._selectedOpening}
+                    .selectedMeshLink=${this._selectedMeshLink}
+                    .selectedMeshStub=${this._selectedMeshStub}
                     .pinStack=${this._pinStack}
                     .entityLookup=${this._entityLookup}
                     .otherFloors=${this._otherFloors}
@@ -1770,13 +2037,14 @@ export class SpatialContextPanel extends LitElement {
                     @pin-stack-choose=${this._onPinStackChoose}
                     @pin-stack-dismiss=${this._onPinStackDismiss}
                     @pin-stack-remove-click=${this._onPinStackRemove}
+                    @mesh-stub-goto-floor-click=${this._onMeshStubGotoFloorClick}
                   ></canvas-overlay>
                 </div>
                 ${
                   this._mode === "place"
                     ? html`<entity-picker-sidebar
                         .entities=${this._entities}
-                        .placedEntityIds=${this._placedEntityIds}
+                        .placedDeviceIds=${this._placedDeviceIds}
                         .armedEntityId=${this._armedEntityId}
                         .floors=${this._floors}
                         .areas=${this._areas}
