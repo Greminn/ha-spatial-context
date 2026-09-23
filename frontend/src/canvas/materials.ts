@@ -43,6 +43,20 @@ export const WALL_MATERIALS: WallMaterial[] = [
     defaultThicknessCm: 20,
   },
   {
+    id: "aerated_concrete_block",
+    label: "Aerated/foam concrete block (plastered)",
+    color: "#757575",
+    attenuationDbPerCm: 0.37,
+    defaultThicknessCm: 13,
+  },
+  {
+    id: "ceramic_poroton_block",
+    label: "Ceramic / Poroton block",
+    color: "#8d6e63",
+    attenuationDbPerCm: 0.42,
+    defaultThicknessCm: 25,
+  },
+  {
     id: "glass",
     label: "Glass",
     color: "#37474f",

@@ -8,3 +8,4 @@ __pycache__/
 custom_components/spatial_context/www/*.js.map
 .env
 .DS_Store
+NOTES.local.md

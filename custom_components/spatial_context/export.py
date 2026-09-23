@@ -34,6 +34,16 @@ _WALL_MATERIALS = {
         "attenuation_db_per_cm": 0.6,
         "default_thickness_cm": 20,
     },
+    "aerated_concrete_block": {
+        "label": "Aerated/foam concrete block (plastered)",
+        "attenuation_db_per_cm": 0.37,
+        "default_thickness_cm": 13,
+    },
+    "ceramic_poroton_block": {
+        "label": "Ceramic / Poroton block",
+        "attenuation_db_per_cm": 0.42,
+        "default_thickness_cm": 25,
+    },
     "glass": {
         "label": "Glass",
         "attenuation_db_per_cm": 2,
