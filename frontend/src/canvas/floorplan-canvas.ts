@@ -21,9 +21,9 @@ import {
   distance,
   edgeMidpoints,
   nearestPointOnPolyline,
+  openingEndpoints,
   openSegmentMidpoints,
   pointInPolygon,
-  segmentDirection,
   snapToAxis,
 } from "./geometry";
 import {
@@ -661,15 +661,8 @@ export class FloorplanCanvas extends LitElement {
     const wall = this.walls.find((w) => w.id === opening.wallId);
     if (!wall) return null;
     const points = this._effectivePoints("wall", wall.id, wall.points);
-    if (points.length < 2) return null;
     const live = this._effectiveOpening(opening);
-    const { segmentIndex } = nearestPointOnPolyline(points, live.x, live.y);
-    const [dx, dy] = segmentDirection(points, segmentIndex);
-    const half = live.width / 2;
-    return [
-      [live.x - dx * half, live.y - dy * half],
-      [live.x + dx * half, live.y + dy * half],
-    ];
+    return openingEndpoints(live.x, live.y, live.width, points);
   }
 
   /** Snaps a new wall-trace point onto an existing wall's line when close to
@@ -739,7 +732,13 @@ export class FloorplanCanvas extends LitElement {
         }
       }
     }
-    const opening = findOpeningAt(this.openings, image.x, image.y, hitR);
+    const opening = findOpeningAt(
+      this.openings,
+      this.walls,
+      image.x,
+      image.y,
+      hitR,
+    );
     if (opening) return { type: "opening", opening };
     const wall = findWallAt(this.walls, image.x, image.y, hitR);
     if (wall) return { type: "wall", wall };

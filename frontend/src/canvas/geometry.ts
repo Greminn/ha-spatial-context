@@ -192,3 +192,26 @@ export function segmentDirection(
   const len = distance(ax, ay, bx, by) || 1;
   return [(bx - ax) / len, (by - ay) / len];
 }
+
+/** A door/window's two rendered endpoints (its crossing-line's ends) along
+ * its wall's own local direction at that point — shared by
+ * floorplan-canvas.ts's _openingEndpoints (which feeds it live-drag/edit
+ * preview coordinates) and pin-tool.ts's findOpeningAt (which needs the
+ * opening's real on-screen extent, not just its center point, to hit-test
+ * clicks across its whole length rather than only a small radius around
+ * its middle). Null when the wall has fewer than two points. */
+export function openingEndpoints(
+  x: number,
+  y: number,
+  width: number,
+  wallPoints: [number, number][],
+): [[number, number], [number, number]] | null {
+  if (wallPoints.length < 2) return null;
+  const { segmentIndex } = nearestPointOnPolyline(wallPoints, x, y);
+  const [dx, dy] = segmentDirection(wallPoints, segmentIndex);
+  const half = width / 2;
+  return [
+    [x - dx * half, y - dy * half],
+    [x + dx * half, y + dy * half],
+  ];
+}

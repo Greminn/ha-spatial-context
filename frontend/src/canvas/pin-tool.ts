@@ -5,7 +5,11 @@ import type {
   ResolvedMeshStub,
   Wall,
 } from "../types";
-import { distance, pointToPolylineDistance } from "./geometry";
+import {
+  distance,
+  openingEndpoints,
+  pointToPolylineDistance,
+} from "./geometry";
 
 /** Every pin within `radius` (image-space units), nearest first — several
  * devices mounted at (near enough) the same physical spot land within a
@@ -132,9 +136,14 @@ export function findMeshStubAt(
   return closest;
 }
 
-/** Nearest door/window opening within `radius` of the point, else null. */
+/** Nearest door/window opening within `radius` of the point, else null.
+ * Tests against the opening's whole rendered crossing-line (its real
+ * on-screen extent, same as findWallAt's own line-based test), not just
+ * its center point — a wide door clicked near either end used to miss
+ * this test entirely and fall through to the wall underneath it. */
 export function findOpeningAt(
   openings: Opening[],
+  walls: Wall[],
   x: number,
   y: number,
   radius: number,
@@ -142,7 +151,16 @@ export function findOpeningAt(
   let closest: Opening | null = null;
   let closestDist = radius;
   for (const opening of openings) {
-    const d = distance(opening.x, opening.y, x, y);
+    const wall = walls.find((w) => w.id === opening.wallId);
+    if (!wall) continue;
+    const ends = openingEndpoints(
+      opening.x,
+      opening.y,
+      opening.width,
+      wall.points,
+    );
+    if (!ends) continue;
+    const d = pointToPolylineDistance(x, y, ends);
     if (d <= closestDist) {
       closest = opening;
       closestDist = d;
