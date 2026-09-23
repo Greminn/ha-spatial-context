@@ -10,6 +10,57 @@ A Home Assistant custom integration for tracing your home's floor plans and plac
 
 Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo, to see how everything relates at a glance. Your chosen pan/zoom on each tab is remembered across visits once saved.
 
+## Installation
+
+**Beta** (see [Status](#status) below) — not yet submitted to the HACS default repository, so it needs to be added as a **custom repository** first.
+
+### Option 1: HACS, one click
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
+
+### Option 2: HACS, manually
+
+1. In HACS: **⋮ (top-right) → Custom repositories**.
+2. Paste this repository's full URL into **Repository**:
+   ```
+   https://github.com/Greminn/ha-spatial-context
+   ```
+3. Set **Type** to **Integration**, then **Add**.
+4. Find **Spatial Context** in HACS and install it.
+
+Either way, this is a beta release (tagged as a pre-release), so enable **Show beta versions** for this repository — or globally in HACS's own settings — if you don't see it.
+
+### Option 3: manual copy, no HACS
+
+Copy `custom_components/spatial_context/` from this repository into your Home Assistant's `/config/custom_components/` directory.
+
+### After installing
+
+**Settings → Devices & Services → Add Integration → Spatial Context**, and it'll appear in your sidebar.
+
+## Getting started
+
+1. **Set up floors in HA**, if you haven't already — **Settings → Areas → Floors**. Spatial Context has no floor concept of its own; its tabs come straight from there.
+2. **Open Spatial Context** from the sidebar and pick a floor tab.
+3. **Add a background image** — **Background** icon, top-right. Starting from a PDF? See [Getting a background image](#getting-a-background-image).
+4. **Set the scale** — **Set Scale**, click two points a known distance apart. Do this before anything else; it's what puts every later measurement in real metres.
+5. **Trace rooms and walls** — **Trace Room** / **Trace Wall**. Assign each room a real HA area, each wall a material and thickness.
+6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be placed once, on one floor.
+7. **Repeat steps 3–6 for every floor.**
+8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
+9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
+10. **Save often** — **Save**, in the header, on whichever tab you're editing.
+
+From here: **Connectivity Map** shows live Zigbee/Wi-Fi/Matter links over your devices, and **Export** downloads the whole layout as JSON.
+
+## Getting a background image
+
+Spatial Context traces over a background image per floor (via HA's built-in image upload, PNG/JPEG/GIF). If you're starting from an architect's PDF floor plan, rasterize it first, e.g.:
+
+```
+pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
+```
+
 ## Toolbar (top-left, over the canvas)
 
 One tool is active at a time; clicking the active tool again returns to Select. Everything below is a mode you switch into, use, then switch out of — nothing here is destructive by itself (deleting something always asks first).
@@ -55,57 +106,6 @@ The Property tab is a separate, whole-property view — upload a site/aerial pho
 | Wi-Fi mesh | Matter mesh |
 |---|---|
 | ![Wi-Fi mesh overlay](docs/screenshot-wifi-mesh.jpeg) | ![Matter mesh overlay](docs/screenshot-matter-mesh.jpeg) |
-
-## Getting a background image
-
-Spatial Context traces over a background image per floor (via HA's built-in image upload, PNG/JPEG/GIF). If you're starting from an architect's PDF floor plan, rasterize it first, e.g.:
-
-```
-pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
-```
-
-## Installation
-
-**Beta** (see [Status](#status) below) — not yet submitted to the HACS default repository, so it needs to be added as a **custom repository** first.
-
-### Option 1: HACS, one click
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
-
-### Option 2: HACS, manually
-
-1. In HACS: **⋮ (top-right) → Custom repositories**.
-2. Paste this repository's full URL into **Repository**:
-   ```
-   https://github.com/Greminn/ha-spatial-context
-   ```
-3. Set **Type** to **Integration**, then **Add**.
-4. Find **Spatial Context** in HACS and install it.
-
-Either way, this is a beta release (tagged as a pre-release), so enable **Show beta versions** for this repository — or globally in HACS's own settings — if you don't see it.
-
-### Option 3: manual copy, no HACS
-
-Copy `custom_components/spatial_context/` from this repository into your Home Assistant's `/config/custom_components/` directory.
-
-### After installing
-
-**Settings → Devices & Services → Add Integration → Spatial Context**, and it'll appear in your sidebar.
-
-## Getting started
-
-1. **Set up floors in HA**, if you haven't already — **Settings → Areas → Floors**. Spatial Context has no floor concept of its own; its tabs come straight from there.
-2. **Open Spatial Context** from the sidebar and pick a floor tab.
-3. **Add a background image** — **Background** icon, top-right. Starting from a PDF? See [Getting a background image](#getting-a-background-image).
-4. **Set the scale** — **Set Scale**, click two points a known distance apart. Do this before anything else; it's what puts every later measurement in real metres.
-5. **Trace rooms and walls** — **Trace Room** / **Trace Wall**. Assign each room a real HA area, each wall a material and thickness.
-6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be placed once, on one floor.
-7. **Repeat steps 3–6 for every floor.**
-8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
-9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
-10. **Save often** — **Save**, in the header, on whichever tab you're editing.
-
-From here: **Connectivity Map** shows live Zigbee/Wi-Fi/Matter links over your devices, and **Export** downloads the whole layout as JSON.
 
 ## Development (frontend)
 
