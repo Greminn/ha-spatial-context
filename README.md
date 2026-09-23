@@ -92,6 +92,21 @@ Copy `custom_components/spatial_context/` from this repository into your Home As
 
 **Settings → Devices & Services → Add Integration → Spatial Context**, and it'll appear in your sidebar.
 
+## Getting started
+
+1. **Set up floors in HA**, if you haven't already — **Settings → Areas → Floors**. Spatial Context has no floor concept of its own; its tabs come straight from there.
+2. **Open Spatial Context** from the sidebar and pick a floor tab.
+3. **Add a background image** — **Background** icon, top-right. Starting from a PDF? See [Getting a background image](#getting-a-background-image).
+4. **Set the scale** — **Set Scale**, click two points a known distance apart. Do this before anything else; it's what puts every later measurement in real metres.
+5. **Trace rooms and walls** — **Trace Room** / **Trace Wall**. Assign each room a real HA area, each wall a material and thickness.
+6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be placed once, on one floor.
+7. **Repeat steps 3–6 for every floor.**
+8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
+9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
+10. **Save often** — **Save**, in the header, on whichever tab you're editing.
+
+From here: **Connectivity Map** shows live Zigbee/Wi-Fi/Matter links over your devices, and **Export** downloads the whole layout as JSON.
+
 ## Development (frontend)
 
 The panel is built from `frontend/` (Lit + TypeScript) into a single bundle at `custom_components/spatial_context/www/spatial-context-panel.js`, which is committed — HACS and a manual copy both install this repo as-is with no build step, so that file has to already be there and up to date with the source.

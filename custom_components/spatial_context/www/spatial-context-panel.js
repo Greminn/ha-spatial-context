@@ -624,7 +624,7 @@
             class=${this.propertySelected||t.floor_id!==this.selectedFloorId?"":"active"}
             @click=${()=>this.dispatchEvent(new CustomEvent("floor-selected",{detail:{floorId:t.floor_id},bubbles:!0,composed:!0}))}
           >
-            <ha-icon icon=${t.icon||"mdi:floor-plan"}></ha-icon>
+            <ha-icon icon=${function(t){if(t.icon)return t.icon;switch(t.level){case 0:return"mdi:home-floor-0";case 1:return"mdi:home-floor-1";case 2:return"mdi:home-floor-2";case 3:return"mdi:home-floor-3";case-1:return"mdi:home-floor-negative-1";default:return"mdi:home"}}(t)}></ha-icon>
             <span class=${t.has_layout?"":"unset"}>${t.name}</span>
           </button>
         `)}
