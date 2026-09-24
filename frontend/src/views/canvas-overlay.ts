@@ -13,6 +13,11 @@ import type {
   UnitSystem,
   Wall,
 } from "../types";
+import {
+  DEFAULT_ROOM_BORDER_OPACITY,
+  DEFAULT_ROOM_FILL_COLOR,
+  DEFAULT_ROOM_FILL_OPACITY,
+} from "../canvas/floorplan-canvas";
 import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
@@ -105,6 +110,17 @@ export class CanvasOverlay extends LitElement {
       .small-unit-select {
         width: 52px;
         padding: 4px;
+      }
+      .room-fill-color {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+      }
+      .room-opacity {
+        width: 60px;
       }
       .pin-stack {
         position: absolute;
@@ -423,6 +439,7 @@ export class CanvasOverlay extends LitElement {
   private _renderSelectionPanel() {
     if (this.selectedRoom) {
       const room = this.selectedRoom;
+      const visible = room.visible !== false;
       return html`
         <div class="selection-panel floating-panel">
           <span class="hint">${room.name}</span>
@@ -443,6 +460,48 @@ export class CanvasOverlay extends LitElement {
                 </option>`,
             )}
           </select>
+          <button
+            title=${visible ? "Hide room" : "Show room"}
+            @click=${() => this._fire("room-visible-toggle")}
+          >
+            <ha-icon icon="mdi:eye${visible ? "" : "-off"}"></ha-icon>
+          </button>
+          <input
+            type="color"
+            class="room-fill-color"
+            title="Room color"
+            .value=${room.fill_color ?? DEFAULT_ROOM_FILL_COLOR}
+            @input=${(e: Event) =>
+              this._fire("room-fill-color-change", {
+                color: (e.target as HTMLInputElement).value,
+              })}
+          />
+          <input
+            type="range"
+            class="room-opacity"
+            title="Fill opacity"
+            min="0"
+            max="1"
+            step="0.02"
+            .value=${String(room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY)}
+            @input=${(e: Event) =>
+              this._fire("room-fill-opacity-change", {
+                opacity: Number((e.target as HTMLInputElement).value),
+              })}
+          />
+          <input
+            type="range"
+            class="room-opacity"
+            title="Border opacity"
+            min="0"
+            max="1"
+            step="0.02"
+            .value=${String(room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY)}
+            @input=${(e: Event) =>
+              this._fire("room-border-opacity-change", {
+                opacity: Number((e.target as HTMLInputElement).value),
+              })}
+          />
           <button
             title="Rename"
             @click=${() => this._fire("room-rename-click")}

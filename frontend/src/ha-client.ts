@@ -302,7 +302,9 @@ export function newPlacement(
 }
 
 export function emptySettings(): Settings {
-  return { unit_system: "metric" };
+  return {
+    unit_system: "metric",
+  };
 }
 
 export function emptyPropertyLayout(): PropertyLayout {

@@ -5,6 +5,14 @@ export interface Room {
   name: string;
   area_id: string | null;
   points: [number, number][];
+  /** Per-room overlay styling (see floorplan-canvas.ts's .room-poly) —
+   * each room's own look, not an app-wide preference. Undefined/null on
+   * any field falls back to today's baked-in default (see
+   * floorplan-canvas.ts's DEFAULT_ROOM_* constants). */
+  fill_color?: string | null;
+  fill_opacity?: number | null;
+  border_opacity?: number | null;
+  visible?: boolean;
 }
 
 export interface Pin {

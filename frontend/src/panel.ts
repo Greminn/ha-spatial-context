@@ -82,6 +82,10 @@ export class SpatialContextPanel extends LitElement {
         min-width: 0;
         position: relative;
       }
+      .canvas-area.drag-over {
+        outline: 2px dashed var(--sc-accent);
+        outline-offset: -2px;
+      }
       .loading,
       .no-floors {
         padding: 32px;
@@ -135,6 +139,9 @@ export class SpatialContextPanel extends LitElement {
   @state() private _entities: PlaceableEntity[] = [];
   @state() private _areas: AreaMeta[] = [];
   @state() private _mode: CanvasMode = "select";
+  /** Drop-zone highlight while dragging a file over the canvas — see
+   * _onCanvasDragOver/_onCanvasDrop. */
+  @state() private _dragOverCanvas = false;
   @state() private _armedEntityId: string | null = null;
   @state() private _armedOpeningType: OpeningType | null = null;
   @state() private _selectedRoomId: string | null = null;
@@ -1150,8 +1157,14 @@ export class SpatialContextPanel extends LitElement {
     this._matterUnsubscribe = null;
   }
 
+  override connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener("keydown", this._onKeyDown);
+  }
+
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.removeEventListener("keydown", this._onKeyDown);
     this._unsubscribeMatter();
     if (this._zigbeeMeshTimer !== null) {
       window.clearInterval(this._zigbeeMeshTimer);
@@ -1159,11 +1172,86 @@ export class SpatialContextPanel extends LitElement {
     }
   }
 
+  /** The actual focused element, piercing open shadow roots — the listener
+   * is on window, so e.target would just be this outermost custom element
+   * (shadow DOM retargeting), not whatever <input> the user is really
+   * typing into. */
+  private _deepActiveElement(): Element | null {
+    let el: Element | null = document.activeElement;
+    while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+    return el;
+  }
+
+  private _isTypingTarget(): boolean {
+    const el = this._deepActiveElement();
+    if (!el) return false;
+    if (el instanceof HTMLElement && el.isContentEditable) return true;
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+  }
+
+  /** Esc cancel / Delete selection / Enter finish-wall — see #14. Never
+   * fires while the user is typing in a text/number field (room name, wall
+   * thickness, etc.), and Esc only cancels in-progress actions (a pending
+   * trace, armed placement mode), never a persisted selection. */
+  private _onKeyDown = (e: KeyboardEvent): void => {
+    if (this._isTypingTarget()) return;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this._onCancelPending();
+      this._mode = "select";
+      this._armedEntityId = null;
+      this._armedOpeningType = null;
+      this._armedBuildingKey = null;
+      return;
+    }
+
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (
+        this._selectedRoom ||
+        this._selectedPin ||
+        this._selectedWall ||
+        this._selectedOpening ||
+        this._selectedPlacement
+      ) {
+        e.preventDefault();
+      }
+      if (this._selectedRoom) this._onRoomDelete();
+      else if (this._selectedPin) this._onPinDelete();
+      else if (this._selectedWall) this._onWallDelete();
+      else if (this._selectedOpening) this._onOpeningDelete();
+      else if (this._selectedPlacement) this._onPlacementDeleteClick();
+      return;
+    }
+
+    if (e.key === "Enter" && this._mode === "wall") {
+      e.preventDefault();
+      this._onFinishWall();
+    }
+  };
+
   private _onFileInputChange = async (e: Event) => {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
+    void this._handleBackgroundFile(file);
+  };
+
+  private static readonly _ACCEPTED_BACKGROUND_TYPES = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+  ]);
+
+  /** Shared by the file-input picker and canvas drag-and-drop — drag-and-drop
+   * bypasses the <input accept> restriction entirely, so the MIME check has
+   * to live here rather than only on the input element. */
+  private async _handleBackgroundFile(file: File): Promise<void> {
+    if (!SpatialContextPanel._ACCEPTED_BACKGROUND_TYPES.has(file.type)) {
+      window.alert("Background image must be a PNG, JPEG, or GIF file.");
+      return;
+    }
     try {
       const imageId = await this._client.uploadBackgroundImage(file);
       const patch = { background_image_id: imageId, background_opacity: 0.85 };
@@ -1172,6 +1260,24 @@ export class SpatialContextPanel extends LitElement {
     } catch (err) {
       window.alert(`Background image upload failed: ${(err as Error).message}`);
     }
+  }
+
+  private _onCanvasDragOver = (e: DragEvent) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+    this._dragOverCanvas = true;
+  };
+
+  private _onCanvasDragLeave = () => {
+    this._dragOverCanvas = false;
+  };
+
+  private _onCanvasDrop = (e: DragEvent) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+    this._dragOverCanvas = false;
+    const file = e.dataTransfer.files?.[0];
+    if (file) void this._handleBackgroundFile(file);
   };
 
   private _onRemoveBackgroundClick = () => {
@@ -1337,6 +1443,40 @@ export class SpatialContextPanel extends LitElement {
           : r,
       ),
     });
+  };
+
+  private _patchRoom(id: string, patch: Partial<Room>): void {
+    this._updateLayout({
+      rooms: this._layout.rooms.map((r) =>
+        r.id === id ? { ...r, ...patch } : r,
+      ),
+    });
+  }
+
+  private _onRoomVisibleToggle = () => {
+    const room = this._selectedRoom;
+    if (!room) return;
+    this._patchRoom(room.id, { visible: room.visible === false });
+  };
+
+  private _onRoomFillColorChange = (e: CustomEvent<{ color: string }>) => {
+    const room = this._selectedRoom;
+    if (!room) return;
+    this._patchRoom(room.id, { fill_color: e.detail.color });
+  };
+
+  private _onRoomFillOpacityChange = (e: CustomEvent<{ opacity: number }>) => {
+    const room = this._selectedRoom;
+    if (!room) return;
+    this._patchRoom(room.id, { fill_opacity: e.detail.opacity });
+  };
+
+  private _onRoomBorderOpacityChange = (
+    e: CustomEvent<{ opacity: number }>,
+  ) => {
+    const room = this._selectedRoom;
+    if (!room) return;
+    this._patchRoom(room.id, { border_opacity: e.detail.opacity });
   };
 
   private _onRoomEditVertices = () => {
@@ -2019,7 +2159,12 @@ export class SpatialContextPanel extends LitElement {
         ${
           this._view === "property"
             ? html`
-                <div class="canvas-area">
+                <div
+                  class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
+                  @dragover=${this._onCanvasDragOver}
+                  @dragleave=${this._onCanvasDragLeave}
+                  @drop=${this._onCanvasDrop}
+                >
                   <property-canvas
                     .placements=${this._propertyLayout.placements}
                     .floorNameById=${this._floorNameById}
@@ -2055,7 +2200,12 @@ export class SpatialContextPanel extends LitElement {
                 </div>
               `
             : html`
-                <div class="canvas-area">
+                <div
+                  class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
+                  @dragover=${this._onCanvasDragOver}
+                  @dragleave=${this._onCanvasDragLeave}
+                  @drop=${this._onCanvasDrop}
+                >
                   <floorplan-canvas
                     .rooms=${this._layout.rooms}
                     .pins=${this._layout.pins}
@@ -2141,6 +2291,12 @@ export class SpatialContextPanel extends LitElement {
                     @finish-wall-click=${this._onFinishWall}
                     @room-rename-click=${this._onRoomRename}
                     @room-area-change=${this._onRoomAreaChange}
+                    @room-visible-toggle=${this._onRoomVisibleToggle}
+                    @room-fill-color-change=${this._onRoomFillColorChange}
+                    @room-fill-opacity-change=${this._onRoomFillOpacityChange}
+                    @room-border-opacity-change=${
+                      this._onRoomBorderOpacityChange
+                    }
                     @room-edit-vertices-click=${this._onRoomEditVertices}
                     @room-delete-click=${this._onRoomDelete}
                     @pin-set-label-click=${this._onPinSetLabel}

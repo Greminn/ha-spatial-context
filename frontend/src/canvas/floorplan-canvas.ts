@@ -20,10 +20,12 @@ import {
   clamp,
   distance,
   edgeMidpoints,
+  nearestPointOnClosedPolygon,
   nearestPointOnPolyline,
   openingEndpoints,
   openSegmentMidpoints,
   pointInPolygon,
+  pointToPolylineDistance,
   snapToAxis,
 } from "./geometry";
 import {
@@ -31,6 +33,7 @@ import {
   findMeshStubAt,
   findOpeningAt,
   findPinsAt,
+  findRoomAt,
   findVertexAt,
   findWallAt,
 } from "./pin-tool";
@@ -54,6 +57,15 @@ const HIT_RADIUS_PX = 14;
 const SNAP_THRESHOLD_PX = 10;
 const VERTEX_RADIUS_PX = 6;
 const MIDPOINT_RADIUS_PX = 4;
+
+// A room's per-room style fields (see types.ts's Room) fall back to these
+// when unset — today's original baked-in look, so an existing room with
+// no style customized yet still renders exactly as before. Exported so
+// canvas-overlay.ts's per-room style controls can show/reset to the same
+// defaults rather than duplicating the literal values.
+export const DEFAULT_ROOM_FILL_COLOR = "#03a9f4";
+export const DEFAULT_ROOM_FILL_OPACITY = 0.18;
+export const DEFAULT_ROOM_BORDER_OPACITY = 1;
 const PIN_RADIUS_PX = 12;
 const MESH_STUB_RADIUS_PX = 10;
 
@@ -184,15 +196,11 @@ export class FloorplanCanvas extends LitElement {
         stroke-width: 3px;
       }
       .room-poly {
-        fill: var(--sc-accent);
-        fill-opacity: 0.18;
-        stroke: var(--sc-accent);
-        stroke-width: 2;
+        /* fill/fill-opacity/stroke/stroke-opacity/stroke-width are set
+         * inline per-render from the room's own style fields (see
+         * _renderRoom), each falling back to DEFAULT_ROOM_* when unset —
+         * not fixed here, since a plain class can't vary per room. */
         cursor: pointer;
-      }
-      .room-poly.selected {
-        fill-opacity: 0.32;
-        stroke-width: 3;
       }
       .room-label {
         fill: var(--sc-fg);
@@ -270,6 +278,48 @@ export class FloorplanCanvas extends LitElement {
       }
       .vertex-handle.selected {
         fill: var(--sc-danger);
+      }
+      .hover-snap-line {
+        fill: none;
+        stroke: var(--sc-accent);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      .hover-snap-line.closing {
+        stroke: #2e7d32;
+        stroke-dasharray: none;
+        opacity: 1;
+      }
+      .hover-snap-marker {
+        fill: white;
+        stroke: var(--sc-accent);
+        stroke-width: 2;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      .hover-snap-marker.on-geometry {
+        fill: var(--sc-accent);
+        opacity: 1;
+      }
+      /* A distinct hue from the app's own accent blue — a dedicated
+       * "alignment guide" color (the same convention design tools like
+       * Figma use) so it never gets confused with a geometry snap. */
+      .hover-snap-marker.on-axis {
+        fill: #e91e63;
+        stroke: #e91e63;
+        opacity: 1;
+      }
+      .axis-guide {
+        stroke: #e91e63;
+        stroke-width: 1;
+        opacity: 0.8;
+        pointer-events: none;
+      }
+      .vertex-handle.closing {
+        fill: #2e7d32;
+        stroke: #2e7d32;
       }
       .vertex-delete {
         fill: var(--sc-danger);
@@ -378,6 +428,17 @@ export class FloorplanCanvas extends LitElement {
   @state() private _naturalHeight = DEFAULT_HEIGHT;
   @state() private _alignNaturalHeight = DEFAULT_HEIGHT;
   @state() private _pendingTrace: PendingTrace | null = null;
+  /** Live snap preview while hovering in wall/room-trace mode (no button
+   * held) — lets the pointer visibly "stick" to an existing wall/room edge
+   * or to horizontal/vertical from the trace's last point before you
+   * commit a click, instead of only revealing the snap after the fact.
+   * See _onPointerMove/_renderHoverSnap. */
+  @state() private _hoverSnap: {
+    point: [number, number];
+    kind: "geometry" | "axis" | "none";
+    lockedX: boolean;
+    lockedY: boolean;
+  } | null = null;
   @state() private _pendingScalePoints: [number, number][] = [];
   @state() private _liveEditPoints: [number, number][] | null = null;
   @state() private _liveDragPin: { id: string; x: number; y: number } | null =
@@ -618,17 +679,58 @@ export class FloorplanCanvas extends LitElement {
       : points;
   }
 
-  /** Snaps a new trace point onto horizontal/vertical from the trace's last
-   * point, unless `disableSnap` (held Shift) is set. */
+  /** Snaps a new trace point onto horizontal/vertical from the trace's
+   * last point — or, once there are enough points to close into a loop,
+   * also its first point — unless `disableSnap` (held Shift) is set.
+   *
+   * Each anchor locks at most one axis (whichever it's closer on — the
+   * same rule snapToAxis always used for a single anchor, so one wall
+   * segment still only ever runs in one direction from where it started).
+   * But the last point and the first point can each lock a *different*
+   * axis at once — Y from the point you're continuing from, X from the
+   * point you're closing back onto — which is what actually makes a
+   * precise closing corner findable: without it, the guide could only
+   * ever show one line at a time, never both simultaneously. */
   private _snappedTracePoint(
     existingPoints: [number, number][],
     x: number,
     y: number,
     disableSnap: boolean,
-  ): [number, number] {
-    if (disableSnap || existingPoints.length === 0) return [x, y];
-    const prev = existingPoints[existingPoints.length - 1]!;
-    return snapToAxis(prev, [x, y], this._pxToUnits(SNAP_THRESHOLD_PX));
+  ): { point: [number, number]; lockedX: boolean; lockedY: boolean } {
+    if (disableSnap || existingPoints.length === 0) {
+      return { point: [x, y], lockedX: false, lockedY: false };
+    }
+    const threshold = this._pxToUnits(SNAP_THRESHOLD_PX);
+    const last = existingPoints[existingPoints.length - 1]!;
+    const first = existingPoints[0]!;
+    const anchors =
+      existingPoints.length >= 3 &&
+      (first[0] !== last[0] || first[1] !== last[1])
+        ? [last, first]
+        : [last];
+    let lockedX: number | null = null;
+    let bestDx = Infinity;
+    let lockedY: number | null = null;
+    let bestDy = Infinity;
+    for (const [ax, ay] of anchors) {
+      const dx = Math.abs(x - ax);
+      const dy = Math.abs(y - ay);
+      if (dx > threshold && dy > threshold) continue;
+      if (dx <= dy) {
+        if (dx < bestDx) {
+          lockedX = ax;
+          bestDx = dx;
+        }
+      } else if (dy < bestDy) {
+        lockedY = ay;
+        bestDy = dy;
+      }
+    }
+    return {
+      point: [lockedX ?? x, lockedY ?? y],
+      lockedX: lockedX !== null,
+      lockedY: lockedY !== null,
+    };
   }
 
   /** Snaps a moved/dragged vertex onto horizontal/vertical from whichever
@@ -677,21 +779,71 @@ export class FloorplanCanvas extends LitElement {
     return openingEndpoints(live.x, live.y, live.width, points);
   }
 
-  /** Snaps a new wall-trace point onto an existing wall's line when close to
-   * one (so internal walls attach cleanly to exterior walls), else falls
-   * back to ordinary axis-snapping against the trace's last point. */
-  private _snappedWallPoint(
+  /** Snaps a new wall- or room-trace point onto the nearest existing wall
+   * or room edge within hit radius — whichever is strictly closer to the
+   * raw cursor position — so a new wall can attach to an existing room's
+   * boundary and a new room can attach to an existing wall or share a
+   * clean edge with an already-traced adjacent room. Falls back to
+   * ordinary axis-snapping against the trace's own last point when
+   * nothing existing is close enough, or disableSnap (held Shift).
+   *
+   * Walls search against their own rendered half-thickness added to the
+   * base hit radius, not the base radius alone — a thick wall can render
+   * many canvas units wide at typical zoom, so clicking anywhere on its
+   * visible stroke (the natural thing to do) needs to count as "on" it,
+   * not just clicking within a few pixels of its thin centerline. */
+  private _snappedGeometryPoint(
     existingTracePoints: [number, number][],
     x: number,
     y: number,
     disableSnap: boolean,
-  ): [number, number] {
+  ): {
+    point: [number, number];
+    kind: "geometry" | "axis" | "none";
+    lockedX: boolean;
+    lockedY: boolean;
+  } {
     if (!disableSnap) {
       const hitR = this._pxToUnits(HIT_RADIUS_PX);
-      const wall = findWallAt(this.walls, x, y, hitR);
-      if (wall) return nearestPointOnPolyline(wall.points, x, y).point;
+      let best: { point: [number, number]; dist: number } | null = null;
+      for (const wall of this.walls) {
+        const halfThickness =
+          parseFloat(this._wallStrokeWidth(wall, wallMaterial(wall.material))) /
+          2;
+        const wallHitR = Math.max(hitR, halfThickness);
+        const d = pointToPolylineDistance(x, y, wall.points);
+        if (d > wallHitR) continue;
+        const point = nearestPointOnPolyline(wall.points, x, y).point;
+        const dist = distance(x, y, point[0], point[1]);
+        if (!best || dist < best.dist) best = { point, dist };
+      }
+      const room = findRoomAt(this.rooms, x, y, hitR);
+      if (room) {
+        const point = nearestPointOnClosedPolygon(room.points, x, y).point;
+        const dist = distance(x, y, point[0], point[1]);
+        if (!best || dist < best.dist) best = { point, dist };
+      }
+      if (best) {
+        return {
+          point: best.point,
+          kind: "geometry",
+          lockedX: false,
+          lockedY: false,
+        };
+      }
     }
-    return this._snappedTracePoint(existingTracePoints, x, y, disableSnap);
+    const { point, lockedX, lockedY } = this._snappedTracePoint(
+      existingTracePoints,
+      x,
+      y,
+      disableSnap,
+    );
+    return {
+      point,
+      kind: lockedX || lockedY ? "axis" : "none",
+      lockedX,
+      lockedY,
+    };
   }
 
   private _hitTest(
@@ -796,7 +948,24 @@ export class FloorplanCanvas extends LitElement {
   };
 
   private _onPointerMove = (e: PointerEvent): void => {
-    if (!this._pointers.has(e.pointerId)) return;
+    if (!this._pointers.has(e.pointerId)) {
+      // A bare hover (no button down, so never registered in _pointers) —
+      // the only thing this component does with it is preview where a
+      // wall/room-trace click would actually land, so the snap is visible
+      // before you commit to it rather than only after.
+      if (this.mode === "wall" || this.mode === "trace") {
+        const image = this._clientToImage(e.clientX, e.clientY);
+        this._hoverSnap = this._snappedGeometryPoint(
+          this._pendingTrace?.points ?? [],
+          image.x,
+          image.y,
+          e.shiftKey,
+        );
+      } else if (this._hoverSnap) {
+        this._hoverSnap = null;
+      }
+      return;
+    }
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (this._gesture?.kind === "pinch" && this._pointers.size === 2) {
@@ -957,6 +1126,10 @@ export class FloorplanCanvas extends LitElement {
     return { kind: "pan" };
   }
 
+  private _onPointerLeave = (): void => {
+    this._hoverSnap = null;
+  };
+
   private _onPointerUp = (e: PointerEvent): void => {
     this._pointers.delete(e.pointerId);
     this._svg.style.cursor = "";
@@ -1043,12 +1216,9 @@ export class FloorplanCanvas extends LitElement {
     if (this.mode === "trace") {
       const closeThreshold = this._pxToUnits(HIT_RADIUS_PX);
       const trace = this._pendingTrace ?? startTrace();
-      const [sx, sy] = this._snappedTracePoint(
-        trace.points,
-        image.x,
-        image.y,
-        shiftKey,
-      );
+      const {
+        point: [sx, sy],
+      } = this._snappedGeometryPoint(trace.points, image.x, image.y, shiftKey);
       const result = addTracePoint(trace, sx, sy, closeThreshold);
       if (result.closed) {
         this.dispatchEvent(
@@ -1066,12 +1236,9 @@ export class FloorplanCanvas extends LitElement {
     if (this.mode === "wall") {
       const closeThreshold = this._pxToUnits(HIT_RADIUS_PX);
       const trace = this._pendingTrace ?? startTrace();
-      const [sx, sy] = this._snappedWallPoint(
-        trace.points,
-        image.x,
-        image.y,
-        shiftKey,
-      );
+      const {
+        point: [sx, sy],
+      } = this._snappedGeometryPoint(trace.points, image.x, image.y, shiftKey);
       const result = addTracePoint(trace, sx, sy, closeThreshold);
       if (result.closed) {
         // Click near the start closes the loop — same gesture as rooms,
@@ -1335,16 +1502,28 @@ export class FloorplanCanvas extends LitElement {
   }
 
   private _renderRoom(room: Room) {
+    if (room.visible === false) return nothing;
     const points = this._effectivePoints("room", room.id, room.points);
     if (points.length < 2) return nothing;
     const pointsAttr = points.map(([x, y]) => `${x},${y}`).join(" ");
     const [cx, cy] = centroid(points);
     const isEditing = this.editingRoomId === room.id;
+    const isSelected = room.id === this.selectedRoomId || isEditing;
+    const fillColor = room.fill_color ?? DEFAULT_ROOM_FILL_COLOR;
+    const fillOpacity = room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY;
+    const borderOpacity = room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY;
 
     return svg`
       <polygon
-        class="room-poly ${room.id === this.selectedRoomId || isEditing ? "selected" : ""}"
+        class="room-poly ${isSelected ? "selected" : ""}"
         points=${pointsAttr}
+        fill=${fillColor}
+        fill-opacity=${
+          isSelected ? Math.min(1, fillOpacity * (0.32 / 0.18)) : fillOpacity
+        }
+        stroke=${fillColor}
+        stroke-opacity=${borderOpacity}
+        stroke-width=${isSelected ? 3 : 2}
       ></polygon>
       <text class="room-label" x=${cx} y=${cy}>${room.name}</text>
       ${isEditing ? this._renderVertexHandles(points, true) : nothing}
@@ -1630,18 +1809,114 @@ export class FloorplanCanvas extends LitElement {
   }
 
   private _renderPendingTrace() {
-    if (!this._pendingTrace || this._pendingTrace.points.length === 0)
-      return nothing;
-    const pointsAttr = this._pendingTrace.points
-      .map(([x, y]) => `${x},${y}`)
-      .join(" ");
+    const tracePoints = this._pendingTrace?.points ?? [];
+    if (tracePoints.length === 0 && !this._hoverSnap) return nothing;
+    const pointsAttr = tracePoints.map(([x, y]) => `${x},${y}`).join(" ");
     const r = this._pxToUnits(VERTEX_RADIUS_PX);
+    const last = tracePoints[tracePoints.length - 1];
+    const first = tracePoints[0];
+    // Hovering back near the trace's own start, once it's got enough
+    // points to close — matches addTracePoint's own closing check exactly
+    // (same closeThreshold, against the same post-snap point), so this
+    // indicator is only ever shown when a click really would close it.
+    const closing =
+      !!this._hoverSnap &&
+      !!first &&
+      tracePoints.length >= 3 &&
+      distance(
+        this._hoverSnap.point[0],
+        this._hoverSnap.point[1],
+        first[0],
+        first[1],
+      ) <= this._pxToUnits(HIT_RADIUS_PX);
     return svg`
-      <polyline class="pending-trace" points=${pointsAttr}></polyline>
-      ${this._pendingTrace.points.map(
-        ([x, y]) =>
-          svg`<circle class="vertex-handle" cx=${x} cy=${y} r=${r}></circle>`,
+      ${
+        tracePoints.length > 0
+          ? svg`<polyline class="pending-trace" points=${pointsAttr}></polyline>`
+          : nothing
+      }
+      ${tracePoints.map(
+        ([x, y], i) => svg`
+          <circle
+            class="vertex-handle ${i === 0 && closing ? "closing" : ""}"
+            cx=${x}
+            cy=${y}
+            r=${i === 0 && closing ? r * 1.6 : r}
+          ></circle>
+        `,
       )}
+      ${this._hoverSnap ? this._renderHoverSnap(last, first, closing, r) : nothing}
+    `;
+  }
+
+  /** Live preview of where a click would land right now. The axis-guide
+   * line (horizontal/vertical lock from the last point) shows whenever
+   * it applies, independent of "closing" — the final segment that closes
+   * a box is exactly the case where you most want confirmation you're
+   * still plumb/level *and* about to close, not one replacing the other.
+   * The connecting line/marker themselves do change when closing: they
+   * snap visually onto the trace's exact first point (what a click would
+   * actually do, per addTracePoint), not wherever the cursor really is. */
+  private _renderHoverSnap(
+    last: [number, number] | undefined,
+    first: [number, number] | undefined,
+    closing: boolean,
+    r: number,
+  ) {
+    if (!this._hoverSnap) return nothing;
+    const [hx, hy] = this._hoverSnap.point;
+    const vb = this._viewBox;
+    const target = closing && first ? first : [hx, hy];
+    return svg`
+      ${
+        this._hoverSnap.lockedY
+          ? svg`<line
+              class="axis-guide"
+              x1=${vb.x}
+              y1=${hy}
+              x2=${vb.x + vb.w}
+              y2=${hy}
+            ></line>`
+          : nothing
+      }
+      ${
+        this._hoverSnap.lockedX
+          ? svg`<line
+              class="axis-guide"
+              x1=${hx}
+              y1=${vb.y}
+              x2=${hx}
+              y2=${vb.y + vb.h}
+            ></line>`
+          : nothing
+      }
+      ${
+        last
+          ? svg`<line
+              class="hover-snap-line ${closing ? "closing" : ""}"
+              x1=${last[0]}
+              y1=${last[1]}
+              x2=${target[0]}
+              y2=${target[1]}
+            ></line>`
+          : nothing
+      }
+      ${
+        closing
+          ? nothing
+          : svg`<circle
+              class="hover-snap-marker ${
+                this._hoverSnap.kind === "geometry"
+                  ? "on-geometry"
+                  : this._hoverSnap.kind === "axis"
+                    ? "on-axis"
+                    : ""
+              }"
+              cx=${hx}
+              cy=${hy}
+              r=${r}
+            ></circle>`
+      }
     `;
   }
 
@@ -1674,19 +1949,36 @@ export class FloorplanCanvas extends LitElement {
 
   private _renderWall(wall: Wall) {
     const points = this._effectivePoints("wall", wall.id, wall.points);
-    const pointsAttr = points.map(([x, y]) => `${x},${y}`).join(" ");
     const selected = wall.id === this.selectedWallId;
     const isEditing = this.editingWallId === wall.id;
     const material = wallMaterial(wall.material);
     const strokeWidth = this._wallStrokeWidth(wall, material);
+    // A wall closed back to its own start point duplicates the first point
+    // as the last (see wall-trace-complete) — but SVG's <polyline> treats
+    // its true start/end as two independent open ends, each getting its
+    // own perpendicular stroke-linecap cut, even when they land on the
+    // same coordinate. That leaves a wedge-shaped notch at the join
+    // instead of the same clean miter every interior corner already gets.
+    // <polygon> closes properly and applies stroke-linejoin at that vertex
+    // too, so a closed wall renders it without the duplicated point.
+    const first = points[0];
+    const last = points[points.length - 1];
+    const isClosed =
+      points.length > 2 &&
+      !!first &&
+      !!last &&
+      first[0] === last[0] &&
+      first[1] === last[1];
+    const drawPoints = isClosed ? points.slice(0, -1) : points;
+    const pointsAttr = drawPoints.map(([x, y]) => `${x},${y}`).join(" ");
+    const wallClass = `wall-line ${selected || isEditing ? "selected" : ""}`;
+    const wallStyle = `stroke:${material.color}; stroke-width:${strokeWidth}`;
     return svg`
-      <polyline
-        class="wall-line ${selected || isEditing ? "selected" : ""}"
-        points=${pointsAttr}
-        style="stroke:${material.color}; stroke-width:${strokeWidth}"
-      >
-        <title>${material.label}</title>
-      </polyline>
+      ${
+        isClosed
+          ? svg`<polygon class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${material.label}</title></polygon>`
+          : svg`<polyline class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${material.label}</title></polyline>`
+      }
       ${isEditing ? this._renderVertexHandles(points, false) : nothing}
     `;
   }
@@ -1857,6 +2149,7 @@ export class FloorplanCanvas extends LitElement {
           @pointermove=${this._onPointerMove}
           @pointerup=${this._onPointerUp}
           @pointercancel=${this._onPointerUp}
+          @pointerleave=${this._onPointerLeave}
         >
           ${this.rooms.map((room) => this._renderRoom(room))}
           ${this.walls.map((wall) => this._renderWall(wall))}

@@ -163,6 +163,18 @@ export function nearestPointOnPolyline(
   return { point: best.point, segmentIndex: best.segmentIndex };
 }
 
+/** Closest point on a closed ring (room polygon) to (x,y), including the
+ * closing edge back to the first vertex — nearestPointOnPolyline doesn't
+ * wrap, so this feeds it the ring with the first point appended. */
+export function nearestPointOnClosedPolygon(
+  points: [number, number][],
+  x: number,
+  y: number,
+): { point: [number, number]; segmentIndex: number } {
+  if (points.length === 0) return { point: [x, y], segmentIndex: 0 };
+  return nearestPointOnPolyline([...points, points[0]!], x, y);
+}
+
 /**
  * If `candidate` is within `threshold` of being perfectly horizontal or
  * vertical relative to `anchor`, snap it onto that axis. Prefers whichever

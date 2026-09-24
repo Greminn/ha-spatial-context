@@ -3,10 +3,12 @@ import type {
   Pin,
   ResolvedMeshLink,
   ResolvedMeshStub,
+  Room,
   Wall,
 } from "../types";
 import {
   distance,
+  nearestPointOnClosedPolygon,
   openingEndpoints,
   pointToPolylineDistance,
 } from "./geometry";
@@ -80,6 +82,31 @@ export function findWallAt(
     const d = pointToPolylineDistance(x, y, wall.points);
     if (d <= closestDist) {
       closest = wall;
+      closestDist = d;
+    }
+  }
+  return closest;
+}
+
+/** Nearest room whose boundary (including its closing edge back to the
+ * first vertex) passes within `radius` of the point, else null. `rooms`
+ * only ever holds already-saved rooms — an in-progress trace isn't in
+ * this array yet — so a room being traced is never a candidate for its
+ * own snap search without needing an explicit exclusion. */
+export function findRoomAt(
+  rooms: Room[],
+  x: number,
+  y: number,
+  radius: number,
+): Room | null {
+  let closest: Room | null = null;
+  let closestDist = radius;
+  for (const room of rooms) {
+    if (room.points.length < 2) continue;
+    const { point } = nearestPointOnClosedPolygon(room.points, x, y);
+    const d = distance(x, y, point[0], point[1]);
+    if (d <= closestDist) {
+      closest = room;
       closestDist = d;
     }
   }

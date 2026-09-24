@@ -59,6 +59,14 @@ _ROOM_SCHEMA = {
     vol.Required("name"): str,
     vol.Optional("area_id"): vol.Any(str, None),
     vol.Required("points"): [[vol.Coerce(float)]],
+    # Per-room overlay styling (see floorplan-canvas.ts's .room-poly) —
+    # each room's own look, not an app-wide preference. Optional/nullable
+    # so an existing room with none of these set keeps today's baked-in
+    # default look (frontend applies the fallback, not this schema).
+    vol.Optional("fill_color"): vol.Any(vol.Match(r"^#[0-9a-fA-F]{6}$"), None),
+    vol.Optional("fill_opacity"): vol.Any(vol.Coerce(float), None),
+    vol.Optional("border_opacity"): vol.Any(vol.Coerce(float), None),
+    vol.Optional("visible"): bool,
 }
 
 _PIN_SCHEMA = {
