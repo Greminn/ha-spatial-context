@@ -49,6 +49,14 @@ def _build_mac_to_device_ids(device_registry: dr.DeviceRegistry) -> dict[str, li
         for connection_type, value in device.connections:
             if connection_type == dr.CONNECTION_NETWORK_MAC:
                 mac_to_device_ids.setdefault(dr.format_mac(value), []).append(device.id)
+        # TP-Link Deco (custom tplink_deco integration) registers each node
+        # by an identifier holding its MAC, with no `connections` at all —
+        # index, don't unpack: some integrations (goecharger_api2) register
+        # identifiers longer than the usual (domain, id) pair, matching the
+        # same defensive style zigbee_mesh.py's IEEE-to-device-id map uses.
+        for identifier in device.identifiers:
+            if len(identifier) > 1 and identifier[0] == "tplink_deco":
+                mac_to_device_ids.setdefault(dr.format_mac(identifier[1]), []).append(device.id)
     return mac_to_device_ids
 
 
@@ -113,8 +121,16 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
         state = hass.states.get(entry.entity_id)
         if state is None:
             continue
+        # TP-Link Deco (custom tplink_deco) keeps the last `deco_mac` on
+        # disconnected clients, so a stale/away tracker would otherwise
+        # draw a phantom link.
+        if state.state == "not_home":
+            continue
 
-        ap_mac = state.attributes.get("ap_mac")
+        # TP-Link Deco names the parent node `deco_mac` instead of UniFi's
+        # `ap_mac`; a Deco node's own tracker carries its uplink node there
+        # too, so this also draws the mesh backhaul (satellite -> main node).
+        ap_mac = state.attributes.get("ap_mac") or state.attributes.get("deco_mac")
         client_mac = state.attributes.get("mac")
         if not ap_mac or not client_mac:
             continue
