@@ -1,14 +1,14 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
+import { pickDisplayEntity } from "../canvas/device-display";
 import { sharedStyles } from "../styles";
 
 /** Fallback row icon when a device's integration has no brand logo on
  * brands.home-assistant.io (see the `<img>`/`@error` pair below) — one
- * generic glyph for every device, never derived from any entity's domain
- * (device_name/integration_domain are real device-level facts duplicated
- * onto every entity of a device; there's nothing to pick between — see
- * canvas/device-display.ts). */
+ * generic glyph for every device, derived from its ranked representative
+ * entity (see canvas/device-display.ts's pickDisplayEntity), never an
+ * arbitrary one. */
 const GENERIC_DEVICE_ICON_NAME = "mdi:devices";
 
 interface DeviceGroup {
@@ -30,12 +30,23 @@ export class EntityPickerSidebar extends LitElement {
       :host {
         display: flex;
         flex-direction: column;
-        width: 300px;
-        min-width: 300px;
+        position: relative;
+        width: var(--sc-picker-width, 300px);
+        min-width: 240px;
+        max-width: 600px;
         border-left: 1px solid var(--sc-divider);
         background: var(--sc-panel-bg);
         height: 100%;
         overflow: hidden;
+      }
+      .resize-handle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 6px;
+        height: 100%;
+        cursor: ew-resize;
+        z-index: 1;
       }
       .search {
         padding: 12px;
@@ -194,6 +205,82 @@ export class EntityPickerSidebar extends LitElement {
   @state() private _floorFilter: string | "all" | null = null;
   @state() private _areaFilter: string | null = null;
 
+  // --- resizable width (per-browser, not shared — see #22) --------------
+
+  private static readonly WIDTH_STORAGE_KEY =
+    "spatial-context.entityPickerSidebarWidth";
+  private static readonly MIN_WIDTH = 240;
+  private static readonly MAX_WIDTH = 600;
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    const stored = this._readStoredWidth();
+    if (stored !== null) {
+      this.style.setProperty("--sc-picker-width", `${stored}px`);
+    }
+  }
+
+  /** localStorage is a deliberate exception in this codebase — everything
+   * else is server-persisted (Store-backed layout, or the shared Settings
+   * object), but a sidebar's width is a personal screen-ergonomics
+   * preference, not a fact every viewer should share. Browser storage can
+   * throw or come back empty (private mode, quota, disabled) — never let
+   * that break rendering or resizing itself. */
+  private _readStoredWidth(): number | null {
+    try {
+      const raw = localStorage.getItem(EntityPickerSidebar.WIDTH_STORAGE_KEY);
+      if (!raw) return null;
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return null;
+      return Math.min(
+        EntityPickerSidebar.MAX_WIDTH,
+        Math.max(EntityPickerSidebar.MIN_WIDTH, n),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  private _writeStoredWidth(width: number): void {
+    try {
+      localStorage.setItem(
+        EntityPickerSidebar.WIDTH_STORAGE_KEY,
+        String(width),
+      );
+    } catch {
+      // Won't persist across reloads — resizing itself still works fine.
+    }
+  }
+
+  private _onResizeHandlePointerDown = (e: PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = this.getBoundingClientRect().width;
+    const handle = e.currentTarget as HTMLElement;
+    handle.setPointerCapture(e.pointerId);
+
+    const onMove = (ev: PointerEvent) => {
+      // The handle sits on the sidebar's LEFT edge, and the sidebar is
+      // anchored to the right of the canvas — dragging left (negative
+      // clientX delta) should grow it, hence startX - clientX rather than
+      // the more usual clientX - startX.
+      const dx = startX - ev.clientX;
+      const width = Math.min(
+        EntityPickerSidebar.MAX_WIDTH,
+        Math.max(EntityPickerSidebar.MIN_WIDTH, startWidth + dx),
+      );
+      this.style.setProperty("--sc-picker-width", `${width}px`);
+    };
+    const onUp = (ev: PointerEvent) => {
+      handle.releasePointerCapture(ev.pointerId);
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      this._writeStoredWidth(Math.round(this.getBoundingClientRect().width));
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+  };
+
   private get _effectiveFloorFilter(): string | null {
     if (this._floorFilter === "all") return null;
     return this._floorFilter ?? this.currentFloorId;
@@ -233,13 +320,14 @@ export class EntityPickerSidebar extends LitElement {
       // Placement is per physical device, not per entity — a device with
       // several entities (e.g. a combo temp/humidity/motion sensor) still
       // occupies one spot in the house, so it gets one row and one pin.
-      // Any entity of the group answers deviceName/area/integration
-      // identically (they're device-level facts duplicated onto every
-      // entity of a device — see canvas/device-display.ts), and
-      // primaryEntityId only needs to resolve back to this same device_id
-      // later, so there's nothing to rank or choose between — arbitrarily
-      // the first one.
-      const primary = entities[0]!;
+      // Which entity represents it isn't arbitrary, though: a helper
+      // integration (Dynamic Energy Cost, a utility meter, ...) can attach
+      // its own entities to another integration's device, so the same
+      // ranked pick used for the export applies here too (see
+      // canvas/device-display.ts's pickDisplayEntity) — falls back to
+      // entities[0] only in the deviceId-was-really-an-entity_id edge case
+      // (see the `groups` key above), where nothing can match by device_id.
+      const primary = pickDisplayEntity(deviceId, entities) ?? entities[0]!;
       devices.push({
         deviceId,
         deviceName: primary.device_name ?? primary.name,
@@ -294,6 +382,10 @@ export class EntityPickerSidebar extends LitElement {
   override render() {
     const filtered = this._filtered;
     return html`
+      <div
+        class="resize-handle"
+        @pointerdown=${this._onResizeHandlePointerDown}
+      ></div>
       <div class="search">
         <div class="search-box">
           <ha-icon icon="mdi:magnify"></ha-icon>
@@ -373,7 +465,9 @@ export class EntityPickerSidebar extends LitElement {
                     title=${
                       blockedFloorName
                         ? `Already placed on ${blockedFloorName} — remove it there first`
-                        : ""
+                        : [device.deviceName, subtitle]
+                            .filter((part): part is string => !!part)
+                            .join(" · ")
                     }
                     @click=${() => {
                       if (blockedFloorName) return;
