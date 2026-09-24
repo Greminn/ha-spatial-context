@@ -487,7 +487,7 @@ export class CanvasOverlay extends LitElement {
             title="Set height"
             @click=${() => this._fire("pin-set-height-click")}
           >
-            <ha-icon icon="mdi:arrow-up-down"></ha-icon>
+            <ha-icon icon="mdi:human-male-height"></ha-icon>
           </button>
           <button
             class="danger"

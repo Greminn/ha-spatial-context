@@ -76,6 +76,8 @@ export class PropertyCanvas extends LitElement {
         height: 100%;
         overflow: hidden;
         background: white;
+        user-select: none;
+        -webkit-user-select: none;
       }
       svg {
         position: relative;

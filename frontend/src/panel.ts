@@ -1641,6 +1641,17 @@ export class SpatialContextPanel extends LitElement {
     if (coLocated.length > 0) {
       this._pinStackIds = [...coLocated.map((p) => p.id), pin.id];
       this._selectedPinId = null;
+    } else {
+      // Auto-select the pin just placed, so Set Height/Rename/etc. act on
+      // it instead of whatever was selected before arming placement mode.
+      this._pinStackIds = null;
+      this._selectedPinId = pin.id;
+      this._selectedRoomId = null;
+      this._selectedWallId = null;
+      this._editingWallId = null;
+      this._selectedOpeningId = null;
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
     }
   };
 

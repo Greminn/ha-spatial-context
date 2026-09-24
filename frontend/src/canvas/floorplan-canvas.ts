@@ -114,6 +114,8 @@ export class FloorplanCanvas extends LitElement {
         height: 100%;
         overflow: hidden;
         background: white;
+        user-select: none;
+        -webkit-user-select: none;
       }
       svg {
         position: relative;
@@ -235,6 +237,16 @@ export class FloorplanCanvas extends LitElement {
         stroke: var(--sc-danger);
         stroke-width: 2;
         cursor: ew-resize;
+      }
+      .opening-jamb-case {
+        stroke: #ffffff;
+        stroke-width: 3.4;
+        pointer-events: none;
+      }
+      .opening-jamb {
+        stroke: #212121;
+        stroke-width: 1.6;
+        pointer-events: none;
       }
       .pending-scale,
       .scale-line {
@@ -1693,6 +1705,34 @@ export class FloorplanCanvas extends LitElement {
     const strokeWidth = wall
       ? this._wallStrokeWidth(wall, wallMaterial(wall.material))
       : undefined;
+    // Jamb ticks at each end, crossing the wall's own thickness and
+    // protruding a bit past it — without them a wide opening on a thick
+    // wall (once its line picked up the wall's real stroke width) reads as
+    // an undifferentiated thick blob rather than a distinct door/window
+    // framed within the wall (#11). Rendered as a white-cased dark line —
+    // a single dark stroke nearly vanished against darker wall materials
+    // (e.g. concrete), so it needs contrast against any material color,
+    // not just the light ones.
+    const len = distance(x1, y1, x2, y2) || 1;
+    const tickHalf = (parseFloat(strokeWidth ?? "6") / 2) * 1.5;
+    const px = (-(y2 - y1) / len) * tickHalf;
+    const py = ((x2 - x1) / len) * tickHalf;
+    const jamb = (cx: number, cy: number) => svg`
+      <line
+        class="opening-jamb-case"
+        x1=${cx - px}
+        y1=${cy - py}
+        x2=${cx + px}
+        y2=${cy + py}
+      ></line>
+      <line
+        class="opening-jamb"
+        x1=${cx - px}
+        y1=${cy - py}
+        x2=${cx + px}
+        y2=${cy + py}
+      ></line>
+    `;
     return svg`
       <line
         class="opening-line ${opening.type} ${selected ? "selected" : ""}"
@@ -1704,6 +1744,8 @@ export class FloorplanCanvas extends LitElement {
       >
         <title>${opening.type}</title>
       </line>
+      ${jamb(x1, y1)}
+      ${jamb(x2, y2)}
       ${
         selected
           ? svg`
