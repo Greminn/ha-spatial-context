@@ -35,9 +35,10 @@ export class AppHeader extends LitElement {
         gap: 12px;
         min-width: 0;
       }
-      .identity ha-icon {
-        --mdc-icon-size: 24px;
-        color: var(--sc-accent);
+      .identity .app-icon {
+        width: 48px;
+        height: 48px;
+        flex: none;
       }
       .identity h1 {
         margin: 0;
@@ -104,7 +105,23 @@ export class AppHeader extends LitElement {
   override render() {
     return html`
       <div class="identity">
-        <ha-icon icon="mdi:floor-plan"></ha-icon>
+        <svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="5" fill="#263238"></rect>
+          <path
+            d="M12,4 V12"
+            fill="none"
+            stroke="#90A4AE"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          ></path>
+          <g stroke-width="1.6" stroke-linecap="round" fill="none">
+            <line x1="12" y1="17" x2="7" y2="8.2" stroke="#03a9f4"></line>
+            <line x1="12" y1="17" x2="17" y2="8.2" stroke="#f57c00"></line>
+          </g>
+          <circle cx="12" cy="17" r="1.6" fill="#ffffff"></circle>
+          <circle cx="7" cy="8.2" r="1.4" fill="#03a9f4"></circle>
+          <circle cx="17" cy="8.2" r="1.4" fill="#f57c00"></circle>
+        </svg>
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
