@@ -86,9 +86,11 @@ def pick_display_entity(
     name/domain/device_class) — same ranking as
     frontend/src/canvas/device-display.ts's pickDisplayEntity, used by
     export.py so the exported JSON's per-device fields match what the UI
-    itself would show, without ever asking a human to choose an entity.
-    None when there's no device_id to work from, or the device currently
-    has no placeable entities at all.
+    itself would show, and used directly by the frontend's own device
+    picker/pin icon resolution too (not just export parity) — without
+    ever asking a human to choose an entity. None when there's no
+    device_id to work from, or the device currently has no placeable
+    entities at all.
     """
     if not device_id:
         return None
@@ -269,15 +271,39 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
             if pin.get("device_id"):
                 device_id_to_floor_id[pin["device_id"]] = floor_id
 
-    # `entry.platform` is the integration domain slug (e.g. "unifiprotect",
-    # "apple_tv") that set up this entity — already on every registry entry,
-    # no need to chase it through the device's config_entries. Resolved to a
-    # human-readable name + the brands.home-assistant.io icon slug once per
-    # *unique* platform (a handful, even in a house with hundreds of
-    # entities) rather than once per entity. brands.home-assistant.io is the
-    # same public, unauthenticated CDN the HA frontend itself uses for every
-    # integration logo — generic, no house-specific credentials involved.
-    platforms = {entry.platform for entry in entity_registry.entities.values() if entry.platform}
+    # The device's OWN integration — not `entry.platform` on whichever
+    # entity happens to be picked as representative. A helper integration
+    # (switch_as_x presenting a switch as a light, powercalc computing a
+    # virtual power/energy sensor, Dynamic Energy Cost, a utility meter,
+    # ...) can attach its own entities to another integration's device
+    # without ever registering itself as an owner of that device — so
+    # `entry.platform` genuinely varies entity-by-entity on a device like
+    # that (confirmed live: a Zigbee2MQTT-owned device with a switch_as_x
+    # "light" entity and two powercalc "sensor" entities alongside its real
+    # mqtt entities), even though device_name and everything else here is
+    # already a true device-level fact. Resolved from the device's own
+    # config entry (`config_entry_id` — the modern single-owner model;
+    # `primary_config_entry` is just a deprecated compatibility shim over
+    # this same field) instead, once per *unique device* rather than per
+    # entity or per entry.platform.
+    device_integration_domains: dict[str, str | None] = {}
+    for device in device_registry.devices:
+        config_entry = (
+            hass.config_entries.async_get_entry(device.config_entry_id)
+            if device.config_entry_id
+            else None
+        )
+        device_integration_domains[device.id] = (
+            config_entry.domain if config_entry else None
+        )
+
+    # Resolved to a human-readable name + the brands.home-assistant.io icon
+    # slug once per *unique* domain (a handful, even in a house with
+    # hundreds of devices) rather than once per device. brands.home-
+    # assistant.io is the same public, unauthenticated CDN the HA frontend
+    # itself uses for every integration logo — generic, no house-specific
+    # credentials involved.
+    platforms = {d for d in device_integration_domains.values() if d}
     integration_names: dict[str, str] = {}
     for domain in platforms:
         try:
@@ -309,6 +335,7 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
 
         placed_floor_id = device_id_to_floor_id.get(entry.device_id)
         placed_floor = floor_registry.async_get_floor(placed_floor_id) if placed_floor_id else None
+        integration_domain = device_integration_domains.get(entry.device_id)
 
         entities.append(
             {
@@ -321,16 +348,22 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
                 "device_id": entry.device_id,
                 "device_name": device.name_by_user or device.name,
                 "entity_category": entry.entity_category,
-                "integration_domain": entry.platform,
-                "integration_name": integration_names.get(entry.platform)
-                if entry.platform
+                "integration_domain": integration_domain,
+                "integration_name": integration_names.get(integration_domain)
+                if integration_domain
                 else None,
                 "placed_floor_id": placed_floor_id,
                 "placed_floor_name": placed_floor.name if placed_floor else placed_floor_id,
             }
         )
 
-    entities.sort(key=lambda e: e["name"] or e["entity_id"])
+    # Case-insensitive so a title-cased helper-integration entity (e.g. a
+    # Dynamic Energy Cost sensor) doesn't sort ahead of a device's own
+    # lowercase entity name just because uppercase letters sort first —
+    # cosmetic list ordering only, doesn't itself decide which entity
+    # represents a device (see pick_display_entity / frontend's
+    # pickDisplayEntity for that ranking).
+    entities.sort(key=lambda e: (e["name"] or e["entity_id"]).casefold())
     return entities
 
 

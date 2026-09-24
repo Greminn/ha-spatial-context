@@ -1,23 +1,62 @@
 import type { PlaceableEntity } from "../types";
 
+/** Mirrors registry_snapshot.py's _DOMAIN_PRIORITY exactly — keep both in
+ * sync if this list changes. Sensor deliberately last: a helper integration
+ * (e.g. Dynamic Energy Cost) that attaches its own sensor entities to
+ * another integration's device must never outrank that device's own
+ * switch/light/etc. entity as its "representative" (see pickDisplayEntity). */
+const DOMAIN_PRIORITY = [
+  "light",
+  "switch",
+  "climate",
+  "media_player",
+  "lock",
+  "cover",
+  "fan",
+  "vacuum",
+  "alarm_control_panel",
+  "valve",
+  "humidifier",
+  "siren",
+  "water_heater",
+  "camera",
+  "assist_satellite",
+  "device_tracker",
+  "binary_sensor",
+  "sensor",
+];
+
 /** Placement — and everything derived from a pin afterward (its icon, its
  * displayed name) — is about the physical DEVICE, never an entity; a human
  * placing "the U6+ access point" should never need to know or choose which
- * of its ten HA entities represents it, and the app itself shouldn't
- * reason about *which* entity either. `device_name` and `integration_domain`
- * are already device-level facts duplicated onto every entity of a device
- * (same config entry, same physical device — see registry_snapshot.py),
- * so any entity of the right device_id answers both questions identically;
- * there's nothing to rank or choose between. */
-function anyEntityForDevice(
+ * of its ten HA entities represents it. But which entity gets asked also
+ * isn't arbitrary: a helper integration (Dynamic Energy Cost, a utility
+ * meter, ...) can attach its own entities to another integration's device,
+ * and those don't share that device's own `integration_domain`/name intent
+ * even though `device_id` matches — so a real ranking is needed, the same
+ * one registry_snapshot.py's pick_display_entity already uses for the
+ * export (category rank, then domain priority) so the UI and the exported
+ * JSON agree on which entity represents a device. */
+export function pickDisplayEntity(
   deviceId: string | null,
   entities: Iterable<PlaceableEntity>,
 ): PlaceableEntity | null {
   if (!deviceId) return null;
-  for (const entity of entities) {
-    if (entity.device_id === deviceId) return entity;
-  }
-  return null;
+  const candidates = [...entities].filter((e) => e.device_id === deviceId);
+  if (candidates.length === 0) return null;
+
+  const categoryRank = (e: PlaceableEntity): number =>
+    e.entity_category === "config" ? 2 : e.entity_category ? 1 : 0;
+  const domainRank = (e: PlaceableEntity): number => {
+    const i = DOMAIN_PRIORITY.indexOf(e.domain);
+    return i === -1 ? DOMAIN_PRIORITY.length : i;
+  };
+
+  candidates.sort(
+    (a, b) =>
+      categoryRank(a) - categoryRank(b) || domainRank(a) - domainRank(b),
+  );
+  return candidates[0]!;
 }
 
 /** A pin's displayed name when it has no label_override — the device's own
@@ -30,9 +69,7 @@ export function pinDisplayLabel(
   deviceId: string | null,
   entities: Iterable<PlaceableEntity>,
 ): string {
-  return (
-    anyEntityForDevice(deviceId, entities)?.device_name ?? "Unknown device"
-  );
+  return pickDisplayEntity(deviceId, entities)?.device_name ?? "Unknown device";
 }
 
 /** Which integration set up this device (e.g. "unifi", "esphome", "hue") —
@@ -45,5 +82,5 @@ export function pinIntegrationDomain(
   deviceId: string | null,
   entities: Iterable<PlaceableEntity>,
 ): string | null {
-  return anyEntityForDevice(deviceId, entities)?.integration_domain ?? null;
+  return pickDisplayEntity(deviceId, entities)?.integration_domain ?? null;
 }
