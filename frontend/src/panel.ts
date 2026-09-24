@@ -1082,6 +1082,17 @@ export class SpatialContextPanel extends LitElement {
     void this._client.saveSettings(this._settings);
   };
 
+  /** Same instant-apply pattern as _onUnitSystemSelect. Clamped to the
+   * backend schema's own range (30-600s) before saving, so an out-of-range
+   * value never round-trips into a rejected save. */
+  private _onZigbeeTimeoutChange = (e: Event) => {
+    const raw = Number((e.target as HTMLInputElement).value);
+    if (!Number.isFinite(raw)) return;
+    const zigbee_timeout_seconds = Math.min(600, Math.max(30, Math.round(raw)));
+    this._settings = { ...this._settings, zigbee_timeout_seconds };
+    void this._client.saveSettings(this._settings);
+  };
+
   // Selecting a layer only changes which one is selected — it never fetches
   // or subscribes by itself. Every network type needs an explicit Load/
   // Connect click (see _onLoadMesh) so opening the menu is never itself a
@@ -1093,12 +1104,18 @@ export class SpatialContextPanel extends LitElement {
   };
 
   private _onLoadMesh = () => {
-    if (this._networkType === "zigbee") void this._refreshZigbeeMesh();
-    else if (this._networkType === "wifi") void this._refreshWifiMesh();
+    // Reuses the exact same "already fetched once" check the button's own
+    // label (Load vs Refresh) is driven by, so the label and the actual
+    // force-refresh behavior can't drift apart — force_refresh only on an
+    // explicit "Refresh" click, never on the initial "Load" open (which
+    // should prefer any pre-warmed cache, see zigbee_mesh.py).
+    if (this._networkType === "zigbee") {
+      void this._refreshZigbeeMesh(this._zigbeeMeshFetchedAt !== null);
+    } else if (this._networkType === "wifi") void this._refreshWifiMesh();
     else if (this._networkType === "matter") void this._subscribeMatter();
   };
 
-  private async _refreshZigbeeMesh(): Promise<void> {
+  private async _refreshZigbeeMesh(forceRefresh = false): Promise<void> {
     this._zigbeeMeshLoading = true;
     this._zigbeeMeshError = null;
     const startedAt = Date.now();
@@ -1109,8 +1126,14 @@ export class SpatialContextPanel extends LitElement {
       );
     }, 1000);
     try {
-      this._zigbeeMesh = await this._client.getZigbeeMesh();
-      this._zigbeeMeshFetchedAt = Date.now();
+      this._zigbeeMesh = await this._client.getZigbeeMesh(forceRefresh);
+      // Backend uses time.time() (epoch seconds) — convert to ms to match
+      // Date.now(), which _meshAgeLabel expects. A cache hit can be well
+      // in the past (e.g. pre-warmed overnight by the refresh_zigbee_mesh
+      // service), not "just now".
+      this._zigbeeMeshFetchedAt = this._zigbeeMesh.fetched_at
+        ? this._zigbeeMesh.fetched_at * 1000
+        : Date.now();
     } catch (err) {
       const message = (err as { message?: string })?.message;
       this._zigbeeMeshError = message || "Zigbee mesh request failed";
@@ -2123,7 +2146,7 @@ export class SpatialContextPanel extends LitElement {
         }
         <icon-popover
           slot="end"
-          icon="mdi:tune"
+          icon="mdi:cog"
           label="Settings"
           .open=${this._settingsPopoverOpen}
           @toggle=${this._onToggleSettingsPopover}
@@ -2143,6 +2166,20 @@ export class SpatialContextPanel extends LitElement {
           >
             <ha-icon icon="mdi:ruler"></ha-icon> Imperial (ft / in)
           </button>
+          <span class="popover-row hint" style="padding: 8px 16px 4px"
+            >Zigbee mesh</span
+          >
+          <label class="popover-row hint" style="padding: 4px 16px 8px"
+            >Timeout (seconds)
+            <input
+              type="number"
+              min="30"
+              max="600"
+              step="10"
+              .value=${String(this._settings.zigbee_timeout_seconds)}
+              @change=${this._onZigbeeTimeoutChange}
+            />
+          </label>
         </icon-popover>
         <icon-popover
           slot="end"

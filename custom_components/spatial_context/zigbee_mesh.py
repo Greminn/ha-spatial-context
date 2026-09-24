@@ -1,8 +1,11 @@
 """Live Zigbee2MQTT network topology, fetched on demand via MQTT request/response.
 
-Deliberately not persisted anywhere — this is live network state, not
-user-edited layout, so it has no place in storage.py's Store. Every call
-re-requests the network map fresh.
+The final, post-reduction network map is cached in `hass.data` once fetched
+— not storage.py's Store, since this is live network state, not user-edited
+layout. A call may serve the cache instantly or force a fresh MQTT round
+trip, per caller request (see `async_get_network_map`'s `force_refresh`) —
+letting a scheduled automation (the `refresh_zigbee_mesh` service) pre-warm
+the cache well before anyone opens the panel.
 """
 
 from __future__ import annotations
@@ -10,32 +13,61 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
+from .const import DOMAIN
+from .storage import async_get_settings
+
 _LOGGER = logging.getLogger(__name__)
 
 _REQUEST_TOPIC = "zigbee2mqtt/bridge/request/networkmap"
 _RESPONSE_TOPIC = "zigbee2mqtt/bridge/response/networkmap"
-# `type: raw` polls every router's neighbor/routing table over the air —
-# on this house's ~70-node mesh a response has been observed taking
-# anywhere from ~90s up to ~130s (confirmed by direct MQTT round-trip
-# testing), so the timeout needs real headroom above the slow end of that
-# range rather than sitting right on top of it.
-_RESPONSE_TIMEOUT = 180
+_CACHE_KEY = "zigbee_mesh_cache"
 
 
-async def async_get_network_map(hass: HomeAssistant) -> dict[str, Any]:
-    """Request Z2M's live network topology and reduce it to placeable links.
+@dataclass
+class _ZigbeeMeshCache:
+    """In-memory only — cleared on every HA restart, never persisted."""
+
+    mesh: dict[str, Any] | None = None
+    fetched_at: float | None = None  # time.time() epoch seconds
+
+
+def _cache(hass: HomeAssistant) -> _ZigbeeMeshCache:
+    return hass.data.setdefault(DOMAIN, {}).setdefault(_CACHE_KEY, _ZigbeeMeshCache())
+
+
+async def async_get_network_map(
+    hass: HomeAssistant, force_refresh: bool = False
+) -> dict[str, Any]:
+    """Request Z2M's live network topology and reduce it to placeable links,
+    or serve the last successful result from cache.
 
     Returns {"nodes": [{ieee, friendly_name, device_id}], "links": [{source_ieee,
-    target_ieee, lqi, source_device_id, target_device_id}]}. Deliberately
-    global/floor-agnostic, mirroring list_areas/list_placeable_entities — the
-    frontend cross-references against the current floor's placed pins.
+    target_ieee, lqi, source_device_id, target_device_id}], "fetched_at"}.
+    Deliberately global/floor-agnostic, mirroring list_areas/
+    list_placeable_entities — the frontend cross-references against the
+    current floor's placed pins.
     """
+    cache = _cache(hass)
+    if not force_refresh and cache.mesh is not None:
+        return {**cache.mesh, "fetched_at": cache.fetched_at}
+
+    # `type: raw` polls every router's neighbor/routing table over the air —
+    # on a ~70-node mesh a response has been observed taking anywhere from
+    # ~90s up to ~130s (confirmed by direct MQTT round-trip testing), so the
+    # timeout needs real headroom above the slow end of that range rather
+    # than sitting right on top of it — and a larger mesh needs more still,
+    # hence it's user-configurable (Settings) rather than a fixed constant.
+    settings = await async_get_settings(hass)
+    timeout = settings["zigbee_timeout_seconds"]
+
     loop = asyncio.get_running_loop()
     response: asyncio.Future[dict[str, Any]] = loop.create_future()
 
@@ -52,7 +84,7 @@ async def async_get_network_map(hass: HomeAssistant) -> dict[str, Any]:
     unsubscribe = await mqtt.async_subscribe(hass, _RESPONSE_TOPIC, _on_message)
     try:
         await mqtt.async_publish(hass, _REQUEST_TOPIC, json.dumps({"type": "raw"}))
-        payload = await asyncio.wait_for(response, timeout=_RESPONSE_TIMEOUT)
+        payload = await asyncio.wait_for(response, timeout=timeout)
     finally:
         unsubscribe()
 
@@ -85,7 +117,9 @@ async def async_get_network_map(hass: HomeAssistant) -> dict[str, Any]:
         for link in _reduce_links(links)
     ]
 
-    return {"nodes": out_nodes, "links": out_links}
+    cache.mesh = {"nodes": out_nodes, "links": out_links}
+    cache.fetched_at = time.time()
+    return {**cache.mesh, "fetched_at": cache.fetched_at}
 
 
 def _build_ieee_to_device_id_map(hass: HomeAssistant) -> dict[str, str]:

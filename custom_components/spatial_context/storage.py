@@ -102,6 +102,11 @@ def _empty_settings() -> dict[str, Any]:
         # localStorage. Storage everywhere else stays real metric SI
         # regardless of this setting; only display/input converts.
         "unit_system": "metric",
+        # Zigbee `raw` networkmap timeout, seconds (see zigbee_mesh.py) — the
+        # default is enough for a ~70-node mesh; a much larger mesh (100+
+        # devices) can need more headroom. User-configurable since only the
+        # user knows their own mesh size.
+        "zigbee_timeout_seconds": 180,
     }
 
 

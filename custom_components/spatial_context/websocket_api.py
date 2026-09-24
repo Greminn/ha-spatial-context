@@ -261,6 +261,9 @@ async def ws_save_property_layout(
 
 _SETTINGS_SCHEMA = {
     vol.Required("unit_system"): vol.In(["metric", "imperial"]),
+    vol.Required("zigbee_timeout_seconds"): vol.All(
+        vol.Coerce(int), vol.Range(min=30, max=600)
+    ),
 }
 
 
@@ -290,7 +293,13 @@ async def ws_save_settings(
     msg: dict,
 ) -> None:
     """Replace-save app-wide settings."""
-    await async_save_settings(hass, {"unit_system": msg["unit_system"]})
+    await async_save_settings(
+        hass,
+        {
+            "unit_system": msg["unit_system"],
+            "zigbee_timeout_seconds": msg["zigbee_timeout_seconds"],
+        },
+    )
     connection.send_result(msg["id"], {"success": True})
 
 
@@ -342,7 +351,12 @@ async def ws_export_snapshot(
     )
 
 
-@websocket_api.websocket_command({vol.Required("type"): "spatial_context/get_zigbee_mesh"})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "spatial_context/get_zigbee_mesh",
+        vol.Optional("force_refresh", default=False): bool,
+    }
+)
 @websocket_api.async_response
 async def ws_get_zigbee_mesh(
     hass: HomeAssistant,
@@ -353,12 +367,15 @@ async def ws_get_zigbee_mesh(
 
     Global/floor-agnostic, like list_areas/list_placeable_entities — the
     frontend cross-references against the current floor's placed pins.
-    Slow (a `raw` networkmap request takes ~60-90s on this network), so this
-    is only ever called on an explicit user "Refresh Mesh" action, never on
-    panel load or a timer.
+    A cache hit (force_refresh=False, the default) returns near-instantly;
+    a real scan (force_refresh=True, or no cache yet) can take 1-2 minutes
+    or more on a large mesh — the frontend only ever passes force_refresh
+    on an explicit user "Refresh Mesh" click, never on panel load.
     """
     try:
-        mesh = await zigbee_mesh.async_get_network_map(hass)
+        mesh = await zigbee_mesh.async_get_network_map(
+            hass, force_refresh=msg["force_refresh"]
+        )
     except Exception as err:  # noqa: BLE001 - surface any failure to the frontend, not an unhandled rejection
         connection.send_error(msg["id"], "zigbee_mesh_failed", str(err))
         return

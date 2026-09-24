@@ -107,6 +107,7 @@ export class HaClient {
     return this.hass.connection.sendMessagePromise({
       type: "spatial_context/save_settings",
       unit_system: settings.unit_system,
+      zigbee_timeout_seconds: settings.zigbee_timeout_seconds,
     });
   }
 
@@ -132,10 +133,14 @@ export class HaClient {
     });
   }
 
-  /** Slow (~60-90s) — only ever call this from an explicit user action. */
-  async getZigbeeMesh(): Promise<ZigbeeMesh> {
+  /** `forceRefresh: false` (the default) serves the backend's cache
+   * instantly when one exists; only an explicit "Refresh Mesh" click (or
+   * no cache existing yet) should pass `true`, since a real scan can take
+   * 1-2+ minutes on a large mesh. */
+  async getZigbeeMesh(forceRefresh = false): Promise<ZigbeeMesh> {
     return this.hass.connection.sendMessagePromise<ZigbeeMesh>({
       type: "spatial_context/get_zigbee_mesh",
+      force_refresh: forceRefresh,
     });
   }
 
@@ -304,6 +309,7 @@ export function newPlacement(
 export function emptySettings(): Settings {
   return {
     unit_system: "metric",
+    zigbee_timeout_seconds: 180,
   };
 }
 

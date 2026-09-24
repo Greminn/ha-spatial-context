@@ -69,6 +69,9 @@ export type UnitSystem = "metric" | "imperial";
  * it only governs what units a prompt/input displays and accepts. */
 export interface Settings {
   unit_system: UnitSystem;
+  /** Zigbee `raw` networkmap timeout, seconds (see zigbee_mesh.py) —
+   * user-configurable since only the user knows their own mesh size. */
+  zigbee_timeout_seconds: number;
 }
 
 export type OpeningType = "door" | "window";
@@ -288,6 +291,12 @@ export interface MeshLink {
 export interface ZigbeeMesh {
   nodes: MeshNode[];
   links: MeshLink[];
+  /** Epoch seconds this result was actually fetched at — may be well
+   * before "now" when served from the backend's cache (see
+   * zigbee_mesh.py), including a scan pre-warmed by the
+   * refresh_zigbee_mesh service. Null only if the backend somehow omits
+   * it (shouldn't happen — defensive only). */
+  fetched_at: number | null;
 }
 
 /** Wi-Fi client→AP links, read from entity states (see wifi_mesh.py) —
@@ -375,4 +384,9 @@ export interface HomeAssistant {
   };
   fetchWithAuth(path: string, init?: RequestInit): Promise<Response>;
   states: Record<string, { attributes: Record<string, unknown> } | undefined>;
+  /** For i18n (see i18n.ts's setLanguage) — the real HA-supplied object
+   * always carries at least one of these; both optional here since this
+   * is a hand-narrowed local type, not runtime-enforced. */
+  locale?: { language: string };
+  language?: string;
 }
