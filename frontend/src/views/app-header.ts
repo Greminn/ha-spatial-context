@@ -112,7 +112,7 @@ export class AppHeader extends LitElement {
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
-            v0.5.0-beta.1 · ${localize("appHeader.subtitle")}
+            v0.6.0-beta.1 · ${localize("appHeader.subtitle")}
           </div>
         </div>
       </div>
