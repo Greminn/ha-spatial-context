@@ -1322,8 +1322,26 @@ export class SpatialContextPanel extends LitElement {
     this._alignOffsetY += e.detail.dy;
   };
 
+  /** Scaling used to anchor at the overlay's raw top-left corner (a plain
+   * `alignScale *= factor`, with the composed offset otherwise untouched)
+   * — every +/- click also shifted the image, forcing a re-drag after
+   * each scale nudge just to recompensate, which made it easy to
+   * converge on an alignment that looked "close enough" on screen without
+   * actually being pixel-precise (#13). Anchoring at the current view's
+   * center instead — the same convention the main +/- zoom buttons
+   * already use (see floorplan-canvas.ts's _zoomButton) — keeps whatever
+   * you're currently looking at fixed in place while the image resizes
+   * around it. */
   private _onAlignScaleClick = (e: CustomEvent<{ factor: number }>) => {
-    this._alignScale *= e.detail.factor;
+    const { factor } = e.detail;
+    const vb = this._canvas?.getViewBox();
+    if (vb) {
+      const cx = vb.x + vb.w / 2;
+      const cy = vb.y + vb.h / 2;
+      this._alignOffsetX = factor * this._alignOffsetX + (1 - factor) * cx;
+      this._alignOffsetY = factor * this._alignOffsetY + (1 - factor) * cy;
+    }
+    this._alignScale *= factor;
   };
 
   private _onAlignCancel = () => {
