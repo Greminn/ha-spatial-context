@@ -1,0 +1,10 @@
+{
+  "floorTabs": {
+    "property": "Property"
+  },
+  "appHeader": {
+    "subtitle": "Floor plan & device mapping",
+    "saving": "Saving…",
+    "save": "Save"
+  }
+}

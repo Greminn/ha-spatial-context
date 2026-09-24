@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { FloorMeta } from "../types";
+import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 
 /** Mirrors HA frontend's own `floorDefaultIcon` (components/ha-floor-icon.ts)
@@ -122,7 +123,7 @@ export class FloorTabs extends LitElement {
           )}
       >
         <ha-icon icon="mdi:map"></ha-icon>
-        <span>Property</span>
+        <span>${localize("floorTabs.property")}</span>
       </button>
     `;
   }

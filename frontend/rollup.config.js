@@ -1,5 +1,6 @@
 import nodeResolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
+import json from "@rollup/plugin-json";
 import replace from "@rollup/plugin-replace";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
@@ -29,6 +30,7 @@ export default {
     }),
     nodeResolve({ browser: true, extensions: [".js", ".ts", ".mjs"] }),
     commonjs(),
+    json(),
     typescript({
       tsconfig: "./tsconfig.json",
       noEmitOnError: !isDev,

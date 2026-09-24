@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { FloorMeta } from "../types";
+import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 import "./floor-tabs";
 
@@ -111,7 +112,7 @@ export class AppHeader extends LitElement {
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
-            v0.5.0-beta.1 · Floor plan &amp; device mapping
+            v0.5.0-beta.1 · ${localize("appHeader.subtitle")}
           </div>
         </div>
       </div>
@@ -124,7 +125,11 @@ export class AppHeader extends LitElement {
         <slot></slot>
         <button
           class="icon-button"
-          title=${this.saving ? "Saving…" : "Save"}
+          title=${
+            this.saving
+              ? localize("appHeader.saving")
+              : localize("appHeader.save")
+          }
           ?disabled=${this.saving}
           @click=${() => this._fire("save-click")}
         >

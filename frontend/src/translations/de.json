@@ -1,0 +1,10 @@
+{
+  "floorTabs": {
+    "property": "Anwesen"
+  },
+  "appHeader": {
+    "subtitle": "Grundriss und Geräteplatzierung",
+    "saving": "Speichert…",
+    "save": "Speichern"
+  }
+}
