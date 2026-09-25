@@ -1,4 +1,4 @@
-import type { Room } from "../types";
+import type { Pin, Room } from "../types";
 
 export function distance(
   ax: number,
@@ -66,6 +66,24 @@ export function findRoomForPoint(
     }
   }
   return null;
+}
+
+/** Recomputes every pin's `room_id` against the current room geometry.
+ * `room_id` is purely derived from where a pin sits, never a user choice
+ * (there is no manual room picker anywhere in the UI) — so it must be
+ * re-evaluated any time room polygons change (drawn, edited, deleted),
+ * not just when the pin itself moves. Returns a new array only if at
+ * least one pin's room actually changed, preserving referential equality
+ * of unaffected pins and of the whole array when nothing changed. */
+export function reassignPinRooms(rooms: Room[], pins: Pin[]): Pin[] {
+  let changed = false;
+  const next = pins.map((pin) => {
+    const roomId = findRoomForPoint(pin.x, pin.y, rooms);
+    if (roomId === pin.room_id) return pin;
+    changed = true;
+    return { ...pin, room_id: roomId };
+  });
+  return changed ? next : pins;
 }
 
 export function centroid(points: [number, number][]): [number, number] {

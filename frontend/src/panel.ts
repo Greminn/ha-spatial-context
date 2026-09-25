@@ -38,7 +38,11 @@ import {
   newRoom,
   newWall,
 } from "./ha-client";
-import { findRoomForPoint, rayBoxExit } from "./canvas/geometry";
+import {
+  findRoomForPoint,
+  rayBoxExit,
+  reassignPinRooms,
+} from "./canvas/geometry";
 import {
   formatLarge,
   largeUnitLabel,
@@ -705,7 +709,18 @@ export class SpatialContextPanel extends LitElement {
     this._layout = await this._client.getLayout(floorId);
     this._resetSelection();
     this._resetAlignState();
-    this._dirty = false;
+    // Self-heal a layout saved before room assignment was kept in sync with
+    // room geometry (issue #25) — room_id is purely derived from where a
+    // pin sits, never a user choice, so a stale value here is always safe
+    // to correct. Only marks the floor dirty (prompting a Save) if this
+    // actually found something to fix.
+    const healedPins = reassignPinRooms(this._layout.rooms, this._layout.pins);
+    if (healedPins !== this._layout.pins) {
+      this._layout = { ...this._layout, pins: healedPins };
+      this._dirty = true;
+    } else {
+      this._dirty = false;
+    }
     void this._loadOtherFloorPins(floorId);
 
     // Two floors sharing a non-null building_id (see Align Floors) are one
@@ -1531,11 +1546,10 @@ export class SpatialContextPanel extends LitElement {
   private _onRoomDelete = () => {
     const room = this._selectedRoom;
     if (!room || !window.confirm(`Delete room "${room.name}"?`)) return;
+    const rooms = this._layout.rooms.filter((r) => r.id !== room.id);
     this._updateLayout({
-      rooms: this._layout.rooms.filter((r) => r.id !== room.id),
-      pins: this._layout.pins.map((p) =>
-        p.room_id === room.id ? { ...p, room_id: null } : p,
-      ),
+      rooms,
+      pins: reassignPinRooms(rooms, this._layout.pins),
     });
     this._selectedRoomId = null;
     this._editingRoomId = null;
@@ -1699,17 +1713,23 @@ export class SpatialContextPanel extends LitElement {
     e: CustomEvent<{ points: [number, number][] }>,
   ) => {
     const room = newRoom("New Room", e.detail.points, null);
-    this._updateLayout({ rooms: [...this._layout.rooms, room] });
+    const rooms = [...this._layout.rooms, room];
+    this._updateLayout({
+      rooms,
+      pins: reassignPinRooms(rooms, this._layout.pins),
+    });
     this._selectedRoomId = room.id;
   };
 
   private _onRoomVertexChanged = (
     e: CustomEvent<{ roomId: string; points: [number, number][] }>,
   ) => {
+    const rooms = this._layout.rooms.map((r) =>
+      r.id === e.detail.roomId ? { ...r, points: e.detail.points } : r,
+    );
     this._updateLayout({
-      rooms: this._layout.rooms.map((r) =>
-        r.id === e.detail.roomId ? { ...r, points: e.detail.points } : r,
-      ),
+      rooms,
+      pins: reassignPinRooms(rooms, this._layout.pins),
     });
   };
 
