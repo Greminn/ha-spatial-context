@@ -80,6 +80,14 @@ export class FloorTabs extends LitElement {
         opacity: 0.6;
         font-style: italic;
       }
+      @media (max-width: 600px) {
+        button {
+          padding: 0 12px;
+        }
+        button span {
+          display: none;
+        }
+      }
     `,
   ];
 

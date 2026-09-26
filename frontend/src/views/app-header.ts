@@ -23,10 +23,10 @@ export class AppHeader extends LitElement {
     css`
       :host {
         display: grid;
-        grid-template-columns: 1fr auto 1fr;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         height: 56px;
-        padding: 0 8px 0 16px;
+        padding: 0 8px 0 4px;
         background: var(--sc-header-bg);
         border-bottom: 1px solid var(--sc-divider);
       }
@@ -35,6 +35,7 @@ export class AppHeader extends LitElement {
         align-items: center;
         gap: 12px;
         min-width: 0;
+        overflow: hidden;
       }
       .identity .app-icon {
         width: 38px;
@@ -42,6 +43,12 @@ export class AppHeader extends LitElement {
         flex: none;
         border-radius: 8px;
         display: block;
+      }
+      .identity .menu-button {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        margin-right: -4px;
       }
       .identity h1 {
         margin: 0;
@@ -54,10 +61,28 @@ export class AppHeader extends LitElement {
         font-size: 12px;
         color: var(--sc-fg-secondary);
         line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       floor-tabs {
         align-self: stretch;
-        justify-self: center;
+        justify-self: stretch;
+        min-width: 0;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      floor-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      @media (max-width: 480px) {
+        .identity .subtitle {
+          display: none;
+        }
+        .identity h1 {
+          font-size: 16px;
+        }
       }
       .actions {
         display: flex;
@@ -108,11 +133,18 @@ export class AppHeader extends LitElement {
   override render() {
     return html`
       <div class="identity">
+        <button
+          class="icon-button menu-button"
+          title="Menu"
+          @click=${() => this._fire("hass-toggle-menu")}
+        >
+          <ha-icon icon="mdi:menu"></ha-icon>
+        </button>
         <img class="app-icon" src="/spatial_context/icon.png" alt="" />
         <div>
           <h1>Spatial Context</h1>
           <div class="subtitle">
-            v0.6.0-beta.2 · ${localize("appHeader.subtitle")}
+            v0.6.0-beta.3 · ${localize("appHeader.subtitle")}
           </div>
         </div>
       </div>
