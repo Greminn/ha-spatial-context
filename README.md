@@ -49,7 +49,8 @@ Copy `custom_components/spatial_context/` from this repository into your Home As
 7. **Repeat steps 3–6 for every floor.**
 8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
 9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
-10. **Save often** — **Save**, in the header, on whichever tab you're editing.
+10. **Place outdoor devices** — on the Property tab, use **Place outdoor device** for anything outside every building (garden lights, a gate sensor). Decks and other outdoor areas attached to the house can instead be drawn as rooms on a floor.
+11. **Save often** — **Save**, in the header, on whichever tab you're editing.
 
 From here: **Connectivity Map** shows live Zigbee/Wi-Fi/Matter links over your devices, and **Export** downloads the whole layout as JSON.
 
