@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, query, state } from "lit/decorators.js";
+import { query, state } from "lit/decorators.js";
+import { safeCustomElement } from "./define";
 import type {
   AreaMeta,
   CanvasMode,
@@ -25,6 +26,7 @@ import type {
 } from "./types";
 import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
+import { selectZigbeeLinks } from "./zigbee-links";
 import {
   HaClient,
   backgroundImageUrl,
@@ -65,7 +67,7 @@ import "./views/entity-picker-sidebar";
 import "./views/property-overlay";
 import type { PropertyBuilding } from "./views/property-overlay";
 
-@customElement("spatial-context-panel")
+@safeCustomElement("spatial-context-panel")
 export class SpatialContextPanel extends LitElement {
   static override styles = [
     sharedStyles,
@@ -188,10 +190,11 @@ export class SpatialContextPanel extends LitElement {
    * "looks stuck" for something this slow. */
   @state() private _zigbeeMeshElapsedSeconds = 0;
   private _zigbeeMeshTimer: number | null = null;
+  /** Full neighbor table instead of selectZigbeeLinks' default pick. */
+  @state() private _zigbeeShowAllLinks = false;
   @state() private _wifiMesh: WifiMesh | null = null;
   @state() private _wifiMeshLoading = false;
   @state() private _wifiMeshError: string | null = null;
-  @state() private _wifiMeshFetchedAt: number | null = null;
   @state() private _matterTopology: MatterNetworkTopology | null = null;
   @state() private _matterError: string | null = null;
   private _matterUnsubscribe: (() => void) | null = null;
@@ -406,14 +409,27 @@ export class SpatialContextPanel extends LitElement {
     if (!this._meshPopoverOpen) return [];
 
     if (this._networkType === "zigbee" && this._zigbeeMesh) {
-      return this._zigbeeMesh.links
-        .filter((link) => link.source_device_id && link.target_device_id)
-        .map((link) => ({
-          sourceDeviceId: link.source_device_id!,
-          targetDeviceId: link.target_device_id!,
-          quality: lqiToQuality(link.lqi),
-          detail: `LQI ${link.lqi}`,
-        }));
+      const pinByDeviceId = this._pinByDeviceId;
+      const floorOfDevice = (deviceId: string) =>
+        pinByDeviceId.has(deviceId)
+          ? (this._currentFloorId ?? undefined)
+          : this._otherFloorPinsByDeviceId.get(deviceId)?.floorId;
+      return selectZigbeeLinks(
+        this._zigbeeMesh,
+        floorOfDevice,
+        this._zigbeeShowAllLinks,
+      ).map((link) => ({
+        sourceDeviceId: link.source_device_id!,
+        targetDeviceId: link.target_device_id!,
+        quality: lqiToQuality(link.lqi),
+        // `lqi` is scale-corrected (see zigbee_mesh.py's _reporter_scales) —
+        // show the raw readings too whenever they differ from it, so a
+        // saturated reporter (e.g. a Hue bulb claiming 252 everywhere) is
+        // visible as such.
+        detail: link.lqi_readings.every((raw) => raw === link.lqi)
+          ? `LQI ${link.lqi}`
+          : `LQI ${link.lqi} (raw ${link.lqi_readings.join(" / ")})`,
+      }));
     }
     if (this._networkType === "wifi" && this._wifiMesh) {
       return this._wifiMesh.links.map((link) => ({
@@ -1108,14 +1124,21 @@ export class SpatialContextPanel extends LitElement {
     void this._client.saveSettings(this._settings);
   };
 
-  // Selecting a layer only changes which one is selected — it never fetches
-  // or subscribes by itself. Every network type needs an explicit Load/
-  // Connect click (see _onLoadMesh) so opening the menu is never itself a
-  // (possibly slow, e.g. Zigbee's ~90s) network request.
+  // Picking a layer shows it straight away wherever that's cheap: Wi-Fi is
+  // read from entity states and Matter is a live subscription, both
+  // near-instant, so they load on pick with no button. Zigbee only ever
+  // shows the backend's cache on pick (cache_only — never a scan); a real
+  // scan (~90s+) still needs an explicit Load/Refresh click (_onLoadMesh).
   private _onNetworkTypeSelect = (type: NetworkType) => {
+    if (this._networkType === "matter" && type !== "matter") {
+      this._unsubscribeMatter();
+    }
     this._networkType = type;
     this._selectedMeshLink = null;
     this._selectedMeshStub = null;
+    if (type === "wifi") void this._refreshWifiMesh();
+    else if (type === "matter") void this._subscribeMatter();
+    else if (type === "zigbee") void this._loadCachedZigbeeMesh();
   };
 
   private _onLoadMesh = () => {
@@ -1124,11 +1147,29 @@ export class SpatialContextPanel extends LitElement {
     // force-refresh behavior can't drift apart — force_refresh only on an
     // explicit "Refresh" click, never on the initial "Load" open (which
     // should prefer any pre-warmed cache, see zigbee_mesh.py).
-    if (this._networkType === "zigbee") {
-      void this._refreshZigbeeMesh(this._zigbeeMeshFetchedAt !== null);
-    } else if (this._networkType === "wifi") void this._refreshWifiMesh();
-    else if (this._networkType === "matter") void this._subscribeMatter();
+    void this._refreshZigbeeMesh(this._zigbeeMeshFetchedAt !== null);
   };
+
+  /** Shows a warm backend cache (e.g. from an earlier visit, or pre-warmed
+   * by the refresh_zigbee_mesh service) without the user having to click
+   * Load — and picks up a newer one than this tab holds, e.g. a scheduled
+   * refresh that ran while the panel stayed open. Silent on failure — the
+   * Load button is still there. */
+  private async _loadCachedZigbeeMesh(): Promise<void> {
+    try {
+      const cached = await this._client.getCachedZigbeeMesh();
+      // A real scan in flight wins over this cache read.
+      if (!cached?.fetched_at || this._zigbeeMeshLoading) return;
+      const cachedAt = cached.fetched_at * 1000;
+      if (this._zigbeeMeshFetchedAt && cachedAt <= this._zigbeeMeshFetchedAt) {
+        return;
+      }
+      this._zigbeeMesh = cached;
+      this._zigbeeMeshFetchedAt = cachedAt;
+    } catch {
+      // Transient error — no-op.
+    }
+  }
 
   private async _refreshZigbeeMesh(forceRefresh = false): Promise<void> {
     this._zigbeeMeshLoading = true;
@@ -1166,7 +1207,6 @@ export class SpatialContextPanel extends LitElement {
     this._wifiMeshError = null;
     try {
       this._wifiMesh = await this._client.getWifiMesh();
-      this._wifiMeshFetchedAt = Date.now();
     } catch (err) {
       const message = (err as { message?: string })?.message;
       this._wifiMeshError = message || "Wi-Fi mesh request failed";
@@ -1996,20 +2036,12 @@ export class SpatialContextPanel extends LitElement {
       </div>`;
     }
 
-    const meshLoading =
-      this._networkType === "zigbee"
-        ? this._zigbeeMeshLoading
-        : this._wifiMeshLoading;
     const meshError =
       this._networkType === "zigbee"
         ? this._zigbeeMeshError
         : this._networkType === "wifi"
           ? this._wifiMeshError
           : this._matterError;
-    const meshFetchedAt =
-      this._networkType === "zigbee"
-        ? this._zigbeeMeshFetchedAt
-        : this._wifiMeshFetchedAt;
 
     return html`
       <app-header
@@ -2114,35 +2146,53 @@ export class SpatialContextPanel extends LitElement {
                           </div>
                         </div>
                         ${
-                          this._networkType === "matter" &&
-                          this._matterUnsubscribe
-                            ? html`<span
-                                class="hint"
-                                style="padding: 4px 16px 8px"
-                                >● Live</span
-                              >`
-                            : html`<button
-                                class="menu-item"
-                                ?disabled=${meshLoading}
-                                @click=${this._onLoadMesh}
-                              >
-                                <ha-icon icon="mdi:refresh"></ha-icon>
-                                ${
-                                  meshLoading
-                                    ? this._networkType === "zigbee"
+                          this._networkType === "zigbee"
+                            ? html`<button
+                                  class="menu-item"
+                                  ?disabled=${this._zigbeeMeshLoading}
+                                  @click=${this._onLoadMesh}
+                                >
+                                  <ha-icon icon="mdi:refresh"></ha-icon>
+                                  ${
+                                    this._zigbeeMeshLoading
                                       ? `Loading… ${this._zigbeeMeshElapsedSeconds}s (usually 1-2 min)`
-                                      : "Loading…"
-                                    : this._networkType === "matter"
-                                      ? "Load Network"
-                                      : this._networkType === "wifi"
-                                        ? meshFetchedAt
-                                          ? "Refresh Network"
-                                          : "Load Network"
-                                        : meshFetchedAt
-                                          ? "Refresh Mesh"
-                                          : "Load Mesh"
-                                }
-                              </button>`
+                                      : this._zigbeeMeshFetchedAt
+                                        ? "Refresh Mesh"
+                                        : "Load Mesh"
+                                  }
+                                </button>
+                                <label
+                                  class="popover-row hint"
+                                  style="padding: 4px 16px 8px"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    .checked=${this._zigbeeShowAllLinks}
+                                    @change=${(e: Event) => {
+                                      this._zigbeeShowAllLinks = (
+                                        e.target as HTMLInputElement
+                                      ).checked;
+                                      this._selectedMeshLink = null;
+                                      this._selectedMeshStub = null;
+                                    }}
+                                  />
+                                  Show all links
+                                </label>`
+                            : this._networkType === "matter" &&
+                                this._matterUnsubscribe
+                              ? html`<span
+                                  class="hint"
+                                  style="padding: 4px 16px 8px"
+                                  >● Live</span
+                                >`
+                              : this._networkType === "wifi" &&
+                                  this._wifiMeshLoading
+                                ? html`<span
+                                    class="hint"
+                                    style="padding: 4px 16px 8px"
+                                    >Loading…</span
+                                  >`
+                                : nothing
                         }
                         ${
                           meshError
@@ -2151,11 +2201,14 @@ export class SpatialContextPanel extends LitElement {
                                 style="color: var(--sc-danger); padding: 0 16px 8px"
                                 >${meshError}</span
                               >`
-                            : meshFetchedAt && this._networkType !== "matter"
+                            : this._networkType === "zigbee" &&
+                                this._zigbeeMeshFetchedAt
                               ? html`<span
                                   class="hint"
                                   style="padding: 0 16px 8px"
-                                  >${this._meshAgeLabel(meshFetchedAt)}</span
+                                  >${this._meshAgeLabel(
+                                    this._zigbeeMeshFetchedAt,
+                                  )}</span
                                 >`
                               : nothing
                         }

@@ -278,12 +278,24 @@ export interface MeshNode {
   ieee: string;
   friendly_name: string;
   device_id: string | null;
+  /** Z2M's node type — "Coordinator" | "Router" | "EndDevice". */
+  type: string | null;
 }
 
+/** One per device pair — every neighbor-table pair, unreduced (see
+ * zigbee_mesh.py's `_merge_links`); the panel picks what to draw. */
 export interface MeshLink {
   source_ieee: string;
   target_ieee: string;
+  /** The weaker of the two sides' readings after correcting each for its
+   * reporter's scale (LQI isn't comparable across chipsets — see
+   * zigbee_mesh.py's `_reporter_scales`). Drives both selection and color. */
   lqi: number;
+  /** Each side's own raw measurement, strongest first — one entry when
+   * only one side's table was read (e.g. a sleepy end device). */
+  lqi_readings: number[];
+  /** Parent/child (a real route), as opposed to a sibling merely in range. */
+  parent_child: boolean;
   source_device_id: string | null;
   target_device_id: string | null;
 }

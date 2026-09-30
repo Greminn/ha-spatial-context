@@ -1,5 +1,6 @@
 import { LitElement, html, css } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { property } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type { FloorMeta } from "../types";
 import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
@@ -30,7 +31,7 @@ function floorIcon(floor: FloorMeta): string {
   }
 }
 
-@customElement("floor-tabs")
+@safeCustomElement("floor-tabs")
 export class FloorTabs extends LitElement {
   static override styles = [
     sharedStyles,

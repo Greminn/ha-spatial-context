@@ -355,6 +355,7 @@ async def ws_export_snapshot(
     {
         vol.Required("type"): "spatial_context/get_zigbee_mesh",
         vol.Optional("force_refresh", default=False): bool,
+        vol.Optional("cache_only", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -371,7 +372,12 @@ async def ws_get_zigbee_mesh(
     a real scan (force_refresh=True, or no cache yet) can take 1-2 minutes
     or more on a large mesh — the frontend only ever passes force_refresh
     on an explicit user "Refresh Mesh" click, never on panel load.
+    cache_only=True returns the cached result or null, never scanning —
+    what the panel sends the moment the Zigbee layer is picked.
     """
+    if msg["cache_only"]:
+        connection.send_result(msg["id"], zigbee_mesh.get_cached_network_map(hass))
+        return
     try:
         mesh = await zigbee_mesh.async_get_network_map(
             hass, force_refresh=msg["force_refresh"]

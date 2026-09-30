@@ -1,5 +1,6 @@
 import { LitElement, html, svg, css, nothing } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { property, query, state } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import { mdiFloorPlan } from "@mdi/js";
 import type {
   CanvasMode,
@@ -114,7 +115,7 @@ type Gesture =
     }
   | null;
 
-@customElement("floorplan-canvas")
+@safeCustomElement("floorplan-canvas")
 export class FloorplanCanvas extends LitElement {
   static override styles = [
     sharedStyles,
@@ -1608,13 +1609,11 @@ export class FloorplanCanvas extends LitElement {
    * `_meshStubsForCurrentFloor`) — distinct from a normal solid
    * `.mesh-link` line so it reads as "continues elsewhere," not a second
    * real device on this floor. */
-  private _renderMeshStub(stub: ResolvedMeshStub) {
+  private _renderMeshStubLine(stub: ResolvedMeshStub) {
     const key = `${stub.fromPin.id}|${stub.targetDeviceId}`;
-    const selected = key === this.selectedMeshStubKey;
-    const r = this._pxToUnits(MESH_STUB_RADIUS_PX);
     return svg`
       <line
-        class="mesh-stub-line ${selected ? "selected" : ""}"
+        class="mesh-stub-line ${key === this.selectedMeshStubKey ? "selected" : ""}"
         x1=${stub.fromPin.x}
         y1=${stub.fromPin.y}
         x2=${stub.x}
@@ -1623,19 +1622,93 @@ export class FloorplanCanvas extends LitElement {
       >
         <title>${stub.targetLabel} (${stub.targetFloorName})</title>
       </line>
-      ${this._renderPinMarker(
-        stub.x,
-        stub.y,
-        r,
-        { kind: "path", d: mdiFloorPlan },
-        "var(--sc-fg-secondary)",
-        selected,
-        `${stub.targetLabel} (${stub.targetFloorName})`,
-      )}
-      <text class="mesh-stub-label" x=${stub.x} y=${stub.y + r + 14}
-        >${stub.targetFloorName}</text
-      >
     `;
+  }
+
+  /** One marker per distinct remote end — several local devices linking to
+   * the same remote device used to stack identical markers and labels on
+   * top of each other. A floor-name label is skipped wherever it would sit
+   * under a local pin (pins draw on top, so it'd read as garbled text) or
+   * over a label already placed; the marker's tooltip still names both. */
+  private _renderMeshStubMarkers() {
+    const r = this._pxToUnits(MESH_STUB_RADIUS_PX);
+    const pinR = this._pxToUnits(PIN_RADIUS_PX);
+    const markers = new Map<
+      string,
+      { stub: ResolvedMeshStub; selected: boolean }
+    >();
+    for (const stub of this.meshStubs) {
+      const markerKey = `${stub.targetDeviceId}|${stub.x},${stub.y}`;
+      const selected =
+        `${stub.fromPin.id}|${stub.targetDeviceId}` ===
+        this.selectedMeshStubKey;
+      const existing = markers.get(markerKey);
+      if (!existing) markers.set(markerKey, { stub, selected });
+      else if (selected) existing.selected = true;
+    }
+
+    // Label box in canvas units, matching .mesh-stub-label's 12px font
+    // (which, like room labels, scales with the viewBox).
+    const labelBox = (stub: ResolvedMeshStub) => {
+      const halfW = (stub.targetFloorName.length * 7) / 2;
+      return {
+        minX: stub.x - halfW,
+        maxX: stub.x + halfW,
+        minY: stub.y + r + 3,
+        maxY: stub.y + r + 17,
+      };
+    };
+    type Box = ReturnType<typeof labelBox>;
+    const overlaps = (a: Box, b: Box) =>
+      a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+    // Seeded with room names (16px .room-label, baseline at the centroid)
+    // so a stub label never lands on top of one.
+    const placed: Box[] = [];
+    for (const room of this.rooms) {
+      if (room.visible === false) continue;
+      const points = this._effectivePoints("room", room.id, room.points);
+      if (points.length < 2) continue;
+      const [cx, cy] = centroid(points);
+      const halfW = (room.name.length * 9) / 2;
+      placed.push({
+        minX: cx - halfW,
+        maxX: cx + halfW,
+        minY: cy - 13,
+        maxY: cy + 4,
+      });
+    }
+    const pinBoxes = this.pins.map((pin) => ({
+      minX: pin.x - pinR,
+      maxX: pin.x + pinR,
+      minY: pin.y - pinR,
+      maxY: pin.y + pinR,
+    }));
+
+    return [...markers.values()].map(({ stub, selected }) => {
+      const box = labelBox(stub);
+      const showLabel =
+        !pinBoxes.some((p) => overlaps(box, p)) &&
+        !placed.some((p) => overlaps(box, p));
+      if (showLabel) placed.push(box);
+      return svg`
+        ${this._renderPinMarker(
+          stub.x,
+          stub.y,
+          r,
+          { kind: "path", d: mdiFloorPlan },
+          "var(--sc-fg-secondary)",
+          selected,
+          `${stub.targetLabel} (${stub.targetFloorName})`,
+        )}
+        ${
+          showLabel
+            ? svg`<text class="mesh-stub-label" x=${stub.x} y=${stub.y + r + 14}
+                >${stub.targetFloorName}</text
+              >`
+            : nothing
+        }
+      `;
+    });
   }
 
   /** icon_override -> resolved path data (or null if unresolvable), filled
@@ -2155,7 +2228,8 @@ export class FloorplanCanvas extends LitElement {
           ${this.walls.map((wall) => this._renderWall(wall))}
           ${this.openings.map((opening) => this._renderOpening(opening))}
           ${this.meshLinks.map((link) => this._renderMeshLink(link))}
-          ${this.meshStubs.map((stub) => this._renderMeshStub(stub))}
+          ${this.meshStubs.map((stub) => this._renderMeshStubLine(stub))}
+          ${this._renderMeshStubMarkers()}
           ${this.mode === "trace" || this.mode === "wall" ? this._renderPendingTrace() : nothing}
           ${this._renderScaleLine()}
           ${this.mode === "scale" ? this._renderPendingScale() : nothing}

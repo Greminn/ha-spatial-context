@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type {
   AreaMeta,
   CanvasMode,
@@ -37,7 +38,7 @@ import { sharedStyles } from "../styles";
  * (top-right), and the selection/context panel (bottom-left, only present
  * when something's selected). One host spanning the canvas area so each
  * piece can be positioned independently within it. */
-@customElement("canvas-overlay")
+@safeCustomElement("canvas-overlay")
 export class CanvasOverlay extends LitElement {
   static override styles = [
     sharedStyles,

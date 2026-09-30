@@ -1,12 +1,13 @@
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { property } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import { sharedStyles } from "../styles";
 
 /** An icon button that toggles a floating dropdown of arbitrary slotted
  * content — shared by the header's background/mesh controls so each stays
  * out of the toolbar until opened. Open/closed state is owned by the
  * parent, matching every other component here. */
-@customElement("icon-popover")
+@safeCustomElement("icon-popover")
 export class IconPopover extends LitElement {
   static override styles = [
     sharedStyles,

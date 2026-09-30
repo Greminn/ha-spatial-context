@@ -144,6 +144,15 @@ export class HaClient {
     });
   }
 
+  /** The backend's cached scan, or null — never triggers a scan, so it's
+   * safe to call the moment the Zigbee layer is picked. */
+  async getCachedZigbeeMesh(): Promise<ZigbeeMesh | null> {
+    return this.hass.connection.sendMessagePromise<ZigbeeMesh | null>({
+      type: "spatial_context/get_zigbee_mesh",
+      cache_only: true,
+    });
+  }
+
   /** Best-effort — empty link list if no integration exposes `ap_mac`. */
   async getWifiMesh(): Promise<WifiMesh> {
     return this.hass.connection.sendMessagePromise<WifiMesh>({

@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { property } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type { PropertyPlacement } from "../types";
 import { sharedStyles } from "../styles";
 
@@ -24,7 +25,7 @@ export interface PropertyBuilding {
  * panel bottom-left when a placement is selected. Mirrors canvas-overlay.ts's
  * floating-panel pattern but scoped to the Property tab's much smaller
  * surface (no rooms/walls/openings/mesh — just placements). */
-@customElement("property-overlay")
+@safeCustomElement("property-overlay")
 export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,

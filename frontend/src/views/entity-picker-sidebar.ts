@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
 import { sharedStyles } from "../styles";
@@ -22,7 +23,7 @@ interface DeviceGroup {
   primaryEntityId: string;
 }
 
-@customElement("entity-picker-sidebar")
+@safeCustomElement("entity-picker-sidebar")
 export class EntityPickerSidebar extends LitElement {
   static override styles = [
     sharedStyles,

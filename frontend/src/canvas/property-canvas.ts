@@ -1,5 +1,6 @@
 import { LitElement, html, svg, css, nothing } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { property, query, state } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type { PropertyPlacement, ViewBox } from "../types";
 import { clamp, distance } from "./geometry";
 import { BASE_WIDTH } from "./floorplan-canvas";
@@ -64,7 +65,7 @@ type Gesture =
     }
   | null;
 
-@customElement("property-canvas")
+@safeCustomElement("property-canvas")
 export class PropertyCanvas extends LitElement {
   static override styles = [
     sharedStyles,

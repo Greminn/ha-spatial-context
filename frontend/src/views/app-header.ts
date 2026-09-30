@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { property } from "lit/decorators.js";
+import { safeCustomElement } from "../define";
 import type { FloorMeta } from "../types";
 import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
@@ -16,7 +17,7 @@ import "./floor-tabs";
  * leftover space after the identity block. Background/mesh controls live
  * behind their own icon here as small popovers rather than permanent
  * toolbar space. */
-@customElement("app-header")
+@safeCustomElement("app-header")
 export class AppHeader extends LitElement {
   static override styles = [
     sharedStyles,
