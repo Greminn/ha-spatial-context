@@ -6,13 +6,15 @@ links for entities whose current state happens to carry an `ap_mac`
 attribute. HA's `unifi` integration does this for every wireless
 device_tracker it creates; other router integrations may or may not.
 Users without such an integration configured simply get zero links, not
-an error.
+an error. TP-Link Omada is the one exception, read from its integration's
+own client data instead (see `_omada_links`).
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -150,4 +152,54 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
                     }
                 )
 
+    links.extend(_omada_links(hass, mac_to_device_ids, links))
     return {"links": links}
+
+
+def _omada_links(
+    hass: HomeAssistant,
+    mac_to_device_ids: dict[str, list[str]],
+    existing: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Client→AP links from HA core's `tplink_omada` integration (#31).
+
+    Omada's device_trackers carry no `ap_mac` and are disabled by default,
+    so the attribute loop above finds nothing — but the integration's own
+    clients coordinator already polls every wireless client with `mac`,
+    `ap_mac` and `rssi` (dBm). Reading it costs no extra controller
+    requests and needs no credentials.
+
+    Not a public API: `runtime_data.clients_coordinator` is the
+    integration's internals (patch contributed with #31, against Omada
+    Software Controller v6 / EAP613). Everything is `getattr`-guarded so a
+    future core change degrades to zero Omada links, never an error.
+    """
+    seen = {(link["source_device_id"], link["target_device_id"]) for link in existing}
+    links: list[dict[str, Any]] = []
+    # async_entries + a state check, not async_loaded_entries — that helper
+    # is newer than this integration's minimum HA version (hacs.json).
+    for entry in hass.config_entries.async_entries("tplink_omada"):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
+        controller = getattr(entry, "runtime_data", None)
+        coordinator = getattr(controller, "clients_coordinator", None)
+        clients = getattr(coordinator, "data", None) or {}
+        for client in clients.values() if isinstance(clients, dict) else clients:
+            client_mac = getattr(client, "mac", None)
+            ap_mac = getattr(client, "ap_mac", None)  # wired clients have none
+            if not client_mac or not ap_mac:
+                continue
+            rssi = getattr(client, "rssi", None)
+            for client_device_id in mac_to_device_ids.get(dr.format_mac(client_mac), []):
+                for ap_device_id in mac_to_device_ids.get(dr.format_mac(ap_mac), []):
+                    if (client_device_id, ap_device_id) in seen:
+                        continue
+                    seen.add((client_device_id, ap_device_id))
+                    links.append(
+                        {
+                            "source_device_id": client_device_id,
+                            "target_device_id": ap_device_id,
+                            "rssi_dbm": rssi if isinstance(rssi, (int, float)) else None,
+                        }
+                    )
+    return links

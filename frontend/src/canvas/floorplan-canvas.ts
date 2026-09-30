@@ -1438,6 +1438,22 @@ export class FloorplanCanvas extends LitElement {
     this._pendingTrace = null;
   }
 
+  /** Drops the last point of an in-progress room/wall trace or scale
+   * calibration (#26) — a misplaced click no longer means redrawing the
+   * whole shape. Removing the only point ends the trace. Returns whether
+   * there was anything to undo. */
+  undoLastPoint(): boolean {
+    if (this.mode === "scale" && this._pendingScalePoints.length > 0) {
+      this._pendingScalePoints = this._pendingScalePoints.slice(0, -1);
+      return true;
+    }
+    const points = this._pendingTrace?.points;
+    if (!points || points.length === 0) return false;
+    this._pendingTrace =
+      points.length > 1 ? { points: points.slice(0, -1) } : null;
+    return true;
+  }
+
   /** Abandons any in-progress room/wall trace or scale calibration. */
   cancelPending(): void {
     this._pendingTrace = null;

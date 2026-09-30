@@ -6,6 +6,33 @@ import type { ZigbeeMesh, MeshLink } from "./types";
  * links" still shows them. */
 const COORDINATOR_MIN_LQI = 50;
 
+/** The mesh with the coordinator's links re-pointed at `deviceId` — for
+ * when the radio is its own HA device (e.g. an SLZB-06 network adapter)
+ * rather than the Zigbee2MQTT Bridge device Z2M's identifiers map the
+ * coordinator to (#27). Identity when unset or there's no coordinator. */
+export function withCoordinatorDevice(
+  mesh: ZigbeeMesh,
+  deviceId: string | null,
+): ZigbeeMesh {
+  const coordinatorIeee = mesh.nodes.find(
+    (n) => n.type === "Coordinator",
+  )?.ieee;
+  if (!deviceId || !coordinatorIeee) return mesh;
+  return {
+    ...mesh,
+    nodes: mesh.nodes.map((node) =>
+      node.ieee === coordinatorIeee ? { ...node, device_id: deviceId } : node,
+    ),
+    links: mesh.links.map((link) => ({
+      ...link,
+      source_device_id:
+        link.source_ieee === coordinatorIeee ? deviceId : link.source_device_id,
+      target_device_id:
+        link.target_ieee === coordinatorIeee ? deviceId : link.target_device_id,
+    })),
+  };
+}
+
 /** Which of the backend's unreduced pairs (see zigbee_mesh.py's
  * `_merge_links`) the default view draws. Floor-aware, which is why it
  * lives here and not on the backend (issue #27):

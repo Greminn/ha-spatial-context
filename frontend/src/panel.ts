@@ -6,6 +6,7 @@ import type {
   CanvasMode,
   FloorLayout,
   FloorMeta,
+  FloorOrder,
   HomeAssistant,
   MatterNetworkTopology,
   NetworkType,
@@ -26,7 +27,7 @@ import type {
 } from "./types";
 import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
-import { selectZigbeeLinks } from "./zigbee-links";
+import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import {
   HaClient,
   backgroundImageUrl,
@@ -385,6 +386,35 @@ export class SpatialContextPanel extends LitElement {
     };
   }
 
+  /** Floors in tab display order (#30). The backend always sends them
+   * top-down, matching HA's own Areas page; "ground_up" reverses the
+   * leveled floors only — unleveled ones (a detached Garage, say) stay
+   * last either way rather than jumping to the front. */
+  private get _orderedFloors(): FloorMeta[] {
+    if (this._settings.floor_order !== "ground_up") return this._floors;
+    const leveled = this._floors.filter((f) => f.level !== null);
+    const unleveled = this._floors.filter((f) => f.level === null);
+    return [...leveled.reverse(), ...unleveled];
+  }
+
+  /** Every placed device on any floor, labeled — the choices for the
+   * Zigbee coordinator device setting. */
+  private get _placedDeviceChoices(): { deviceId: string; label: string }[] {
+    const labelFor = (pin: Pin) =>
+      pin.label_override ??
+      pinDisplayLabel(pin.device_id, this._entityLookup.values());
+    const choices = new Map<string, string>();
+    for (const pin of this._layout.pins) {
+      if (pin.device_id) choices.set(pin.device_id, labelFor(pin));
+    }
+    for (const [deviceId, { pin }] of this._otherFloorPinsByDeviceId) {
+      if (!choices.has(deviceId)) choices.set(deviceId, labelFor(pin));
+    }
+    return [...choices]
+      .map(([deviceId, label]) => ({ deviceId, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   private get _pinByDeviceId(): Map<string, Pin> {
     const pinByDeviceId = new Map<string, Pin>();
     for (const pin of this._layout.pins) {
@@ -415,7 +445,10 @@ export class SpatialContextPanel extends LitElement {
           ? (this._currentFloorId ?? undefined)
           : this._otherFloorPinsByDeviceId.get(deviceId)?.floorId;
       return selectZigbeeLinks(
-        this._zigbeeMesh,
+        withCoordinatorDevice(
+          this._zigbeeMesh,
+          this._settings.zigbee_coordinator_device_id,
+        ),
         floorOfDevice,
         this._zigbeeShowAllLinks,
       ).map((link) => ({
@@ -706,8 +739,9 @@ export class SpatialContextPanel extends LitElement {
     this._areas = areas;
     this._propertyLayout = propertyLayout;
     this._settings = settings;
-    if (floors.length > 0) {
-      await this._selectFloor(floors[0]!.floor_id, { skipDirtyCheck: true });
+    const firstFloor = this._orderedFloors[0];
+    if (firstFloor) {
+      await this._selectFloor(firstFloor.floor_id, { skipDirtyCheck: true });
     }
     this._loading = false;
   }
@@ -1113,6 +1147,26 @@ export class SpatialContextPanel extends LitElement {
     void this._client.saveSettings(this._settings);
   };
 
+  /** Same instant-apply pattern as _onUnitSystemSelect. The current floor
+   * stays selected — only the tab order changes. */
+  private _onFloorOrderSelect = (floor_order: FloorOrder) => {
+    this._settingsPopoverOpen = false;
+    if (this._settings.floor_order === floor_order) return;
+    this._settings = { ...this._settings, floor_order };
+    void this._client.saveSettings(this._settings);
+  };
+
+  private _onCoordinatorDeviceChange = (e: Event) => {
+    const value = (e.target as HTMLSelectElement).value;
+    this._settings = {
+      ...this._settings,
+      zigbee_coordinator_device_id: value || null,
+    };
+    this._selectedMeshLink = null;
+    this._selectedMeshStub = null;
+    void this._client.saveSettings(this._settings);
+  };
+
   /** Same instant-apply pattern as _onUnitSystemSelect. Clamped to the
    * backend schema's own range (30-600s) before saving, so an out-of-range
    * value never round-trips into a rejected save. */
@@ -1281,6 +1335,16 @@ export class SpatialContextPanel extends LitElement {
       this._armedEntityId = null;
       this._armedOpeningType = null;
       this._armedBuildingKey = null;
+      return;
+    }
+
+    // Undo the last point of an in-progress trace (#26): Backspace, or
+    // Ctrl/Cmd+Z. Checked before Delete/Backspace's delete-selection so
+    // Backspace mid-trace never deletes whatever happens to be selected.
+    const isUndo =
+      (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z";
+    if ((isUndo || e.key === "Backspace") && this._canvas?.undoLastPoint()) {
+      e.preventDefault();
       return;
     }
 
@@ -2045,7 +2109,7 @@ export class SpatialContextPanel extends LitElement {
 
     return html`
       <app-header
-        .floors=${this._floors}
+        .floors=${this._orderedFloors}
         .selectedFloorId=${this._currentFloorId}
         .propertySelected=${this._view === "property"}
         .dirty=${this._view === "property" ? this._propertyDirty : this._dirty}
@@ -2240,8 +2304,63 @@ export class SpatialContextPanel extends LitElement {
             <ha-icon icon="mdi:ruler"></ha-icon> Imperial (ft / in)
           </button>
           <span class="popover-row hint" style="padding: 8px 16px 4px"
+            >Floor tab order</span
+          >
+          <button
+            class="menu-item ${this._settings.floor_order !== "ground_up" ? "active" : ""}"
+            @click=${() => this._onFloorOrderSelect("top_down")}
+          >
+            <ha-icon icon="mdi:sort-numeric-descending"></ha-icon> Top floor
+            first
+          </button>
+          <button
+            class="menu-item ${this._settings.floor_order === "ground_up" ? "active" : ""}"
+            @click=${() => this._onFloorOrderSelect("ground_up")}
+          >
+            <ha-icon icon="mdi:sort-numeric-ascending"></ha-icon> Ground floor
+            first
+          </button>
+          <span class="popover-row hint" style="padding: 8px 16px 4px"
             >Zigbee mesh</span
           >
+          <label class="popover-row hint" style="padding: 4px 16px"
+            >Coordinator
+            <select @change=${this._onCoordinatorDeviceChange}>
+              <option
+                value=""
+                ?selected=${!this._settings.zigbee_coordinator_device_id}
+              >
+                Zigbee2MQTT Bridge (default)
+              </option>
+              ${
+                // Keep a saved choice visible even once its pin is removed,
+                // rather than the select silently showing the default.
+                this._settings.zigbee_coordinator_device_id &&
+                !this._placedDeviceChoices.some(
+                  (c) =>
+                    c.deviceId === this._settings.zigbee_coordinator_device_id,
+                )
+                  ? html`<option
+                      value=${this._settings.zigbee_coordinator_device_id}
+                      selected
+                    >
+                      (device not placed)
+                    </option>`
+                  : nothing
+              }
+              ${this._placedDeviceChoices.map(
+                ({ deviceId, label }) =>
+                  html`<option
+                    value=${deviceId}
+                    ?selected=${
+                      deviceId === this._settings.zigbee_coordinator_device_id
+                    }
+                  >
+                    ${label}
+                  </option>`,
+              )}
+            </select>
+          </label>
           <label class="popover-row hint" style="padding: 4px 16px 8px"
             >Timeout (seconds)
             <input

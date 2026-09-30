@@ -107,6 +107,15 @@ def _empty_settings() -> dict[str, Any]:
         # devices) can need more headroom. User-configurable since only the
         # user knows their own mesh size.
         "zigbee_timeout_seconds": 180,
+        # Floor tab display order: "top_down" (highest level first, matching
+        # HA's own Areas page) or "ground_up" (#30). Display only — `level`
+        # itself is never touched, so the rest of HA reads it normally.
+        "floor_order": "top_down",
+        # HA device the Zigbee coordinator is drawn at, when the radio is a
+        # separate device from the Zigbee2MQTT Bridge (e.g. an SLZB-06
+        # network adapter from its own integration — #27). None = the
+        # Bridge device, which Z2M's own identifiers already map to.
+        "zigbee_coordinator_device_id": None,
     }
 
 

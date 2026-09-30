@@ -72,7 +72,15 @@ export interface Settings {
   /** Zigbee `raw` networkmap timeout, seconds (see zigbee_mesh.py) —
    * user-configurable since only the user knows their own mesh size. */
   zigbee_timeout_seconds: number;
+  /** Floor tab display order (#30) — display only, `level` is untouched. */
+  floor_order: FloorOrder;
+  /** HA device to draw the Zigbee coordinator at, when the radio is its
+   * own device separate from the Zigbee2MQTT Bridge (#27). Null = the
+   * Bridge device. */
+  zigbee_coordinator_device_id: string | null;
 }
+
+export type FloorOrder = "top_down" | "ground_up";
 
 export type OpeningType = "door" | "window";
 

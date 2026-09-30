@@ -264,6 +264,14 @@ _SETTINGS_SCHEMA = {
     vol.Required("zigbee_timeout_seconds"): vol.All(
         vol.Coerce(int), vol.Range(min=30, max=600)
     ),
+    # Optional (with the storage.py defaults) so a panel bundle older than
+    # these fields can still save the rest of its settings.
+    vol.Optional("floor_order", default="top_down"): vol.In(
+        ["top_down", "ground_up"]
+    ),
+    vol.Optional("zigbee_coordinator_device_id", default=None): vol.Any(
+        None, str
+    ),
 }
 
 
@@ -293,12 +301,10 @@ async def ws_save_settings(
     msg: dict,
 ) -> None:
     """Replace-save app-wide settings."""
+    # Every schema key (a vol.Required/Optional marker; `.schema` is its
+    # name) — Optional ones are always present, filled from their default.
     await async_save_settings(
-        hass,
-        {
-            "unit_system": msg["unit_system"],
-            "zigbee_timeout_seconds": msg["zigbee_timeout_seconds"],
-        },
+        hass, {key.schema: msg[key.schema] for key in _SETTINGS_SCHEMA}
     )
     connection.send_result(msg["id"], {"success": True})
 

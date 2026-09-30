@@ -108,6 +108,8 @@ export class HaClient {
       type: "spatial_context/save_settings",
       unit_system: settings.unit_system,
       zigbee_timeout_seconds: settings.zigbee_timeout_seconds,
+      floor_order: settings.floor_order,
+      zigbee_coordinator_device_id: settings.zigbee_coordinator_device_id,
     });
   }
 
@@ -319,6 +321,8 @@ export function emptySettings(): Settings {
   return {
     unit_system: "metric",
     zigbee_timeout_seconds: 180,
+    floor_order: "top_down",
+    zigbee_coordinator_device_id: null,
   };
 }
 
