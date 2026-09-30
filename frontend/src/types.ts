@@ -1,5 +1,9 @@
 /** Types mirroring custom_components/spatial_context/storage.py's schema. */
 
+/** Stands in for a floor_id wherever something is placed on the Property
+ * tab instead of a floor — matches storage.py's PROPERTY_LOCATION_ID. */
+export const PROPERTY_LOCATION_ID = "__property__";
+
 export interface Room {
   id: string;
   name: string;
@@ -182,6 +186,11 @@ export interface PropertyPlacement {
    * footprint at placement time — resize preserves this instead of
    * letting the rectangle be freely squashed/stretched. */
   aspect_ratio: number;
+  /** The building's traced floor-plan footprint this rectangle was fitted
+   * to — the box it maps onto (see canvas/property-mapping.ts). Captured at
+   * placement time and kept, so drawing more rooms later doesn't stretch
+   * the mapping. Null when nothing had been traced yet. */
+  source_bounds: ContentBounds | null;
 }
 
 export interface PropertyLayout {
@@ -193,6 +202,10 @@ export interface PropertyLayout {
   /** Saved pan/zoom, restored whenever the Property tab is opened. */
   view_box: ViewBox | null;
   placements: PropertyPlacement[];
+  /** Outdoor devices (garden lights, say), positioned on the site photo —
+   * a device lives in one place only, across floors and here. `room_id`
+   * and `height_m` are unused outdoors. */
+  pins: Pin[];
 }
 
 export interface AreaMeta {
@@ -368,6 +381,27 @@ export interface MatterNetworkTopology {
 export interface ResolvedMeshLink {
   fromPin: Pin;
   toPin: Pin;
+  quality: "strong" | "medium" | "weak" | "unknown";
+  detail?: string;
+}
+
+/** One end of a mesh link drawn on the Property tab, in site-photo
+ * coordinates: an outdoor pin, or an indoor device mapped through its
+ * building's placement (see canvas/property-mapping.ts). */
+export interface PropertyMeshEnd {
+  deviceId: string;
+  x: number;
+  y: number;
+  label: string;
+  /** Set for an indoor device — the floor it's on, for "go to floor". */
+  floorId: string | null;
+}
+
+/** A mesh link on the Property tab — at least one end is outdoors. */
+export interface PropertyMeshLink {
+  key: string;
+  from: PropertyMeshEnd;
+  to: PropertyMeshEnd;
   quality: "strong" | "medium" | "weak" | "unknown";
   detail?: string;
 }

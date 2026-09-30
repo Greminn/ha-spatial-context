@@ -1,8 +1,17 @@
 import { LitElement, html, svg, css, nothing } from "lit";
 import { property, query, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
-import type { PropertyPlacement, ViewBox } from "../types";
-import { clamp, distance } from "./geometry";
+import type {
+  Pin,
+  PlaceableEntity,
+  PropertyMeshLink,
+  PropertyPlacement,
+  ViewBox,
+} from "../types";
+import { clamp, distance, pointToSegmentDistance } from "./geometry";
+import { pinDisplayLabel } from "./device-display";
+import { qualityColor } from "./mesh-colors";
+import { PinIconResolver, pinStyles } from "./pin-render";
 import { BASE_WIDTH } from "./floorplan-canvas";
 import { sharedStyles } from "../styles";
 
@@ -19,6 +28,9 @@ const MIN_VIEWBOX_WIDTH = BASE_WIDTH / 4;
 const MAX_VIEWBOX_WIDTH = BASE_WIDTH * 4;
 const CLICK_MOVE_THRESHOLD_PX = 5;
 const HANDLE_RADIUS_PX = 7;
+const PIN_RADIUS_PX = 12;
+const INDOOR_END_RADIUS_PX = 5;
+const LINK_HIT_PX = 8;
 const ROTATE_STICK_PX = 26;
 
 export const DEFAULT_PLACEMENT_WIDTH = 220;
@@ -40,6 +52,8 @@ const CORNER_SIGN: [number, number][] = [
 ];
 
 type DownHit =
+  | { type: "pin"; id: string }
+  | { type: "meshLink"; key: string }
   | { type: "resizeHandle"; id: string; corner: 0 | 1 | 2 | 3 }
   | { type: "rotateHandle"; id: string }
   | { type: "body"; id: string }
@@ -48,6 +62,7 @@ type DownHit =
 type Gesture =
   | { kind: "pan" }
   | { kind: "move"; id: string }
+  | { kind: "pinMove"; id: string }
   | {
       kind: "resize";
       id: string;
@@ -69,6 +84,7 @@ type Gesture =
 export class PropertyCanvas extends LitElement {
   static override styles = [
     sharedStyles,
+    pinStyles,
     css`
       :host {
         display: block;
@@ -140,6 +156,24 @@ export class PropertyCanvas extends LitElement {
         stroke-width: 2;
         cursor: nwse-resize;
       }
+      .mesh-link {
+        stroke-width: 2;
+        opacity: 0.85;
+        cursor: pointer;
+      }
+      .mesh-link.indoor {
+        stroke-dasharray: 6 4;
+      }
+      .mesh-link.selected {
+        stroke-width: 4;
+        opacity: 1;
+      }
+      .indoor-end {
+        fill: var(--sc-fg-secondary);
+        stroke: white;
+        stroke-width: 1.5;
+        pointer-events: none;
+      }
       .controls {
         position: absolute;
         right: 12px;
@@ -165,8 +199,19 @@ export class PropertyCanvas extends LitElement {
   @property({ type: Number }) backgroundOffsetX = 0;
   @property({ type: Number }) backgroundOffsetY = 0;
   @property({ type: Number }) backgroundScale = 1;
-  @property({ attribute: false }) mode: "select" | "place" = "select";
+  /** "place" arms a building footprint; "place-pin" an outdoor device. */
+  @property({ attribute: false }) mode: "select" | "place" | "place-pin" =
+    "select";
   @property({ attribute: false }) selectedPlacementId: string | null = null;
+  /** Outdoor device pins, in site-photo coordinates. */
+  @property({ attribute: false }) pins: Pin[] = [];
+  @property({ attribute: false }) selectedPinId: string | null = null;
+  @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
+    new Map();
+  /** Connectivity Map lines with at least one outdoor end (see panel.ts's
+   * _propertyMeshLinks). */
+  @property({ attribute: false }) meshLinks: PropertyMeshLink[] = [];
+  @property({ attribute: false }) selectedMeshLinkKey: string | null = null;
   /** The saved property view — this component is freshly created each
    * time the Property tab is opened (unlike floorplan-canvas, which stays
    * mounted across floor switches), so a plain `firstUpdated()` check is
@@ -190,6 +235,7 @@ export class PropertyCanvas extends LitElement {
   private _gesture: Gesture = null;
   private _moved = false;
   private _resizeObserver?: ResizeObserver;
+  private _pinIcons = new PinIconResolver(this);
   private _hasFittedOnce = false;
 
   override firstUpdated(): void {
@@ -226,9 +272,15 @@ export class PropertyCanvas extends LitElement {
   }
 
   private _contentBounds(): ViewBox | null {
-    if (this.placements.length === 0) return null;
-    const xs = this.placements.flatMap((p) => [p.x - p.width, p.x + p.width]);
-    const ys = this.placements.flatMap((p) => [p.y - p.height, p.y + p.height]);
+    if (this.placements.length === 0 && this.pins.length === 0) return null;
+    const xs = [
+      ...this.placements.flatMap((p) => [p.x - p.width, p.x + p.width]),
+      ...this.pins.map((p) => p.x),
+    ];
+    const ys = [
+      ...this.placements.flatMap((p) => [p.y - p.height, p.y + p.height]),
+      ...this.pins.map((p) => p.y),
+    ];
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
@@ -319,6 +371,15 @@ export class PropertyCanvas extends LitElement {
 
   private _hitTest(clientX: number, clientY: number): DownHit {
     const hitPx = HANDLE_RADIUS_PX * 2;
+    // Outdoor pins sit on top of everything, then the selected
+    // placement's handles, then mesh lines, then placement bodies.
+    const image = this._clientToImage(clientX, clientY);
+    const pinHit = this._pxToUnits(PIN_RADIUS_PX * 1.4);
+    for (const pin of [...this.pins].reverse()) {
+      if (distance(pin.x, pin.y, image.x, image.y) <= pinHit) {
+        return { type: "pin", id: pin.id };
+      }
+    }
     const selected = this.placements.find(
       (p) => p.id === this.selectedPlacementId,
     );
@@ -350,7 +411,24 @@ export class PropertyCanvas extends LitElement {
         return { type: "rotateHandle", id: selected.id };
       }
     }
-    const image = this._clientToImage(clientX, clientY);
+    const linkHit = this._pxToUnits(LINK_HIT_PX);
+    let closestLink: PropertyMeshLink | null = null;
+    let closestDist = linkHit;
+    for (const link of this.meshLinks) {
+      const d = pointToSegmentDistance(
+        image.x,
+        image.y,
+        link.from.x,
+        link.from.y,
+        link.to.x,
+        link.to.y,
+      );
+      if (d <= closestDist) {
+        closestLink = link;
+        closestDist = d;
+      }
+    }
+    if (closestLink) return { type: "meshLink", key: closestLink.key };
     for (const p of [...this.placements].reverse()) {
       const local = this._toLocal(p, image.x, image.y);
       if (
@@ -432,6 +510,8 @@ export class PropertyCanvas extends LitElement {
       return { kind: "rotate", id: this._downHit.id };
     if (this._downHit?.type === "body")
       return { kind: "move", id: this._downHit.id };
+    if (this._downHit?.type === "pin")
+      return { kind: "pinMove", id: this._downHit.id };
     return { kind: "pan" };
   }
 
@@ -494,6 +574,13 @@ export class PropertyCanvas extends LitElement {
         id: this._gesture.id,
         dx: (e.clientX - last.x) / scale,
         dy: (e.clientY - last.y) / scale,
+      });
+    } else if (this._gesture?.kind === "pinMove") {
+      const image = this._clientToImage(e.clientX, e.clientY);
+      this._fire("outdoor-pin-move", {
+        id: this._gesture.id,
+        x: image.x,
+        y: image.y,
       });
     } else if (this._gesture?.kind === "resize") {
       const gesture = this._gesture;
@@ -582,15 +669,33 @@ export class PropertyCanvas extends LitElement {
   };
 
   private _handleClick(): void {
-    if (this.mode === "place") {
+    if (this.mode === "place" || this.mode === "place-pin") {
       if (!this._downClient) return;
       const image = this._clientToImage(this._downClient.x, this._downClient.y);
-      this._fire("placement-place", { x: image.x, y: image.y });
+      this._fire(
+        this.mode === "place" ? "placement-place" : "outdoor-pin-place",
+        {
+          x: image.x,
+          y: image.y,
+        },
+      );
       return;
     }
-    this._fire("placement-select", {
-      id: this._downHit?.type === "body" ? this._downHit.id : null,
-    });
+    const hit = this._downHit;
+    if (hit?.type === "pin") {
+      this._fire("outdoor-pin-select", { id: hit.id });
+    } else if (hit?.type === "meshLink") {
+      this._fire("property-mesh-link-select", {
+        key: hit.key === this.selectedMeshLinkKey ? null : hit.key,
+      });
+    } else {
+      // Empty space or a placement: one selection at a time.
+      this._fire("outdoor-pin-select", { id: null });
+      this._fire("property-mesh-link-select", { key: null });
+      this._fire("placement-select", {
+        id: hit?.type === "body" ? hit.id : null,
+      });
+    }
   }
 
   private _onWheel = (e: WheelEvent): void => {
@@ -684,6 +789,58 @@ export class PropertyCanvas extends LitElement {
     `;
   }
 
+  private _renderMeshLink(link: PropertyMeshLink) {
+    const indoor = link.from.floorId !== null || link.to.floorId !== null;
+    return svg`
+      <line
+        class="mesh-link ${indoor ? "indoor" : ""} ${
+          link.key === this.selectedMeshLinkKey ? "selected" : ""
+        }"
+        x1=${link.from.x}
+        y1=${link.from.y}
+        x2=${link.to.x}
+        y2=${link.to.y}
+        style="stroke:${qualityColor(link.quality)}"
+      >
+        <title>${link.from.label} → ${link.to.label}: ${
+          link.detail ?? link.quality
+        }</title>
+      </line>
+    `;
+  }
+
+  /** A small dot where a line reaches an indoor device — drawn once per
+   * device, at its real position inside its building's footprint. */
+  private _renderIndoorEnds() {
+    const r = this._pxToUnits(INDOOR_END_RADIUS_PX);
+    const ends = new Map<string, { x: number; y: number; label: string }>();
+    for (const link of this.meshLinks) {
+      for (const end of [link.from, link.to]) {
+        if (end.floorId !== null) ends.set(end.deviceId, end);
+      }
+    }
+    return [...ends.values()].map(
+      (end) => svg`
+        <circle class="indoor-end" cx=${end.x} cy=${end.y} r=${r}>
+          <title>${end.label}</title>
+        </circle>
+      `,
+    );
+  }
+
+  private _renderPin(pin: Pin) {
+    return this._pinIcons.renderMarker(
+      pin.x,
+      pin.y,
+      this._pxToUnits(PIN_RADIUS_PX),
+      this._pinIcons.iconForPin(pin, this.entityLookup.values()),
+      "var(--sc-accent)",
+      pin.id === this.selectedPinId,
+      pin.label_override ??
+        pinDisplayLabel(pin.device_id, this.entityLookup.values()),
+    );
+  }
+
   override render() {
     const vb = this._viewBox;
     return html`
@@ -691,7 +848,7 @@ export class PropertyCanvas extends LitElement {
       ${svg`
         <svg
           viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}"
-          class="${this.mode === "place" ? "place-mode" : ""}"
+          class="${this.mode !== "select" ? "place-mode" : ""}"
           @wheel=${this._onWheel}
           @pointerdown=${this._onPointerDown}
           @pointermove=${this._onPointerMove}
@@ -699,6 +856,9 @@ export class PropertyCanvas extends LitElement {
           @pointercancel=${this._onPointerUp}
         >
           ${this.placements.map((p) => this._renderPlacement(p))}
+          ${this.meshLinks.map((link) => this._renderMeshLink(link))}
+          ${this._renderIndoorEnds()}
+          ${this.pins.map((pin) => this._renderPin(pin))}
         </svg>
       `}
       <div class="controls">

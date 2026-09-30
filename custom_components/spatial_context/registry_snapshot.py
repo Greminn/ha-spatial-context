@@ -19,7 +19,13 @@ from homeassistant.helpers import (
 )
 from homeassistant.loader import async_get_integration
 
-from .storage import async_get_all_layouts, async_save_all_layouts_raw
+from .storage import (
+    PROPERTY_LOCATION_ID,
+    async_get_all_layouts,
+    async_get_property_layout,
+    async_save_all_layouts_raw,
+    layout_bounds,
+)
 
 # Entity domains that represent an actual kind of physical device worth a
 # pin/icon on the map. Deliberately excludes domains that are inherently
@@ -121,16 +127,7 @@ def _content_bounds(layout: dict[str, Any]) -> dict[str, float] | None:
     coordinate system, so their bounds can be unioned directly by the
     frontend without any further transform.
     """
-    points: list[list[float]] = []
-    for room in layout.get("rooms", []):
-        points.extend(room.get("points", []))
-    for wall in layout.get("walls", []):
-        points.extend(wall.get("points", []))
-    if not points:
-        return None
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    return {"min_x": min(xs), "min_y": min(ys), "max_x": max(xs), "max_y": max(ys)}
+    return layout_bounds(layout)
 
 
 async def async_list_floors(hass: HomeAssistant) -> list[dict[str, Any]]:
@@ -270,6 +267,11 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
         for pin in layout.get("pins", []):
             if pin.get("device_id"):
                 device_id_to_floor_id[pin["device_id"]] = floor_id
+    # Outdoor devices placed on the Property tab — reported under a
+    # sentinel "floor" so the picker shows where they are, same as a floor.
+    for pin in (await async_get_property_layout(hass)).get("pins", []):
+        if pin.get("device_id"):
+            device_id_to_floor_id[pin["device_id"]] = PROPERTY_LOCATION_ID
 
     # The device's OWN integration — not `entry.platform` on whichever
     # entity happens to be picked as representative. A helper integration
@@ -353,7 +355,13 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
                 if integration_domain
                 else None,
                 "placed_floor_id": placed_floor_id,
-                "placed_floor_name": placed_floor.name if placed_floor else placed_floor_id,
+                "placed_floor_name": (
+                    "Property"
+                    if placed_floor_id == PROPERTY_LOCATION_ID
+                    else placed_floor.name
+                    if placed_floor
+                    else placed_floor_id
+                ),
             }
         )
 

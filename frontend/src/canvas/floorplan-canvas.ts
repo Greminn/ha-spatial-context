@@ -39,11 +39,11 @@ import {
   findWallAt,
 } from "./pin-tool";
 import { addTracePoint, startTrace, type PendingTrace } from "./polygon-tool";
-import { pinDisplayLabel, pinIntegrationDomain } from "./device-display";
-import { fetchIconPathByName } from "./icon-cache";
+import { pinDisplayLabel } from "./device-display";
+import { PinIconResolver, pinStyles, type PinIcon } from "./pin-render";
 import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
 import { qualityColor } from "./mesh-colors";
-import { GENERIC_DEVICE_ICON_PATH, GROUP_ICON_PATH } from "./pin-icons";
+import { GROUP_ICON_PATH } from "./pin-icons";
 import { formatLarge, largeUnitLabel } from "../units";
 import { sharedStyles } from "../styles";
 
@@ -119,6 +119,7 @@ type Gesture =
 export class FloorplanCanvas extends LitElement {
   static override styles = [
     sharedStyles,
+    pinStyles,
     css`
       :host {
         display: block;
@@ -335,32 +336,6 @@ export class FloorplanCanvas extends LitElement {
         fill: var(--sc-accent);
         opacity: 0.5;
         cursor: copy;
-      }
-      .pin-hit {
-        fill: transparent;
-        cursor: pointer;
-      }
-      .pin-dot {
-        /* One uniform color for every device — a per-domain tint would
-         * mean deriving something from an arbitrarily-chosen entity's
-         * domain again, which this app deliberately never does anymore
-         * (see canvas/device-display.ts). */
-        fill: var(--sc-accent);
-        stroke: white;
-        stroke-width: 2;
-        pointer-events: none;
-      }
-      .pin-dot.selected {
-        fill: var(--sc-danger);
-      }
-      .pin-icon {
-        pointer-events: none;
-      }
-      .pin-brand-icon {
-        pointer-events: none;
-      }
-      .pin-icon path {
-        fill: white;
       }
       .controls {
         position: absolute;
@@ -1727,70 +1702,12 @@ export class FloorplanCanvas extends LitElement {
     });
   }
 
-  /** icon_override -> resolved path data (or null if unresolvable), filled
-   * in lazily by _iconForOverride. Deliberately not a reactive @state —
-   * icon-cache.ts's own module-level cache already dedupes the fetch
-   * itself; this is just a synchronous read of whatever's resolved so
-   * far, with requestUpdate() called explicitly once a fetch lands. */
-  private _resolvedIconOverrides = new Map<string, string | null>();
+  /** Icon choice + marker drawing, shared with property-canvas.ts's
+   * outdoor pins (see pin-render.ts). */
+  private _pinIcons = new PinIconResolver(this);
 
-  /** Path data for a pin's icon override, or null if it's not yet resolved
-   * (a fetch is kicked off in the background; render() picks it up via
-   * requestUpdate() once it lands) or permanently unresolvable. Callers
-   * fall back to the domain-default icon whenever this returns null. */
-  private _iconForOverride(override: string): string | null {
-    if (this._resolvedIconOverrides.has(override)) {
-      return this._resolvedIconOverrides.get(override) ?? null;
-    }
-    this._resolvedIconOverrides.set(override, null);
-    void fetchIconPathByName(override).then((path) => {
-      if (path !== null) {
-        this._resolvedIconOverrides.set(override, path);
-        this.requestUpdate();
-      }
-    });
-    return null;
-  }
-
-  /** integration_domain -> whether its brands.home-assistant.io logo has
-   * failed to load (404, no brand icon submitted for that integration) —
-   * once known-failed, _iconForPin stops trying to render that `<image>`
-   * again and falls back to GENERIC_DEVICE_ICON_PATH instead of repeatedly
-   * requesting a URL known not to exist. */
-  @state() private _failedBrandIcons = new Set<string>();
-
-  /** Which icon to draw for a placed device — icon_override first (a
-   * human's own explicit choice), then that device's integration's own
-   * brand logo (a real device-level fact — see device-display.ts), then a
-   * generic fallback. Never derived from any entity's domain. */
-  private _iconForPin(
-    pin: Pin,
-  ):
-    | { kind: "path"; d: string }
-    | { kind: "image"; href: string; integrationDomain: string } {
-    if (pin.icon_override) {
-      const overridePath = this._iconForOverride(pin.icon_override);
-      if (overridePath) return { kind: "path", d: overridePath };
-    }
-    const integrationDomain = pinIntegrationDomain(
-      pin.device_id,
-      this.entityLookup.values(),
-    );
-    if (integrationDomain && !this._failedBrandIcons.has(integrationDomain)) {
-      return {
-        kind: "image",
-        href: `https://brands.home-assistant.io/_/${integrationDomain}/icon.png`,
-        integrationDomain,
-      };
-    }
-    return { kind: "path", d: GENERIC_DEVICE_ICON_PATH };
-  }
-
-  private _onBrandIconError(integrationDomain: string): void {
-    if (this._failedBrandIcons.has(integrationDomain)) return;
-    this._failedBrandIcons = new Set(this._failedBrandIcons).add(
-      integrationDomain,
-    );
+  private _iconForPin(pin: Pin): PinIcon {
+    return this._pinIcons.iconForPin(pin, this.entityLookup.values());
   }
 
   /** Groups by exact (x,y) — placement already snaps a new pin onto an
@@ -1848,53 +1765,12 @@ export class FloorplanCanvas extends LitElement {
     x: number,
     y: number,
     r: number,
-    icon:
-      | { kind: "path"; d: string }
-      | { kind: "image"; href: string; integrationDomain: string },
+    icon: PinIcon,
     color: string,
     selected: boolean,
     label: string,
   ) {
-    const iconSize = r * 1.1; // native mdi viewBox is 24x24, scaled to fit the dot
-    return svg`
-      <g>
-        <title>${label}</title>
-        <circle
-          class="pin-dot ${selected ? "selected" : ""}"
-          cx=${x}
-          cy=${y}
-          r=${r}
-          style="fill:${selected ? "" : color}"
-        ></circle>
-        ${
-          icon.kind === "path"
-            ? svg`
-              <svg
-                x=${x - iconSize / 2}
-                y=${y - iconSize / 2}
-                width=${iconSize}
-                height=${iconSize}
-                viewBox="0 0 24 24"
-                class="pin-icon"
-              >
-                <path d=${icon.d}></path>
-              </svg>
-            `
-            : svg`
-              <image
-                x=${x - iconSize / 2}
-                y=${y - iconSize / 2}
-                width=${iconSize}
-                height=${iconSize}
-                href=${icon.href}
-                class="pin-brand-icon"
-                @error=${() => this._onBrandIconError(icon.integrationDomain)}
-              ></image>
-            `
-        }
-        <circle class="pin-hit" cx=${x} cy=${y} r=${r * 1.4}></circle>
-      </g>
-    `;
+    return this._pinIcons.renderMarker(x, y, r, icon, color, selected, label);
   }
 
   private _renderPendingTrace() {

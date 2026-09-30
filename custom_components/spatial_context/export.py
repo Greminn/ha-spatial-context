@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from . import registry_snapshot
-from .storage import async_get_floor_layout
+from .storage import async_get_floor_layout, async_get_property_layout
 
 # Mirrors frontend/src/canvas/materials.ts — keep both in sync if this list
 # changes. attenuation_db_per_cm is an approximate 2.4GHz RF signal loss
@@ -89,7 +89,8 @@ def _meters_per_unit(scale: dict | None) -> float | None:
 
 
 async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
-    """Denormalized export: floors -> rooms -> devices.
+    """Denormalized export: floors -> rooms -> devices, plus outdoor
+    devices placed on the Property tab.
 
     Every device carries both its raw stored x/y and, when the floor has
     been calibrated (see `scale`/`meters_per_unit`), real-world x_m/y_m and
@@ -112,29 +113,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
         room_devices[None] = []
 
         for pin in layout.get("pins", []):
-            # The export is explicitly AI-agent-facing context (unlike the
-            # UI, which a human uses and which never surfaces entity_id at
-            # all — see types.ts's Pin doc comment) — so entity_id/domain
-            # are still worth including here, derived fresh from device_id
-            # via the same automatic ranking the UI's icon uses, rather
-            # than a stored choice.
-            device_id = pin.get("device_id")
-            entity = registry_snapshot.pick_display_entity(device_id, placeable_entities)
-            height_m = pin.get("height_m")
-            device = {
-                "device_id": device_id,
-                "entity_id": entity["entity_id"] if entity else None,
-                "name": pin.get("label_override")
-                or (entity["name"] if entity else "Unknown device"),
-                "domain": entity["domain"] if entity else None,
-                "device_class": entity["device_class"] if entity else None,
-                "area_name": entity["area_name"] if entity else None,
-                "x": pin["x"],
-                "y": pin["y"],
-                "x_m": pin["x"] * meters_per_unit if meters_per_unit else None,
-                "y_m": pin["y"] * meters_per_unit if meters_per_unit else None,
-                "height_m": height_m,
-            }
+            device = _export_device(pin, placeable_entities, meters_per_unit)
             room_devices.setdefault(pin.get("room_id"), []).append(device)
 
         exported_rooms = [
@@ -194,7 +173,48 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
             }
         )
 
+    # Placed on the Property tab's site photo rather than any floor (garden
+    # lights, say). x/y are site-photo units — the property has no scale
+    # calibration, so there's no x_m/y_m.
+    property_layout = await async_get_property_layout(hass)
+    outdoor_devices = [
+        _export_device(pin, placeable_entities, None)
+        for pin in property_layout.get("pins", [])
+    ]
+
     return {
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "floors": exported_floors,
+        "outdoor_devices": outdoor_devices,
+    }
+
+
+def _export_device(
+    pin: dict[str, Any],
+    placeable_entities: list[dict[str, Any]],
+    meters_per_unit: float | None,
+) -> dict[str, Any]:
+    """One placed device for the export.
+
+    The export is explicitly AI-agent-facing context (unlike the UI, which
+    a human uses and which never surfaces entity_id at all — see types.ts's
+    Pin doc comment) — so entity_id/domain are still worth including here,
+    derived fresh from device_id via the same automatic ranking the UI's
+    icon uses, rather than a stored choice.
+    """
+    device_id = pin.get("device_id")
+    entity = registry_snapshot.pick_display_entity(device_id, placeable_entities)
+    return {
+        "device_id": device_id,
+        "entity_id": entity["entity_id"] if entity else None,
+        "name": pin.get("label_override")
+        or (entity["name"] if entity else "Unknown device"),
+        "domain": entity["domain"] if entity else None,
+        "device_class": entity["device_class"] if entity else None,
+        "area_name": entity["area_name"] if entity else None,
+        "x": pin["x"],
+        "y": pin["y"],
+        "x_m": pin["x"] * meters_per_unit if meters_per_unit else None,
+        "y_m": pin["y"] * meters_per_unit if meters_per_unit else None,
+        "height_m": pin.get("height_m"),
     }

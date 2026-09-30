@@ -18,6 +18,12 @@ from .const import DOMAIN
 _STORE_VERSION = 1
 _STORE_KEY = f"{DOMAIN}.layout"
 
+# Where an outdoor device placed on the Property tab is reported as placed,
+# in the spots that otherwise carry a floor_id (the device picker's
+# "placed on" hint, the export). Can't collide with an HA floor_id, which
+# is always a slug.
+PROPERTY_LOCATION_ID = "__property__"
+
 
 def _store(hass: HomeAssistant) -> Store[dict[str, Any]]:
     return Store(hass, _STORE_VERSION, _STORE_KEY)
@@ -88,7 +94,56 @@ def _empty_property() -> dict[str, Any]:
         # FloorLayout.building_id when the anchor floor has one (null for a
         # standalone floor acting as its own building, e.g. a detached
         # garage never aligned to anything).
+        #
+        # `source_bounds` ({min_x, min_y, max_x, max_y}, floor-plan units) is
+        # the building's traced footprint the rectangle was fitted to — the
+        # floor-plan box it maps onto, so a floor position converts to a
+        # property position and back. Stored, not recomputed live: drawing
+        # more rooms later (an outdoor deck, say) grows the footprint, which
+        # would otherwise silently stretch every mapping.
         "placements": [],
+        # Outdoor device pins (garden lights, say) — same shape as a floor
+        # pin, but positioned on the property photo. A device lives in one
+        # place only, across floors and here (see the save functions).
+        "pins": [],
+    }
+
+
+def layout_bounds(layout: dict[str, Any]) -> dict[str, float] | None:
+    """A floor's traced footprint extent (rooms + walls only, not pins), or
+    None when nothing's been traced."""
+    points: list[list[float]] = []
+    for room in layout.get("rooms", []):
+        points.extend(room.get("points", []))
+    for wall in layout.get("walls", []):
+        points.extend(wall.get("points", []))
+    if not points:
+        return None
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return {"min_x": min(xs), "min_y": min(ys), "max_x": max(xs), "max_y": max(ys)}
+
+
+def _building_bounds(
+    floors: dict[str, dict[str, Any]], placement: dict[str, Any]
+) -> dict[str, float] | None:
+    """Union footprint of every floor in a placement's building — floors
+    sharing a building_id already share one coordinate system."""
+    building_id = placement.get("building_id")
+    member_layouts = [
+        layout
+        for floor_id, layout in floors.items()
+        if (building_id is not None and layout.get("building_id") == building_id)
+        or floor_id == placement["floor_id"]
+    ]
+    boxes = [b for b in map(layout_bounds, member_layouts) if b is not None]
+    if not boxes:
+        return None
+    return {
+        "min_x": min(b["min_x"] for b in boxes),
+        "min_y": min(b["min_y"] for b in boxes),
+        "max_x": max(b["max_x"] for b in boxes),
+        "max_y": max(b["max_y"] for b in boxes),
     }
 
 
@@ -210,14 +265,29 @@ async def async_save_floor_layout(
         for other_floor_id, other_layout in data["floors"].items():
             if other_floor_id == floor_id:
                 continue
-            other_layout["pins"] = [
-                pin
-                for pin in other_layout.get("pins", [])
-                if not pin.get("device_id") or pin["device_id"] not in moved_device_ids
-            ]
+            other_layout["pins"] = _without_devices(
+                other_layout.get("pins", []), moved_device_ids
+            )
+        # ...and from the Property tab's outdoor pins.
+        if data.get("property"):
+            data["property"]["pins"] = _without_devices(
+                data["property"].get("pins", []), moved_device_ids
+            )
 
         data["floors"][floor_id] = layout
         await _store(hass).async_save(data)
+
+
+def _without_devices(
+    pins: list[dict[str, Any]], device_ids: set[str]
+) -> list[dict[str, Any]]:
+    """`pins` minus any placing one of `device_ids` — pins with no
+    device_id are kept, since there's nothing to safely match them on."""
+    return [
+        pin
+        for pin in pins
+        if not pin.get("device_id") or pin["device_id"] not in device_ids
+    ]
 
 
 async def async_save_all_layouts_raw(
@@ -236,18 +306,41 @@ async def async_save_all_layouts_raw(
 
 
 async def async_get_property_layout(hass: HomeAssistant) -> dict[str, Any]:
-    """Return the stored whole-property layout, or an empty skeleton."""
+    """Return the stored whole-property layout, or an empty skeleton.
+
+    A placement saved before `source_bounds` existed gets it filled from
+    its building's footprint *as it is now*, and persisted right away — so
+    it's pinned to the footprint the rectangle was actually fitted to,
+    before any later drawing (an outdoor deck) grows it.
+    """
     async with _lock(hass):
         data = await _async_load_all(hass)
-        return {**_empty_property(), **(data.get("property") or {})}
+        layout = {**_empty_property(), **(data.get("property") or {})}
+        missing = [p for p in layout["placements"] if "source_bounds" not in p]
+        if missing:
+            for placement in missing:
+                placement["source_bounds"] = _building_bounds(
+                    data["floors"], placement
+                )
+            data["property"] = layout
+            await _store(hass).async_save(data)
+        return layout
 
 
 async def async_save_property_layout(
     hass: HomeAssistant,
     layout: dict[str, Any],
 ) -> None:
-    """Replace-save the single whole-property layout."""
+    """Replace-save the single whole-property layout. Outdoor pins placed
+    here are stripped from every floor — a device lives in one place."""
     async with _lock(hass):
         data = await _async_load_all(hass)
+        outdoor_device_ids = {
+            pin["device_id"] for pin in layout.get("pins", []) if pin.get("device_id")
+        }
+        for floor_layout in data["floors"].values():
+            floor_layout["pins"] = _without_devices(
+                floor_layout.get("pins", []), outdoor_device_ids
+            )
         data["property"] = layout
         await _store(hass).async_save(data)

@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
+import { PROPERTY_LOCATION_ID } from "../types";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
 import { sharedStyles } from "../styles";
@@ -197,6 +198,10 @@ export class EntityPickerSidebar extends LitElement {
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) areas: AreaMeta[] = [];
   @property({ attribute: false }) currentFloorId: string | null = null;
+  /** Floor-less areas (a Back Deck, say) that a room on the current floor
+   * is linked to — counted as part of the current floor by the floor
+   * filter, since that's where they've been drawn. */
+  @property({ attribute: false }) linkedAreaIds: Set<string> = new Set();
 
   @state() private _search = "";
   /** null = "follow whichever floor is currently open" (the useful default
@@ -293,7 +298,16 @@ export class EntityPickerSidebar extends LitElement {
     const floorId = this._effectiveFloorFilter;
     return floorId === null
       ? this.areas
-      : this.areas.filter((a) => a.floor_id === floorId);
+      : this.areas.filter((a) => this._areaIsOnFloor(a, floorId));
+  }
+
+  private _areaIsOnFloor(area: AreaMeta, floorId: string): boolean {
+    // The Property tab's "floor": every area HA has on no floor at all.
+    if (floorId === PROPERTY_LOCATION_ID) return area.floor_id === null;
+    return (
+      area.floor_id === floorId ||
+      (floorId === this.currentFloorId && this.linkedAreaIds.has(area.area_id))
+    );
   }
 
   private _onFloorFilterChange = (e: Event) => {
@@ -369,7 +383,7 @@ export class EntityPickerSidebar extends LitElement {
         if (d.areaId !== areaId) return false;
       } else if (floorId) {
         const area = this.areas.find((a) => a.area_id === d.areaId);
-        if (!area || area.floor_id !== floorId) return false;
+        if (!area || !this._areaIsOnFloor(area, floorId)) return false;
       }
       if (!q) return true;
       return (
@@ -401,6 +415,12 @@ export class EntityPickerSidebar extends LitElement {
           <select @change=${this._onFloorFilterChange}>
             <option value="all" ?selected=${this._floorFilter === "all"}>
               All Floors
+            </option>
+            <option
+              value=${PROPERTY_LOCATION_ID}
+              ?selected=${this._effectiveFloorFilter === PROPERTY_LOCATION_ID}
+            >
+              Outdoor / no floor
             </option>
             ${this.floors.map(
               (f) =>

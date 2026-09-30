@@ -437,6 +437,18 @@ export class CanvasOverlay extends LitElement {
     </div>`;
   }
 
+  private _areaOptions(areas: AreaMeta[], selectedAreaId: string | null) {
+    return areas.map(
+      (a) =>
+        html`<option
+          value=${a.area_id}
+          ?selected=${a.area_id === selectedAreaId}
+        >
+          ${a.name}
+        </option>`,
+    );
+  }
+
   private _renderSelectionPanel() {
     if (this.selectedRoom) {
       const room = this.selectedRoom;
@@ -451,15 +463,22 @@ export class CanvasOverlay extends LitElement {
               })}
           >
             <option value="" ?selected=${!room.area_id}>— Custom —</option>
-            ${this.areas.map(
-              (a) =>
-                html`<option
-                  value=${a.area_id}
-                  ?selected=${a.area_id === room.area_id}
-                >
-                  ${a.name}
-                </option>`,
+            ${this._areaOptions(
+              this.areas.filter((a) => a.floor_id !== null),
+              room.area_id,
             )}
+            ${
+              // Floor-less HA areas (decks, driveway…) — drawable onto any
+              // floor's plan without changing the area's floor in HA.
+              this.areas.some((a) => a.floor_id === null)
+                ? html`<optgroup label="Outdoor / no floor">
+                    ${this._areaOptions(
+                      this.areas.filter((a) => a.floor_id === null),
+                      room.area_id,
+                    )}
+                  </optgroup>`
+                : nothing
+            }
           </select>
           <button
             title=${visible ? "Hide room" : "Show room"}

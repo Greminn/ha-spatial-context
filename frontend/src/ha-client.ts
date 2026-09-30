@@ -9,6 +9,7 @@ import type {
   OpeningType,
   Pin,
   PlaceableEntity,
+  ContentBounds,
   PropertyLayout,
   PropertyPlacement,
   Room,
@@ -94,6 +95,7 @@ export class HaClient {
       background_scale: layout.background_scale,
       view_box: layout.view_box,
       placements: layout.placements,
+      pins: layout.pins,
     });
   }
 
@@ -294,6 +296,7 @@ export function newPlacement(
   x: number,
   y: number,
   aspectRatio: number,
+  sourceBounds: ContentBounds | null,
 ): PropertyPlacement {
   const width =
     aspectRatio >= 1
@@ -314,6 +317,7 @@ export function newPlacement(
     height,
     rotation_deg: 0,
     aspect_ratio: aspectRatio,
+    source_bounds: sourceBounds,
   };
 }
 
@@ -335,6 +339,7 @@ export function emptyPropertyLayout(): PropertyLayout {
     background_scale: 1,
     view_box: null,
     placements: [],
+    pins: [],
   };
 }
 

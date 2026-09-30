@@ -144,6 +144,17 @@ _PLACEMENT_SCHEMA = {
     # _content_bounds) — resize preserves this instead of letting the
     # rectangle be freely squashed/stretched away from the real shape.
     vol.Required("aspect_ratio"): vol.Coerce(float),
+    # The floor-plan box this rectangle maps onto (see storage.py's
+    # _empty_property) — null when the building had nothing traced yet.
+    vol.Optional("source_bounds"): vol.Any(
+        {
+            vol.Required("min_x"): vol.Coerce(float),
+            vol.Required("min_y"): vol.Coerce(float),
+            vol.Required("max_x"): vol.Coerce(float),
+            vol.Required("max_y"): vol.Coerce(float),
+        },
+        None,
+    ),
 }
 
 
@@ -237,6 +248,9 @@ async def ws_get_property_layout(
         vol.Required("background_scale"): vol.Coerce(float),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("placements"): [_PLACEMENT_SCHEMA],
+        # Outdoor device pins — Optional so an older panel bundle's save
+        # (which never sends them) still validates.
+        vol.Optional("pins"): [_PIN_SCHEMA],
     }
 )
 @websocket_api.async_response
@@ -246,6 +260,18 @@ async def ws_save_property_layout(
     msg: dict,
 ) -> None:
     """Full replace-save of the whole-property layout."""
+    stored = await async_get_property_layout(hass)
+    # An older panel bundle knows neither outdoor pins nor source_bounds —
+    # keep the stored ones rather than wiping them (a dropped source_bounds
+    # would be recomputed from today's footprint, not the one it was
+    # fitted to).
+    pins = msg["pins"] if "pins" in msg else stored.get("pins", [])
+    stored_bounds = {
+        p["id"]: p.get("source_bounds") for p in stored.get("placements", [])
+    }
+    for placement in msg["placements"]:
+        if "source_bounds" not in placement and placement["id"] in stored_bounds:
+            placement["source_bounds"] = stored_bounds[placement["id"]]
     layout = {
         "background_image_id": msg["background_image_id"],
         "background_opacity": msg["background_opacity"],
@@ -254,6 +280,7 @@ async def ws_save_property_layout(
         "background_scale": msg["background_scale"],
         "view_box": msg["view_box"],
         "placements": msg["placements"],
+        "pins": pins,
     }
     await async_save_property_layout(hass, layout)
     connection.send_result(msg["id"], {"success": True})

@@ -4,6 +4,7 @@ import { safeCustomElement } from "./define";
 import type {
   AreaMeta,
   CanvasMode,
+  ContentBounds,
   FloorLayout,
   FloorMeta,
   FloorOrder,
@@ -15,6 +16,8 @@ import type {
   Pin,
   PlaceableEntity,
   PropertyLayout,
+  PropertyMeshEnd,
+  PropertyMeshLink,
   PropertyPlacement,
   ResolvedMeshLink,
   ResolvedMeshStub,
@@ -25,9 +28,11 @@ import type {
   WifiMesh,
   ZigbeeMesh,
 } from "./types";
+import { PROPERTY_LOCATION_ID } from "./types";
 import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
+import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
 import {
   HaClient,
   backgroundImageUrl,
@@ -213,7 +218,11 @@ export class SpatialContextPanel extends LitElement {
   @state() private _propertyDirty = false;
   @state() private _propertySaving = false;
   @state() private _selectedPlacementId: string | null = null;
-  @state() private _propertyMode: "select" | "place" = "select";
+  @state() private _propertyMode: "select" | "place" | "place-pin" = "select";
+  /** Selected outdoor device pin on the Property tab. */
+  @state() private _selectedOutdoorPinId: string | null = null;
+  /** Selected Connectivity Map line on the Property tab (its key). */
+  @state() private _selectedPropertyMeshLinkKey: string | null = null;
   @state() private _armedBuildingKey: string | null = null;
   /** Set in `_selectFloor` right before `_layout` is overwritten — passed
    * to floorplan-canvas.ts as `sameBuildingAsPrevious` so it knows whether
@@ -261,7 +270,10 @@ export class SpatialContextPanel extends LitElement {
 
   private get _placedDeviceIds(): Set<string> {
     return new Set(
-      this._layout.pins
+      (this._view === "property"
+        ? this._propertyLayout.pins
+        : this._layout.pins
+      )
         .map((p) => p.device_id)
         .filter((id): id is string => id !== null),
     );
@@ -273,8 +285,29 @@ export class SpatialContextPanel extends LitElement {
     );
   }
 
+  /** Areas a room on this floor can be linked to: the floor's own, plus
+   * every area HA has on no floor at all — a Back Deck or Driveway sits
+   * outside the house but still gets drawn onto a floor's plan. The area
+   * itself stays floor-less in HA; only this layout links to it. */
   private get _areasForCurrentFloor(): AreaMeta[] {
-    return this._areas.filter((a) => a.floor_id === this._currentFloorId);
+    return this._areas.filter(
+      (a) => a.floor_id === this._currentFloorId || a.floor_id === null,
+    );
+  }
+
+  /** Floor-less areas a room on the current floor is linked to — the
+   * device picker treats these as part of this floor, so a Back Deck
+   * room's devices show up under Top Floor without switching to "All
+   * Floors". */
+  private get _outdoorAreaIdsOnCurrentFloor(): Set<string> {
+    const floorless = new Set(
+      this._areas.filter((a) => a.floor_id === null).map((a) => a.area_id),
+    );
+    return new Set(
+      this._layout.rooms
+        .map((r) => r.area_id)
+        .filter((id): id is string => id !== null && floorless.has(id)),
+    );
   }
 
   private get _otherFloors(): FloorMeta[] {
@@ -314,21 +347,27 @@ export class SpatialContextPanel extends LitElement {
    * share one coordinate system — that's what Align Floors sets up), or a
    * neutral fallback ratio when nothing's been traced yet on any of them. */
   private _buildingAspectRatio(floors: FloorMeta[]): number {
-    const bounds = floors
-      .map((f) => f.content_bounds)
-      .filter((b): b is NonNullable<FloorMeta["content_bounds"]> => b !== null);
-    if (bounds.length === 0) {
-      return DEFAULT_PLACEMENT_WIDTH / DEFAULT_PLACEMENT_HEIGHT;
-    }
-    const minX = Math.min(...bounds.map((b) => b.min_x));
-    const minY = Math.min(...bounds.map((b) => b.min_y));
-    const maxX = Math.max(...bounds.map((b) => b.max_x));
-    const maxY = Math.max(...bounds.map((b) => b.max_y));
-    const width = maxX - minX;
-    const height = maxY - minY;
+    const bounds = this._buildingBounds(floors);
+    const width = bounds ? bounds.max_x - bounds.min_x : 0;
+    const height = bounds ? bounds.max_y - bounds.min_y : 0;
     return width > 0 && height > 0
       ? width / height
       : DEFAULT_PLACEMENT_WIDTH / DEFAULT_PLACEMENT_HEIGHT;
+  }
+
+  /** Union of a building's floors' traced footprints (see
+   * _buildingAspectRatio), or null when none has anything traced. */
+  private _buildingBounds(floors: FloorMeta[]): ContentBounds | null {
+    const bounds = floors
+      .map((f) => f.content_bounds)
+      .filter((b): b is ContentBounds => b !== null);
+    if (bounds.length === 0) return null;
+    return {
+      min_x: Math.min(...bounds.map((b) => b.min_x)),
+      min_y: Math.min(...bounds.map((b) => b.min_y)),
+      max_x: Math.max(...bounds.map((b) => b.max_x)),
+      max_y: Math.max(...bounds.map((b) => b.max_y)),
+    };
   }
 
   private get _floorNameById(): Map<string, string> {
@@ -440,10 +479,13 @@ export class SpatialContextPanel extends LitElement {
 
     if (this._networkType === "zigbee" && this._zigbeeMesh) {
       const pinByDeviceId = this._pinByDeviceId;
+      const outdoor = this._outdoorPinByDeviceId;
       const floorOfDevice = (deviceId: string) =>
         pinByDeviceId.has(deviceId)
           ? (this._currentFloorId ?? undefined)
-          : this._otherFloorPinsByDeviceId.get(deviceId)?.floorId;
+          : outdoor.has(deviceId)
+            ? PROPERTY_LOCATION_ID
+            : this._otherFloorPinsByDeviceId.get(deviceId)?.floorId;
       return selectZigbeeLinks(
         withCoordinatorDevice(
           this._zigbeeMesh,
@@ -498,6 +540,83 @@ export class SpatialContextPanel extends LitElement {
       return out;
     }
     return [];
+  }
+
+  /** Outdoor device pins on the Property tab, by device. */
+  private get _outdoorPinByDeviceId(): Map<string, Pin> {
+    const map = new Map<string, Pin>();
+    for (const pin of this._propertyLayout.pins) {
+      if (pin.device_id) map.set(pin.device_id, pin);
+    }
+    return map;
+  }
+
+  /** Where a device sits on the Property tab's site photo: an outdoor pin
+   * as-is, or an indoor pin mapped through its building's placement (see
+   * canvas/property-mapping.ts). Null when it isn't placed, or its
+   * building hasn't been placed on the Property tab. */
+  private _propertyEnd(deviceId: string): PropertyMeshEnd | null {
+    const outdoor = this._outdoorPinByDeviceId.get(deviceId);
+    if (outdoor) {
+      return {
+        deviceId,
+        x: outdoor.x,
+        y: outdoor.y,
+        label: this._pinLabel(outdoor),
+        floorId: null,
+      };
+    }
+    const local = this._pinByDeviceId.get(deviceId);
+    const indoor = local
+      ? { pin: local, floorId: this._currentFloorId }
+      : this._otherFloorPinsByDeviceId.get(deviceId);
+    if (!indoor?.floorId) return null;
+    const placement = this._placementForFloor(indoor.floorId);
+    const point = placement
+      ? floorToProperty(placement, indoor.pin.x, indoor.pin.y)
+      : null;
+    if (!point) return null;
+    return {
+      deviceId,
+      ...point,
+      label: this._pinLabel(indoor.pin),
+      floorId: indoor.floorId,
+    };
+  }
+
+  /** Connectivity Map lines for the Property tab — every link with at
+   * least one outdoor end, the indoor end (if any) drawn at its real spot
+   * inside its building. Indoor-to-indoor links stay on the floor views. */
+  private get _propertyMeshLinks(): PropertyMeshLink[] {
+    const outdoor = this._outdoorPinByDeviceId;
+    const links: PropertyMeshLink[] = [];
+    for (const link of this._normalizedMeshLinks) {
+      if (
+        !outdoor.has(link.sourceDeviceId) &&
+        !outdoor.has(link.targetDeviceId)
+      ) {
+        continue;
+      }
+      const from = this._propertyEnd(link.sourceDeviceId);
+      const to = this._propertyEnd(link.targetDeviceId);
+      if (!from || !to) continue;
+      links.push({
+        key: `${link.sourceDeviceId}|${link.targetDeviceId}`,
+        from,
+        to,
+        quality: link.quality,
+        ...(link.detail ? { detail: link.detail } : {}),
+      });
+    }
+    return links;
+  }
+
+  private get _selectedPropertyMeshLink(): PropertyMeshLink | null {
+    return (
+      this._propertyMeshLinks.find(
+        (l) => l.key === this._selectedPropertyMeshLinkKey,
+      ) ?? null
+    );
   }
 
   /** Only links where both ends resolve to a pin placed on the currently
@@ -625,6 +744,28 @@ export class SpatialContextPanel extends LitElement {
       const remoteDeviceId = localIsSource
         ? link.targetDeviceId
         : link.sourceDeviceId;
+      const outdoorPin = this._outdoorPinByDeviceId.get(remoteDeviceId);
+      if (outdoorPin) {
+        // An outdoor device: its real spot, mapped from the site photo into
+        // this floor's coordinates through this floor's own placement.
+        const placement = this._placementForFloor(this._currentFloorId);
+        const point = placement
+          ? propertyToFloor(placement, outdoorPin.x, outdoorPin.y)
+          : null;
+        if (!point) continue;
+        stubs.push({
+          fromPin: localPin,
+          x: point.x,
+          y: point.y,
+          targetDeviceId: remoteDeviceId,
+          targetFloorId: PROPERTY_LOCATION_ID,
+          targetFloorName: "Outside",
+          targetLabel: this._pinLabel(outdoorPin),
+          quality: link.quality,
+          ...(link.detail ? { detail: link.detail } : {}),
+        });
+        continue;
+      }
       const remote = otherPins.get(remoteDeviceId);
       if (!remote || remote.floorId === this._currentFloorId) continue;
       const remoteFloor = this._floors.find(
@@ -893,8 +1034,11 @@ export class SpatialContextPanel extends LitElement {
     this._propertyLayout = await this._client.getPropertyLayout();
     this._propertyDirty = false;
     this._selectedPlacementId = null;
+    this._selectedOutdoorPinId = null;
+    this._selectedPropertyMeshLinkKey = null;
     this._propertyMode = "select";
     this._armedBuildingKey = null;
+    this._armedEntityId = null;
     this._view = "property";
   }
 
@@ -911,17 +1055,131 @@ export class SpatialContextPanel extends LitElement {
       this._propertyLayout = { ...this._propertyLayout, view_box: viewBox };
       await this._client.savePropertyLayout(this._propertyLayout);
       this._propertyDirty = false;
+      // Placing a device outdoors removes it from any floor (storage.py) —
+      // refresh the picker's "placed on" info to match.
+      this._entities = await this._client.listPlaceableEntities();
     } finally {
       this._propertySaving = false;
     }
   }
 
   private _onPropertyModeChange = (
-    e: CustomEvent<{ mode: "select" | "place" }>,
+    e: CustomEvent<{ mode: "select" | "place" | "place-pin" }>,
   ) => {
     this._propertyMode = e.detail.mode;
     this._armedBuildingKey = null;
+    this._armedEntityId = null;
     this._selectedPlacementId = null;
+  };
+
+  // --- outdoor device pins (Property tab) ---------------------------------
+
+  private get _selectedOutdoorPin(): Pin | null {
+    return (
+      this._propertyLayout.pins.find(
+        (p) => p.id === this._selectedOutdoorPinId,
+      ) ?? null
+    );
+  }
+
+  private _patchOutdoorPin(id: string, patch: Partial<Pin>): void {
+    this._updatePropertyLayout({
+      pins: this._propertyLayout.pins.map((p) =>
+        p.id === id ? { ...p, ...patch } : p,
+      ),
+    });
+  }
+
+  private _onOutdoorPinPlace = (e: CustomEvent<{ x: number; y: number }>) => {
+    if (!this._armedEntityId) return;
+    const entity = this._entityLookup.get(this._armedEntityId);
+    const pin = emptyPin(
+      entity?.device_id ?? null,
+      e.detail.x,
+      e.detail.y,
+      null,
+    );
+    this._updatePropertyLayout({ pins: [...this._propertyLayout.pins, pin] });
+    this._armedEntityId = null;
+    this._selectedOutdoorPinId = pin.id;
+    this._selectedPlacementId = null;
+    this._selectedPropertyMeshLinkKey = null;
+  };
+
+  private _onOutdoorPinMove = (
+    e: CustomEvent<{ id: string; x: number; y: number }>,
+  ) => {
+    this._patchOutdoorPin(e.detail.id, { x: e.detail.x, y: e.detail.y });
+  };
+
+  private _onOutdoorPinSelect = (e: CustomEvent<{ id: string | null }>) => {
+    this._selectedOutdoorPinId = e.detail.id;
+    if (e.detail.id !== null) {
+      this._selectedPlacementId = null;
+      this._selectedPropertyMeshLinkKey = null;
+    }
+  };
+
+  private _onOutdoorPinRename = () => {
+    const pin = this._selectedOutdoorPin;
+    if (!pin) return;
+    const name = window.prompt(
+      "Label (blank to clear override):",
+      this._pinLabel(pin),
+    );
+    if (name === null) return;
+    this._patchOutdoorPin(pin.id, { label_override: name || null });
+  };
+
+  private _onOutdoorPinIcon = () => {
+    const pin = this._selectedOutdoorPin;
+    if (!pin) return;
+    const icon = window.prompt(
+      "Icon override (e.g. mdi:outdoor-lamp — blank to clear):",
+      pin.icon_override ?? "",
+    );
+    if (icon === null) return;
+    this._patchOutdoorPin(pin.id, { icon_override: icon.trim() || null });
+  };
+
+  private _onOutdoorPinDelete = () => {
+    const pin = this._selectedOutdoorPin;
+    if (!pin) return;
+    if (!window.confirm(`Remove "${this._pinLabel(pin)}" from the property?`)) {
+      return;
+    }
+    this._updatePropertyLayout({
+      pins: this._propertyLayout.pins.filter((p) => p.id !== pin.id),
+    });
+    this._selectedOutdoorPinId = null;
+  };
+
+  private _onPropertyMeshLinkSelect = (
+    e: CustomEvent<{ key: string | null }>,
+  ) => {
+    this._selectedPropertyMeshLinkKey = e.detail.key;
+    if (e.detail.key !== null) {
+      this._selectedOutdoorPinId = null;
+      this._selectedPlacementId = null;
+    }
+  };
+
+  private _onClearAllOutdoorPins = () => {
+    const count = this._propertyLayout.pins.length;
+    if (count === 0) return;
+    if (
+      !window.confirm(
+        `Remove all ${count} outdoor device${count === 1 ? "" : "s"} from the property?`,
+      )
+    ) {
+      return;
+    }
+    this._updatePropertyLayout({ pins: [] });
+    this._selectedOutdoorPinId = null;
+  };
+
+  private _onPropertyMeshGotoFloor = (e: CustomEvent<{ floorId: string }>) => {
+    void this._selectFloor(e.detail.floorId);
   };
 
   private _onPlacementArm = (e: CustomEvent<{ key: string }>) => {
@@ -942,6 +1200,11 @@ export class SpatialContextPanel extends LitElement {
       e.detail.x,
       e.detail.y,
       building.aspectRatio,
+      this._buildingBounds(
+        this._floors.filter(
+          (f) => (f.building_id ?? f.floor_id) === building.key,
+        ),
+      ),
     );
     this._updatePropertyLayout({
       placements: [...this._propertyLayout.placements, placement],
@@ -997,6 +1260,10 @@ export class SpatialContextPanel extends LitElement {
 
   private _onPlacementSelect = (e: CustomEvent<{ id: string | null }>) => {
     this._selectedPlacementId = e.detail.id;
+    if (e.detail.id !== null) {
+      this._selectedOutdoorPinId = null;
+      this._selectedPropertyMeshLinkKey = null;
+    }
   };
 
   private _onPlacementRenameClick = () => {
@@ -1066,8 +1333,9 @@ export class SpatialContextPanel extends LitElement {
     if (this._view === "property") {
       if (
         !window.confirm(
-          "Reset the property view? This clears every building placement and the " +
-            "background photo. Nothing is permanent until you hit Save afterward.",
+          "Reset the property view? This clears every building placement, " +
+            "every outdoor device and the background photo. Nothing is " +
+            "permanent until you hit Save afterward.",
         )
       ) {
         return;
@@ -1075,6 +1343,8 @@ export class SpatialContextPanel extends LitElement {
       this._propertyLayout = emptyPropertyLayout();
       this._propertyDirty = true;
       this._selectedPlacementId = null;
+      this._selectedOutdoorPinId = null;
+      this._selectedPropertyMeshLinkKey = null;
       return;
     }
     const floorName =
@@ -1335,6 +1605,7 @@ export class SpatialContextPanel extends LitElement {
       this._armedEntityId = null;
       this._armedOpeningType = null;
       this._armedBuildingKey = null;
+      this._propertyMode = "select";
       return;
     }
 
@@ -1349,12 +1620,21 @@ export class SpatialContextPanel extends LitElement {
     }
 
     if (e.key === "Delete" || e.key === "Backspace") {
+      // Only what's on screen — a floor selection left over from before
+      // switching to the Property tab must never be deleted from there.
+      if (this._view === "property") {
+        if (this._selectedOutdoorPin || this._selectedPlacement) {
+          e.preventDefault();
+        }
+        if (this._selectedOutdoorPin) this._onOutdoorPinDelete();
+        else if (this._selectedPlacement) this._onPlacementDeleteClick();
+        return;
+      }
       if (
         this._selectedRoom ||
         this._selectedPin ||
         this._selectedWall ||
-        this._selectedOpening ||
-        this._selectedPlacement
+        this._selectedOpening
       ) {
         e.preventDefault();
       }
@@ -1362,7 +1642,6 @@ export class SpatialContextPanel extends LitElement {
       else if (this._selectedPin) this._onPinDelete();
       else if (this._selectedWall) this._onWallDelete();
       else if (this._selectedOpening) this._onOpeningDelete();
-      else if (this._selectedPlacement) this._onPlacementDeleteClick();
       return;
     }
 
@@ -2030,7 +2309,9 @@ export class SpatialContextPanel extends LitElement {
   private _onMeshStubGotoFloorClick = () => {
     const stub = this._selectedMeshStub;
     if (!stub) return;
-    void this._selectFloor(stub.targetFloorId);
+    if (stub.targetFloorId === PROPERTY_LOCATION_ID)
+      void this._selectProperty();
+    else void this._selectFloor(stub.targetFloorId);
   };
 
   private _onPinStackChoose = (e: CustomEvent<{ pinId: string }>) => {
@@ -2164,7 +2445,7 @@ export class SpatialContextPanel extends LitElement {
           }
         </icon-popover>
         ${
-          this._view === "floor"
+          this._view === "floor" || this._view === "property"
             ? html`<icon-popover
                 icon="mdi:layers"
                 label="Connectivity Map"
@@ -2426,6 +2707,15 @@ export class SpatialContextPanel extends LitElement {
                     .initialViewBox=${this._propertyLayout.view_box}
                     .mode=${this._propertyMode}
                     .selectedPlacementId=${this._selectedPlacementId}
+                    .pins=${this._propertyLayout.pins}
+                    .selectedPinId=${this._selectedOutdoorPinId}
+                    .entityLookup=${this._entityLookup}
+                    .meshLinks=${this._propertyMeshLinks}
+                    .selectedMeshLinkKey=${this._selectedPropertyMeshLinkKey}
+                    @outdoor-pin-place=${this._onOutdoorPinPlace}
+                    @outdoor-pin-move=${this._onOutdoorPinMove}
+                    @outdoor-pin-select=${this._onOutdoorPinSelect}
+                    @property-mesh-link-select=${this._onPropertyMeshLinkSelect}
                     @placement-place=${this._onPlacementPlace}
                     @placement-move=${this._onPlacementMove}
                     @placement-resize=${this._onPlacementResize}
@@ -2437,7 +2727,17 @@ export class SpatialContextPanel extends LitElement {
                     .buildings=${this._buildings}
                     .armedBuildingKey=${this._armedBuildingKey}
                     .selectedPlacement=${this._selectedPlacement}
+                    .selectedPinLabel=${
+                      this._selectedOutdoorPin
+                        ? this._pinLabel(this._selectedOutdoorPin)
+                        : null
+                    }
+                    .selectedMeshLink=${this._selectedPropertyMeshLink}
                     .floorNameById=${this._floorNameById}
+                    @outdoor-pin-rename-click=${this._onOutdoorPinRename}
+                    @outdoor-pin-icon-click=${this._onOutdoorPinIcon}
+                    @outdoor-pin-delete-click=${this._onOutdoorPinDelete}
+                    @property-mesh-goto-floor-click=${this._onPropertyMeshGotoFloor}
                     @property-mode-change=${this._onPropertyModeChange}
                     @placement-arm=${this._onPlacementArm}
                     @placement-rename-click=${this._onPlacementRenameClick}
@@ -2445,6 +2745,20 @@ export class SpatialContextPanel extends LitElement {
                     @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
                   ></property-overlay>
                 </div>
+                ${
+                  this._propertyMode === "place-pin"
+                    ? html`<entity-picker-sidebar
+                        .entities=${this._entities}
+                        .placedDeviceIds=${this._placedDeviceIds}
+                        .armedEntityId=${this._armedEntityId}
+                        .floors=${this._floors}
+                        .areas=${this._areas}
+                        .currentFloorId=${PROPERTY_LOCATION_ID}
+                        @entity-armed=${this._onEntityArmed}
+                        @clear-all-pins=${this._onClearAllOutdoorPins}
+                      ></entity-picker-sidebar>`
+                    : nothing
+                }
               `
             : html`
                 <div
@@ -2571,6 +2885,7 @@ export class SpatialContextPanel extends LitElement {
                         .floors=${this._floors}
                         .areas=${this._areas}
                         .currentFloorId=${this._currentFloorId}
+                        .linkedAreaIds=${this._outdoorAreaIdsOnCurrentFloor}
                         @entity-armed=${this._onEntityArmed}
                         @clear-all-pins=${this._onClearAllPins}
                       ></entity-picker-sidebar>`

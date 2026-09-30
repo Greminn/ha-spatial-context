@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
-import type { PropertyPlacement } from "../types";
+import type { PropertyMeshLink, PropertyPlacement } from "../types";
+import { qualityColor } from "../canvas/mesh-colors";
 import { sharedStyles } from "../styles";
 
 /** One "building" the Property tab can place a footprint for — floors
@@ -24,7 +25,7 @@ export interface PropertyBuilding {
  * (Select / pick-a-building-to-place) top-left, and a selection context
  * panel bottom-left when a placement is selected. Mirrors canvas-overlay.ts's
  * floating-panel pattern but scoped to the Property tab's much smaller
- * surface (no rooms/walls/openings/mesh — just placements). */
+ * surface — placements, outdoor device pins and their mesh lines. */
 @safeCustomElement("property-overlay")
 export class PropertyOverlay extends LitElement {
   static override styles = [
@@ -84,7 +85,12 @@ export class PropertyOverlay extends LitElement {
     `,
   ];
 
-  @property({ attribute: false }) mode: "select" | "place" = "select";
+  @property({ attribute: false }) mode: "select" | "place" | "place-pin" =
+    "select";
+  /** Display name of the selected outdoor device pin, or null. */
+  @property({ attribute: false }) selectedPinLabel: string | null = null;
+  @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
+    null;
   @property({ attribute: false }) buildings: PropertyBuilding[] = [];
   @property({ attribute: false }) armedBuildingKey: string | null = null;
   @property({ attribute: false }) selectedPlacement: PropertyPlacement | null =
@@ -104,6 +110,63 @@ export class PropertyOverlay extends LitElement {
     return p.label_override || this.floorNameById.get(p.floor_id) || p.floor_id;
   }
 
+  private _renderPinPanel() {
+    if (this.selectedPinLabel === null) return nothing;
+    return html`
+      <div class="selection-panel floating-panel">
+        <ha-icon icon="mdi:map-marker"></ha-icon>
+        <span class="hint">${this.selectedPinLabel}</span>
+        <button
+          title="Rename"
+          @click=${() => this._fire("outdoor-pin-rename-click")}
+        >
+          <ha-icon icon="mdi:pencil"></ha-icon>
+        </button>
+        <button
+          title="Set icon"
+          @click=${() => this._fire("outdoor-pin-icon-click")}
+        >
+          <ha-icon icon="mdi:shape"></ha-icon>
+        </button>
+        <button
+          class="danger"
+          title="Remove from the property"
+          @click=${() => this._fire("outdoor-pin-delete-click")}
+        >
+          <ha-icon icon="mdi:delete"></ha-icon>
+        </button>
+      </div>
+    `;
+  }
+
+  private _renderMeshLinkPanel() {
+    const link = this.selectedMeshLink;
+    if (!link) return nothing;
+    const indoorEnd = [link.from, link.to].find((end) => end.floorId !== null);
+    return html`
+      <div class="selection-panel floating-panel">
+        <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
+        <span class="hint">${link.from.label} → ${link.to.label}</span>
+        <span class="hint" style="color:${qualityColor(link.quality)}"
+          >${link.detail ?? link.quality}</span
+        >
+        ${
+          indoorEnd
+            ? html`<button
+                title="Go to ${indoorEnd.label}'s floor"
+                @click=${() =>
+                  this._fire("property-mesh-goto-floor-click", {
+                    floorId: indoorEnd.floorId,
+                  })}
+              >
+                <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
+              </button>`
+            : nothing
+        }
+      </div>
+    `;
+  }
+
   override render() {
     return html`
       <div class="mode-toolbar floating-panel">
@@ -113,6 +176,16 @@ export class PropertyOverlay extends LitElement {
           @click=${() => this._fire("property-mode-change", { mode: "select" })}
         >
           <ha-icon icon="mdi:cursor-default-click"></ha-icon>
+        </button>
+        <button
+          class=${this.mode === "place-pin" ? "active" : ""}
+          title="Place an outdoor device"
+          @click=${() =>
+            this._fire("property-mode-change", {
+              mode: this.mode === "place-pin" ? "select" : "place-pin",
+            })}
+        >
+          <ha-icon icon="mdi:map-marker-plus"></ha-icon>
         </button>
         <select
           class="place-picker"
@@ -130,6 +203,7 @@ export class PropertyOverlay extends LitElement {
         </select>
       </div>
 
+      ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
       ${
         this.selectedPlacement
           ? html`
