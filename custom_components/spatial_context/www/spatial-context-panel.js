@@ -810,6 +810,17 @@
       button ha-icon {
         --mdc-icon-size: 18px;
       }
+      /* Centered between the app name and the header's action icons via
+       * auto margins rather than justify-content: center — when the tabs
+       * overflow (narrow screens) auto margins collapse to 0 and the row
+       * scrolls from its start, where center would push the first tabs
+       * off the left edge, out of scroll reach. */
+      :host > :first-child {
+        margin-left: auto;
+      }
+      :host > :last-child {
+        margin-right: auto;
+      }
       .divider {
         width: 1px;
         height: 24px;
