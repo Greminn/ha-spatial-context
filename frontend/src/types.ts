@@ -17,6 +17,9 @@ export interface Room {
   fill_opacity?: number | null;
   border_opacity?: number | null;
   visible?: boolean;
+  /** Where the room's name label sits, when dragged there by hand (#33).
+   * Null/undefined = automatic (see geometry.ts's roomLabelPoint). */
+  label_position?: [number, number] | null;
 }
 
 export interface Pin {
@@ -82,6 +85,9 @@ export interface Settings {
    * own device separate from the Zigbee2MQTT Bridge (#27). Null = the
    * Bridge device. */
   zigbee_coordinator_device_id: string | null;
+  /** Save layout edits automatically a few seconds after each change
+   * (#32). The manual Save button works either way. */
+  auto_save: boolean;
 }
 
 export type FloorOrder = "top_down" | "ground_up";

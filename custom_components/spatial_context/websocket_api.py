@@ -67,6 +67,10 @@ _ROOM_SCHEMA = {
     vol.Optional("fill_opacity"): vol.Any(vol.Coerce(float), None),
     vol.Optional("border_opacity"): vol.Any(vol.Coerce(float), None),
     vol.Optional("visible"): bool,
+    # Hand-placed name label position (#33); null = automatic.
+    vol.Optional("label_position"): vol.Any(
+        None, vol.All([vol.Coerce(float)], vol.Length(min=2, max=2))
+    ),
 }
 
 _PIN_SCHEMA = {
@@ -299,6 +303,7 @@ _SETTINGS_SCHEMA = {
     vol.Optional("zigbee_coordinator_device_id", default=None): vol.Any(
         None, str
     ),
+    vol.Optional("auto_save", default=True): bool,
 }
 
 

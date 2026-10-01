@@ -1,3 +1,4 @@
+import polylabel from "polylabel";
 import type { Pin, Room } from "../types";
 
 export function distance(
@@ -84,6 +85,27 @@ export function reassignPinRooms(rooms: Room[], pins: Pin[]): Pin[] {
     return { ...pin, room_id: roomId };
   });
   return changed ? next : pins;
+}
+
+/** Where a room's name label goes by default: the point inside the room
+ * farthest from any wall (Mapbox polylabel's "pole of inaccessibility"),
+ * not the corner average — that lands in or on the inner corner of an L-
+ * or U-shaped room (#33). Cached per points array, since it's asked for
+ * on every render. */
+const labelPointCache = new WeakMap<[number, number][], [number, number]>();
+
+export function roomLabelPoint(points: [number, number][]): [number, number] {
+  const cached = labelPointCache.get(points);
+  if (cached) return cached;
+  const point: [number, number] =
+    points.length >= 3
+      ? (() => {
+          const [x, y] = polylabel([points], 1);
+          return [x, y];
+        })()
+      : centroid(points);
+  labelPointCache.set(points, point);
+  return point;
 }
 
 export function centroid(points: [number, number][]): [number, number] {

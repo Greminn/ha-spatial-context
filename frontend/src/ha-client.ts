@@ -112,6 +112,7 @@ export class HaClient {
       zigbee_timeout_seconds: settings.zigbee_timeout_seconds,
       floor_order: settings.floor_order,
       zigbee_coordinator_device_id: settings.zigbee_coordinator_device_id,
+      auto_save: settings.auto_save,
     });
   }
 
@@ -327,6 +328,7 @@ export function emptySettings(): Settings {
     zigbee_timeout_seconds: 180,
     floor_order: "top_down",
     zigbee_coordinator_device_id: null,
+    auto_save: true,
   };
 }
 

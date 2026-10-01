@@ -17,7 +17,7 @@ import type {
   ViewBox,
 } from "../types";
 import {
-  centroid,
+  roomLabelPoint,
   clamp,
   distance,
   edgeMidpoints,
@@ -93,6 +93,7 @@ type DownHit =
   | { type: "pin"; pin: Pin }
   | { type: "pinStack"; pins: Pin[] }
   | { type: "room"; room: Room }
+  | { type: "roomLabel"; room: Room }
   | { type: "wall"; wall: Wall }
   | { type: "opening"; opening: Opening }
   | { type: "openingHandle"; opening: Opening; whichEnd: 0 | 1 }
@@ -105,6 +106,7 @@ type Gesture =
   | { kind: "alignDrag" }
   | { kind: "vertex"; index: number }
   | { kind: "pin"; pinId: string }
+  | { kind: "roomLabel"; roomId: string }
   | { kind: "openingMove"; openingId: string }
   | { kind: "openingHandle"; openingId: string; whichEnd: 0 | 1 }
   | {
@@ -842,7 +844,22 @@ export class FloorplanCanvas extends LitElement {
           : openSegmentMidpoints(points);
       const mIndex = findVertexAt(mids, image.x, image.y, hitR);
       if (mIndex !== null) return { type: "edgeMidpoint", index: mIndex };
+      const editingRoom =
+        target.kind === "room"
+          ? this.rooms.find((r) => r.id === target.id)
+          : undefined;
+      if (editingRoom && this._roomLabelHit(editingRoom, image, hitR)) {
+        return { type: "roomLabel", room: editingRoom };
+      }
       return { type: "empty" };
+    }
+
+    // The selected room's name label can be dragged somewhere more
+    // readable (#33) — checked first, since it's what the user just
+    // clicked on to select.
+    const selectedRoom = this.rooms.find((r) => r.id === this.selectedRoomId);
+    if (selectedRoom && this._roomLabelHit(selectedRoom, image, hitR)) {
+      return { type: "roomLabel", room: selectedRoom };
     }
 
     const pinsHere = findPinsAt(this.pins, image.x, image.y, hitR);
@@ -1026,6 +1043,12 @@ export class FloorplanCanvas extends LitElement {
       this._liveEditPoints = points;
     } else if (this._gesture?.kind === "pin") {
       this._liveDragPin = { id: this._gesture.pinId, x: image.x, y: image.y };
+    } else if (this._gesture?.kind === "roomLabel") {
+      this._liveRoomLabel = {
+        id: this._gesture.roomId,
+        x: image.x,
+        y: image.y,
+      };
     } else if (this._gesture?.kind === "openingMove") {
       const gesture = this._gesture;
       const opening = this.openings.find((o) => o.id === gesture.openingId);
@@ -1089,6 +1112,8 @@ export class FloorplanCanvas extends LitElement {
       return { kind: "vertex", index: this._downHit.index };
     if (this._downHit?.type === "pin")
       return { kind: "pin", pinId: this._downHit.pin.id };
+    if (this._downHit?.type === "roomLabel")
+      return { kind: "roomLabel", roomId: this._downHit.room.id };
     if (this._downHit?.type === "openingHandle") {
       return {
         kind: "openingHandle",
@@ -1163,6 +1188,17 @@ export class FloorplanCanvas extends LitElement {
         }),
       );
       this._liveDragPin = null;
+    } else if (this._gesture?.kind === "roomLabel" && this._liveRoomLabel) {
+      this.dispatchEvent(
+        new CustomEvent("room-label-moved", {
+          detail: {
+            roomId: this._liveRoomLabel.id,
+            x: this._liveRoomLabel.x,
+            y: this._liveRoomLabel.y,
+          },
+        }),
+      );
+      this._liveRoomLabel = null;
     } else if (
       (this._gesture?.kind === "openingMove" ||
         this._gesture?.kind === "openingHandle") &&
@@ -1312,7 +1348,12 @@ export class FloorplanCanvas extends LitElement {
           detail: { pinIds: hit.pins.map((p) => p.id) },
         }),
       );
-    } else if (hit.type === "room") {
+    } else if (hit.type === "roomLabel" && this._editingTarget) {
+      // A click (not a drag) on the label while editing the room's shape:
+      // nothing — it mustn't exit edit mode or move a selected vertex.
+    } else if (hit.type === "room" || hit.type === "roomLabel") {
+      // A click on the selected room's label behaves as a click on the
+      // room itself, as before the label became draggable.
       this.dispatchEvent(
         new CustomEvent("room-select", {
           detail: {
@@ -1493,12 +1534,48 @@ export class FloorplanCanvas extends LitElement {
     return pinDisplayLabel(pin.device_id, this.entityLookup.values());
   }
 
+  /** A room label being dragged right now (#33) — committed on release. */
+  @state() private _liveRoomLabel: { id: string; x: number; y: number } | null =
+    null;
+
+  /** Where a room's name label is drawn: mid-drag, hand-placed, or the
+   * automatic point farthest from the walls (geometry.ts). */
+  private _roomLabelPosition(
+    room: Room,
+    points: [number, number][],
+  ): [number, number] {
+    if (this._liveRoomLabel?.id === room.id) {
+      return [this._liveRoomLabel.x, this._liveRoomLabel.y];
+    }
+    return room.label_position ?? roomLabelPoint(points);
+  }
+
+  /** Whether `image` is on a room's name label (16px .room-label,
+   * baseline at its position — the same box the stub labels avoid). */
+  private _roomLabelHit(
+    room: Room,
+    image: { x: number; y: number },
+    slack: number,
+  ): boolean {
+    if (room.visible === false) return false;
+    const points = this._effectivePoints("room", room.id, room.points);
+    if (points.length < 2) return false;
+    const [cx, cy] = this._roomLabelPosition(room, points);
+    const halfW = (room.name.length * 9) / 2;
+    return (
+      image.x >= cx - halfW - slack &&
+      image.x <= cx + halfW + slack &&
+      image.y >= cy - 13 - slack &&
+      image.y <= cy + 4 + slack
+    );
+  }
+
   private _renderRoom(room: Room) {
     if (room.visible === false) return nothing;
     const points = this._effectivePoints("room", room.id, room.points);
     if (points.length < 2) return nothing;
     const pointsAttr = points.map(([x, y]) => `${x},${y}`).join(" ");
-    const [cx, cy] = centroid(points);
+    const [cx, cy] = this._roomLabelPosition(room, points);
     const isEditing = this.editingRoomId === room.id;
     const isSelected = room.id === this.selectedRoomId || isEditing;
     const fillColor = room.fill_color ?? DEFAULT_ROOM_FILL_COLOR;
@@ -1659,7 +1736,7 @@ export class FloorplanCanvas extends LitElement {
       if (room.visible === false) continue;
       const points = this._effectivePoints("room", room.id, room.points);
       if (points.length < 2) continue;
-      const [cx, cy] = centroid(points);
+      const [cx, cy] = this._roomLabelPosition(room, points);
       const halfW = (room.name.length * 9) / 2;
       placed.push({
         minX: cx - halfW,

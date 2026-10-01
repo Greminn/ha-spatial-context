@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
-    "lit": "^3.3.3"
+    "lit": "^3.3.3",
+    "polylabel": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

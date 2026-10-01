@@ -48,6 +48,7 @@ import {
 } from "./ha-client";
 import {
   findRoomForPoint,
+  pointInPolygon,
   rayBoxExit,
   reassignPinRooms,
 } from "./canvas/geometry";
@@ -216,6 +217,13 @@ export class SpatialContextPanel extends LitElement {
   @state() private _view: "floor" | "property" = "floor";
   @state() private _propertyLayout: PropertyLayout = emptyPropertyLayout();
   @state() private _propertyDirty = false;
+  /** Pending auto-save (#32), debounced after each edit. */
+  private _autoSaveTimer: number | null = null;
+  /** Set by bulk-destructive actions (reset floor/property, remove all
+   * pins), whose prompts promise "nothing is permanent until you hit
+   * Save" — auto-save stays off until a manual Save (or a discard) so an
+   * accidental reset isn't committed three seconds later. */
+  private _autoSaveHeld = false;
   @state() private _propertySaving = false;
   @state() private _selectedPlacementId: string | null = null;
   @state() private _propertyMode: "select" | "place" | "place-pin" = "select";
@@ -892,8 +900,18 @@ export class SpatialContextPanel extends LitElement {
     opts: { skipDirtyCheck?: boolean } = {},
   ): Promise<void> {
     if (!opts.skipDirtyCheck && this._dirty) {
-      if (!window.confirm("Discard unsaved changes to this floor?")) return;
+      if (this._autoSaveActive) {
+        if (!(await this._flushAutoSave())) {
+          window.alert(
+            "Couldn't save this floor — staying here so nothing is lost.",
+          );
+          return;
+        }
+      } else if (!window.confirm("Discard unsaved changes to this floor?")) {
+        return;
+      }
     }
+    this._autoSaveHeld = false;
     this._view = "floor";
     const previousBuildingId = this._layout.building_id;
     this._currentFloorId = floorId;
@@ -983,16 +1001,19 @@ export class SpatialContextPanel extends LitElement {
       // change the rest of the time.
       const viewBox = this._canvas?.getViewBox() ?? this._layout.view_box;
       this._layout = { ...this._layout, view_box: viewBox };
-      await this._client.saveLayout(this._currentFloorId, this._layout);
-      this._dirty = false;
+      const saved = this._layout;
+      await this._client.saveLayout(this._currentFloorId, saved);
+      // An edit made while the save was in flight is still unsaved.
+      if (this._layout === saved) this._dirty = false;
       this._floors = this._floors.map((f) =>
         f.floor_id === this._currentFloorId ? { ...f, has_layout: true } : f,
       );
       // A save can add/move/remove pins, which changes which devices are
       // "already placed elsewhere" — the entity picker's own copy of that
       // (fetched once at panel load) would otherwise only catch up on a
-      // full page reload.
-      this._entities = await this._client.listPlaceableEntities();
+      // full page reload. Only when the placed set actually changed, since
+      // auto-save saves every few seconds while editing.
+      await this._refreshEntitiesIfPlacementChanged();
     } finally {
       this._saving = false;
     }
@@ -1028,9 +1049,20 @@ export class SpatialContextPanel extends LitElement {
 
   private async _selectProperty(): Promise<void> {
     if (this._propertyDirty) {
-      if (!window.confirm("Discard unsaved changes to the property view?"))
+      if (this._autoSaveActive) {
+        if (!(await this._flushAutoSave())) {
+          window.alert(
+            "Couldn't save the property view — reopen the Property tab to try again.",
+          );
+          return;
+        }
+      } else if (
+        !window.confirm("Discard unsaved changes to the property view?")
+      ) {
         return;
+      }
     }
+    this._autoSaveHeld = false;
     this._propertyLayout = await this._client.getPropertyLayout();
     this._propertyDirty = false;
     this._selectedPlacementId = null;
@@ -1053,11 +1085,12 @@ export class SpatialContextPanel extends LitElement {
       const viewBox =
         this._propertyCanvas?.getViewBox() ?? this._propertyLayout.view_box;
       this._propertyLayout = { ...this._propertyLayout, view_box: viewBox };
-      await this._client.savePropertyLayout(this._propertyLayout);
-      this._propertyDirty = false;
+      const saved = this._propertyLayout;
+      await this._client.savePropertyLayout(saved);
+      if (this._propertyLayout === saved) this._propertyDirty = false;
       // Placing a device outdoors removes it from any floor (storage.py) —
       // refresh the picker's "placed on" info to match.
-      this._entities = await this._client.listPlaceableEntities();
+      await this._refreshEntitiesIfPlacementChanged();
     } finally {
       this._propertySaving = false;
     }
@@ -1174,6 +1207,7 @@ export class SpatialContextPanel extends LitElement {
     ) {
       return;
     }
+    this._autoSaveHeld = true;
     this._updatePropertyLayout({ pins: [] });
     this._selectedOutdoorPinId = null;
   };
@@ -1324,8 +1358,105 @@ export class SpatialContextPanel extends LitElement {
   };
 
   private _onSaveClick = () => {
+    this._autoSaveHeld = false;
     if (this._view === "property") void this._saveProperty();
     else void this._save();
+  };
+
+  /** Placed device ids across the open floor and the Property tab, as
+   * last reflected in the picker's `_entities`. */
+  private _placementKeyForEntities: string | null = null;
+
+  private _placementKey(): string {
+    return [...this._layout.pins, ...this._propertyLayout.pins]
+      .map((p) => p.device_id ?? "")
+      .sort()
+      .join(",");
+  }
+
+  private async _refreshEntitiesIfPlacementChanged(): Promise<void> {
+    const key = this._placementKey();
+    if (key === this._placementKeyForEntities) return;
+    this._entities = await this._client.listPlaceableEntities();
+    this._placementKeyForEntities = key;
+  }
+
+  // --- auto-save (#32) ------------------------------------------------------
+
+  private static readonly AUTO_SAVE_DELAY_MS = 3000;
+
+  private get _autoSaveActive(): boolean {
+    return this._settings.auto_save && !this._autoSaveHeld;
+  }
+
+  override updated(changed: Map<string, unknown>): void {
+    super.updated(changed);
+    // Every edit replaces _layout/_propertyLayout with a new object, so
+    // this restarts the debounce on each change.
+    if (
+      changed.has("_layout") ||
+      changed.has("_propertyLayout") ||
+      changed.has("_dirty") ||
+      changed.has("_propertyDirty")
+    ) {
+      this._scheduleAutoSave();
+    }
+  }
+
+  private _scheduleAutoSave(): void {
+    if (this._autoSaveTimer !== null) {
+      window.clearTimeout(this._autoSaveTimer);
+      this._autoSaveTimer = null;
+    }
+    if (!this._autoSaveActive || (!this._dirty && !this._propertyDirty)) {
+      return;
+    }
+    this._autoSaveTimer = window.setTimeout(
+      () => void this._runAutoSave(),
+      SpatialContextPanel.AUTO_SAVE_DELAY_MS,
+    );
+  }
+
+  private async _runAutoSave(): Promise<void> {
+    this._autoSaveTimer = null;
+    if (!this._autoSaveActive) return;
+    if (this._saving || this._propertySaving) {
+      this._scheduleAutoSave();
+      return;
+    }
+    try {
+      if (this._dirty) await this._save();
+      if (this._propertyDirty) await this._saveProperty();
+    } catch {
+      // Left dirty (the Save dot stays) — the next edit, or a manual
+      // Save, tries again.
+    }
+  }
+
+  /** Saves anything pending right now when auto-save is on — before
+   * switching floors or leaving the panel. Returns whether all is saved. */
+  private async _flushAutoSave(): Promise<boolean> {
+    if (!this._autoSaveActive) return !this._dirty && !this._propertyDirty;
+    if (this._autoSaveTimer !== null) {
+      window.clearTimeout(this._autoSaveTimer);
+      this._autoSaveTimer = null;
+    }
+    try {
+      if (this._dirty) await this._save();
+      if (this._propertyDirty) await this._saveProperty();
+    } catch {
+      return false;
+    }
+    return !this._dirty && !this._propertyDirty;
+  }
+
+  /** The browser's own "Leave site?" prompt on refresh/close while
+   * anything is unsaved — the case #32 lost a floor's work to. */
+  private _onBeforeUnload = (e: BeforeUnloadEvent): void => {
+    if (!this._dirty && !this._propertyDirty) return;
+    void this._flushAutoSave();
+    e.preventDefault();
+    e.returnValue = "";
   };
   private _onExportClick = () => void this._export();
 
@@ -1340,6 +1471,7 @@ export class SpatialContextPanel extends LitElement {
       ) {
         return;
       }
+      this._autoSaveHeld = true;
       this._propertyLayout = emptyPropertyLayout();
       this._propertyDirty = true;
       this._selectedPlacementId = null;
@@ -1358,6 +1490,7 @@ export class SpatialContextPanel extends LitElement {
     ) {
       return;
     }
+    this._autoSaveHeld = true;
     this._layout = emptyFloorLayout();
     this._dirty = true;
     this._resetSelection();
@@ -1424,6 +1557,13 @@ export class SpatialContextPanel extends LitElement {
     if (this._settings.floor_order === floor_order) return;
     this._settings = { ...this._settings, floor_order };
     void this._client.saveSettings(this._settings);
+  };
+
+  private _onAutoSaveToggle = (e: Event) => {
+    const auto_save = (e.target as HTMLInputElement).checked;
+    this._settings = { ...this._settings, auto_save };
+    void this._client.saveSettings(this._settings);
+    this._scheduleAutoSave();
   };
 
   private _onCoordinatorDeviceChange = (e: Event) => {
@@ -1562,11 +1702,16 @@ export class SpatialContextPanel extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener("keydown", this._onKeyDown);
+    window.addEventListener("beforeunload", this._onBeforeUnload);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this._onKeyDown);
+    window.removeEventListener("beforeunload", this._onBeforeUnload);
+    // Navigating to another HA panel never fires beforeunload — save
+    // anything pending on the way out instead.
+    void this._flushAutoSave();
     this._unsubscribeMatter();
     if (this._zigbeeMeshTimer !== null) {
       window.clearInterval(this._zigbeeMeshTimer);
@@ -1892,6 +2037,19 @@ export class SpatialContextPanel extends LitElement {
     });
   }
 
+  private _onRoomLabelMoved = (
+    e: CustomEvent<{ roomId: string; x: number; y: number }>,
+  ) => {
+    this._patchRoom(e.detail.roomId, {
+      label_position: [e.detail.x, e.detail.y],
+    });
+  };
+
+  private _onRoomLabelReset = () => {
+    const room = this._selectedRoom;
+    if (room) this._patchRoom(room.id, { label_position: null });
+  };
+
   private _onRoomVisibleToggle = () => {
     const room = this._selectedRoom;
     if (!room) return;
@@ -2085,6 +2243,7 @@ export class SpatialContextPanel extends LitElement {
     ) {
       return;
     }
+    this._autoSaveHeld = true;
     this._updateLayout({ pins: [] });
     this._selectedPinId = null;
     this._pinStackIds = null;
@@ -2107,9 +2266,19 @@ export class SpatialContextPanel extends LitElement {
   private _onRoomVertexChanged = (
     e: CustomEvent<{ roomId: string; points: [number, number][] }>,
   ) => {
-    const rooms = this._layout.rooms.map((r) =>
-      r.id === e.detail.roomId ? { ...r, points: e.detail.points } : r,
-    );
+    const rooms = this._layout.rooms.map((r) => {
+      if (r.id !== e.detail.roomId) return r;
+      // A hand-placed label the reshaped room no longer contains goes
+      // back to automatic, rather than floating outside the room.
+      const label = r.label_position;
+      const labelStillInside =
+        !label || pointInPolygon(label[0], label[1], e.detail.points);
+      return {
+        ...r,
+        points: e.detail.points,
+        ...(labelStillInside ? {} : { label_position: null }),
+      };
+    });
     this._updateLayout({
       rooms,
       pins: reassignPinRooms(rooms, this._layout.pins),
@@ -2569,6 +2738,14 @@ export class SpatialContextPanel extends LitElement {
           .open=${this._settingsPopoverOpen}
           @toggle=${this._onToggleSettingsPopover}
         >
+          <label class="popover-row hint" style="padding: 8px 16px 4px">
+            <input
+              type="checkbox"
+              .checked=${this._settings.auto_save}
+              @change=${this._onAutoSaveToggle}
+            />
+            Auto-save changes
+          </label>
           <span class="popover-row hint" style="padding: 8px 16px 4px"
             >Units</span
           >
@@ -2798,6 +2975,7 @@ export class SpatialContextPanel extends LitElement {
                     .selectedMeshStubKey=${this._selectedMeshStubKey}
                     @room-trace-complete=${this._onRoomTraceComplete}
                     @room-vertex-changed=${this._onRoomVertexChanged}
+                    @room-label-moved=${this._onRoomLabelMoved}
                     @room-select=${this._onRoomSelect}
                     @wall-trace-complete=${this._onWallTraceComplete}
                     @wall-vertex-changed=${this._onWallVertexChanged}
@@ -2859,6 +3037,7 @@ export class SpatialContextPanel extends LitElement {
                       this._onRoomBorderOpacityChange
                     }
                     @room-edit-vertices-click=${this._onRoomEditVertices}
+                    @room-label-reset-click=${this._onRoomLabelReset}
                     @room-delete-click=${this._onRoomDelete}
                     @pin-set-label-click=${this._onPinSetLabel}
                     @pin-set-icon-click=${this._onPinSetIcon}

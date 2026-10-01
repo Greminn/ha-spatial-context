@@ -535,6 +535,16 @@ export class CanvasOverlay extends LitElement {
           >
             <ha-icon icon="mdi:vector-polygon"></ha-icon>
           </button>
+          ${
+            room.label_position
+              ? html`<button
+                  title="Reset label position"
+                  @click=${() => this._fire("room-label-reset-click")}
+                >
+                  <ha-icon icon="mdi:format-text-variant-outline"></ha-icon>
+                </button>`
+              : nothing
+          }
           <button
             class="danger"
             title="Delete room"
