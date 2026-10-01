@@ -144,7 +144,7 @@ export class AppHeader extends LitElement {
         <img class="app-icon" src="/spatial_context/icon.png" alt="" />
         <div>
           <h1>Spatial Context</h1>
-          <div class="subtitle">v0.8.0-beta.1</div>
+          <div class="subtitle">v0.9.0-beta.1</div>
         </div>
       </div>
       <floor-tabs
