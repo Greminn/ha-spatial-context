@@ -24,6 +24,7 @@ import type {
   Room,
   Settings,
   UnitSystem,
+  VersionInfo,
   Wall,
   WifiMesh,
   ZigbeeMesh,
@@ -33,6 +34,7 @@ import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import { EditHistory } from "./history";
+import { debugLog } from "./debug-log";
 import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
 import {
   HaClient,
@@ -90,6 +92,25 @@ export class SpatialContextPanel extends LitElement {
         flex: 1;
         display: flex;
         min-height: 0;
+        position: relative;
+      }
+      .save-error {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: min(640px, calc(100% - 32px));
+        padding: 8px 12px;
+        border-left: 4px solid var(--sc-danger);
+        font-size: 0.875rem;
+      }
+      .save-error ha-icon {
+        color: var(--sc-danger);
+        flex: none;
       }
       .canvas-area {
         flex: 1;
@@ -218,6 +239,14 @@ export class SpatialContextPanel extends LitElement {
   @state() private _view: "floor" | "property" = "floor";
   @state() private _propertyLayout: PropertyLayout = emptyPropertyLayout();
   @state() private _propertyDirty = false;
+  /** Why the last save failed, until one succeeds — shown as a banner.
+   * A failed save used to fail silently (only the dirty dot stayed on),
+   * which with auto-save meant work could quietly never be stored. */
+  @state() private _saveError: string | null = null;
+  /** Version handshake result (see debug.py): the browser is running an
+   * older panel than the one installed ("reload"), or HA hasn't restarted
+   * since an update ("restart"). Null when everything matches. */
+  @state() private _versionNotice: "reload" | "restart" | null = null;
   /** Pending auto-save (#32), debounced after each edit. */
   private _autoSaveTimer: number | null = null;
   /** Set by bulk-destructive actions (reset floor/property, remove all
@@ -892,6 +921,15 @@ export class SpatialContextPanel extends LitElement {
     this._areas = areas;
     this._propertyLayout = propertyLayout;
     this._settings = settings;
+    debugLog.configure(this._client, settings.debug_logging);
+    debugLog.log("panel_open", {
+      panel_version: __VERSION__,
+      panel_build: __BUILD_ID__,
+      user_agent: navigator.userAgent,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      floors: floors.length,
+    });
+    void this._checkVersion();
     const firstFloor = this._orderedFloors[0];
     if (firstFloor) {
       await this._selectFloor(firstFloor.floor_id, { skipDirtyCheck: true });
@@ -936,6 +974,13 @@ export class SpatialContextPanel extends LitElement {
       this._dirty = false;
     }
     void this._loadOtherFloorPins(floorId);
+    debugLog.log("floor_load", {
+      floor_id: floorId,
+      rooms: this._layout.rooms.length,
+      walls: this._layout.walls.length,
+      pins: this._layout.pins.length,
+      healed: this._dirty,
+    });
 
     // Two floors sharing a non-null building_id (see Align Floors) are one
     // physical building in one coordinate system — when the floor just
@@ -1007,7 +1052,24 @@ export class SpatialContextPanel extends LitElement {
       const viewBox = this._canvas?.getViewBox() ?? this._layout.view_box;
       this._layout = { ...this._layout, view_box: viewBox };
       const saved = this._layout;
-      await this._client.saveLayout(this._currentFloorId, saved);
+      const started = performance.now();
+      try {
+        await this._client.saveLayout(this._currentFloorId, saved);
+      } catch (err) {
+        this._saveError = this._describeSaveError(err);
+        debugLog.log("save_error", {
+          target: this._currentFloorId,
+          error: (err as { message?: string })?.message,
+        });
+        throw err;
+      }
+      debugLog.log("save", {
+        target: this._currentFloorId,
+        ms: Math.round(performance.now() - started),
+        rooms: saved.rooms.length,
+        pins: saved.pins.length,
+      });
+      this._saveError = null;
       // An edit made while the save was in flight is still unsaved.
       if (this._layout === saved) this._dirty = false;
       this._floors = this._floors.map((f) =>
@@ -1071,6 +1133,10 @@ export class SpatialContextPanel extends LitElement {
     this._autoSaveHeld = false;
     this._propertyLayout = await this._client.getPropertyLayout();
     this._propertyHistory.clear();
+    debugLog.log("property_load", {
+      placements: this._propertyLayout.placements.length,
+      outdoor_pins: this._propertyLayout.pins.length,
+    });
     this._propertyDirty = false;
     this._selectedPlacementId = null;
     this._selectedOutdoorPinId = null;
@@ -1093,6 +1159,7 @@ export class SpatialContextPanel extends LitElement {
    * jump the view), and so does the floor's building link (owned by Align
    * Floors, which clears this history anyway). */
   private _undoRedo(direction: "undo" | "redo"): void {
+    debugLog.log(direction, { view: this._view });
     if (this._view === "property") {
       const current = this._propertyLayout;
       const restored =
@@ -1146,7 +1213,24 @@ export class SpatialContextPanel extends LitElement {
         this._propertyCanvas?.getViewBox() ?? this._propertyLayout.view_box;
       this._propertyLayout = { ...this._propertyLayout, view_box: viewBox };
       const saved = this._propertyLayout;
-      await this._client.savePropertyLayout(saved);
+      const started = performance.now();
+      try {
+        await this._client.savePropertyLayout(saved);
+      } catch (err) {
+        this._saveError = this._describeSaveError(err);
+        debugLog.log("save_error", {
+          target: "property",
+          error: (err as { message?: string })?.message,
+        });
+        throw err;
+      }
+      debugLog.log("save", {
+        target: "property",
+        ms: Math.round(performance.now() - started),
+        placements: saved.placements.length,
+        pins: saved.pins.length,
+      });
+      this._saveError = null;
       if (this._propertyLayout === saved) this._propertyDirty = false;
       // Placing a device outdoors removes it from any floor (storage.py) —
       // refresh the picker's "placed on" info to match.
@@ -1419,9 +1503,22 @@ export class SpatialContextPanel extends LitElement {
 
   private _onSaveClick = () => {
     this._autoSaveHeld = false;
-    if (this._view === "property") void this._saveProperty();
-    else void this._save();
+    // A failure is reported by the save-error banner, not left unhandled.
+    const save =
+      this._view === "property" ? this._saveProperty() : this._save();
+    save.catch(() => undefined);
   };
+
+  private _describeSaveError(err: unknown): string {
+    const message = (err as { message?: string })?.message || "unknown error";
+    // A schema rejection after an update usually means the panel is newer
+    // than the backend still running — fixed by restarting Home Assistant.
+    return /not a valid option|extra keys not allowed|invalid_format/i.test(
+      message,
+    )
+      ? `${message} — Home Assistant may need a restart to finish updating Spatial Context.`
+      : message;
+  }
 
   /** Placed device ids across the open floor and the Property tab, as
    * last reflected in the picker's `_entities`. */
@@ -1439,6 +1536,88 @@ export class SpatialContextPanel extends LitElement {
     if (key === this._placementKeyForEntities) return;
     this._entities = await this._client.listPlaceableEntities();
     this._placementKeyForEntities = key;
+  }
+
+  // --- version handshake + debug (see debug.py) ------------------------------
+
+  /** Compares this panel's build with what's installed and with the
+   * backend HA is running. Rerun whenever the tab becomes visible again,
+   * since a tab left open across an update is exactly when they drift. */
+  private async _checkVersion(): Promise<void> {
+    let notice: "reload" | "restart" | null = null;
+    let info: VersionInfo | null = null;
+    try {
+      info = await this._client.getVersionInfo();
+    } catch {
+      // A backend without the command predates this panel — it's the
+      // backend that's behind, so a restart (not a reload) fixes it.
+      notice = "restart";
+    }
+    if (info) {
+      if (
+        info.loaded_version &&
+        info.installed_version &&
+        info.loaded_version !== info.installed_version
+      ) {
+        notice = "restart";
+      } else if (info.panel_build_id && info.panel_build_id !== __BUILD_ID__) {
+        notice = "reload";
+      }
+    }
+    if (notice !== this._versionNotice) {
+      debugLog.log("version_check", {
+        notice,
+        panel_build: __BUILD_ID__,
+        ...(info ?? {}),
+      });
+    }
+    this._versionNotice = notice;
+  }
+
+  private _onVisibilityChange = (): void => {
+    if (document.visibilityState === "visible") void this._checkVersion();
+  };
+
+  private _onDebugLoggingToggle = (e: Event) => {
+    const debug_logging = (e.target as HTMLInputElement).checked;
+    this._settings = { ...this._settings, debug_logging };
+    void this._client.saveSettings(this._settings).then(() => {
+      debugLog.configure(this._client, debug_logging);
+      debugLog.log("debug_logging_on", {
+        panel_version: __VERSION__,
+        panel_build: __BUILD_ID__,
+        user_agent: navigator.userAgent,
+      });
+    });
+  };
+
+  private async _downloadDebugReport(): Promise<void> {
+    await debugLog.flush();
+    const report = await this._client.getDebugReport();
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            ...report,
+            browser: {
+              panel_version: __VERSION__,
+              panel_build: __BUILD_ID__,
+              user_agent: navigator.userAgent,
+              viewport: `${window.innerWidth}x${window.innerHeight}`,
+            },
+          },
+          null,
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `spatial-context-debug-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // --- auto-save (#32) ------------------------------------------------------
@@ -1709,6 +1888,13 @@ export class SpatialContextPanel extends LitElement {
     }, 1000);
     try {
       this._zigbeeMesh = await this._client.getZigbeeMesh(forceRefresh);
+      debugLog.log("mesh_load", {
+        network: "zigbee",
+        force_refresh: forceRefresh,
+        ms: Date.now() - startedAt,
+        links: this._zigbeeMesh.links.length,
+        nodes: this._zigbeeMesh.nodes.length,
+      });
       // Backend uses time.time() (epoch seconds) — convert to ms to match
       // Date.now(), which _meshAgeLabel expects. A cache hit can be well
       // in the past (e.g. pre-warmed overnight by the refresh_zigbee_mesh
@@ -1719,6 +1905,7 @@ export class SpatialContextPanel extends LitElement {
     } catch (err) {
       const message = (err as { message?: string })?.message;
       this._zigbeeMeshError = message || "Zigbee mesh request failed";
+      debugLog.log("mesh_error", { network: "zigbee", error: message });
     } finally {
       this._zigbeeMeshLoading = false;
       if (this._zigbeeMeshTimer !== null) {
@@ -1733,9 +1920,14 @@ export class SpatialContextPanel extends LitElement {
     this._wifiMeshError = null;
     try {
       this._wifiMesh = await this._client.getWifiMesh();
+      debugLog.log("mesh_load", {
+        network: "wifi",
+        links: this._wifiMesh.links.length,
+      });
     } catch (err) {
       const message = (err as { message?: string })?.message;
       this._wifiMeshError = message || "Wi-Fi mesh request failed";
+      debugLog.log("mesh_error", { network: "wifi", error: message });
     } finally {
       this._wifiMeshLoading = false;
     }
@@ -1765,12 +1957,15 @@ export class SpatialContextPanel extends LitElement {
     super.connectedCallback();
     window.addEventListener("keydown", this._onKeyDown);
     window.addEventListener("beforeunload", this._onBeforeUnload);
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this._onKeyDown);
     window.removeEventListener("beforeunload", this._onBeforeUnload);
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
+    void debugLog.flush();
     // Navigating to another HA panel never fires beforeunload — save
     // anything pending on the way out instead.
     void this._flushAutoSave();
@@ -1791,11 +1986,27 @@ export class SpatialContextPanel extends LitElement {
     return el;
   }
 
+  /** Only real text entry — a checkbox, slider, dropdown or color picker
+   * that merely kept focus after being clicked must not swallow Ctrl/Cmd+Z
+   * or Delete (the canvas itself can't take focus, so the last-touched
+   * control keeps it while you draw). */
   private _isTypingTarget(): boolean {
     const el = this._deepActiveElement();
     if (!el) return false;
     if (el instanceof HTMLElement && el.isContentEditable) return true;
-    return ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+    if (el.tagName === "TEXTAREA") return true;
+    if (el instanceof HTMLInputElement) {
+      return [
+        "text",
+        "number",
+        "search",
+        "email",
+        "url",
+        "tel",
+        "password",
+      ].includes(el.type);
+    }
+    return false;
   }
 
   /** Esc cancel / Delete selection / Enter finish-wall — see #14. Never
@@ -2109,6 +2320,39 @@ export class SpatialContextPanel extends LitElement {
       ),
     });
   }
+
+  /** A selected room dragged whole: its outline, a hand-placed label and
+   * the devices inside it move together, as one undo step. Walls are
+   * separate drawings and stay put. */
+  private _onRoomMove = (
+    e: CustomEvent<{ roomId: string; dx: number; dy: number }>,
+  ) => {
+    const { roomId, dx, dy } = e.detail;
+    debugLog.log("room_move", {
+      room_id: roomId,
+      dx: Math.round(dx),
+      dy: Math.round(dy),
+    });
+    const shift = ([x, y]: [number, number]): [number, number] => [
+      x + dx,
+      y + dy,
+    ];
+    const rooms = this._layout.rooms.map((r) =>
+      r.id === roomId
+        ? {
+            ...r,
+            points: r.points.map(shift),
+            ...(r.label_position
+              ? { label_position: shift(r.label_position) }
+              : {}),
+          }
+        : r,
+    );
+    const pins = this._layout.pins.map((p) =>
+      p.room_id === roomId ? { ...p, x: p.x + dx, y: p.y + dy } : p,
+    );
+    this._updateLayout({ rooms, pins: reassignPinRooms(rooms, pins) });
+  };
 
   private _onRoomLabelMoved = (
     e: CustomEvent<{ roomId: string; x: number; y: number }>,
@@ -2823,6 +3067,18 @@ export class SpatialContextPanel extends LitElement {
             />
             Auto-save changes
           </label>
+          <label
+            class="popover-row hint"
+            style="padding: 4px 16px"
+            title="Writes spatial_context_debug.log in your Home Assistant config folder — ids and counts only, no device names or positions."
+          >
+            <input
+              type="checkbox"
+              .checked=${this._settings.debug_logging}
+              @change=${this._onDebugLoggingToggle}
+            />
+            Debug logging
+          </label>
           <span class="popover-row hint" style="padding: 8px 16px 4px"
             >Units</span
           >
@@ -2925,6 +3181,16 @@ export class SpatialContextPanel extends LitElement {
             <ha-icon icon="mdi:download"></ha-icon> Export JSON
           </button>
           <button
+            class="menu-item"
+            title="Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue"
+            @click=${() => {
+              this._moreOptionsPopoverOpen = false;
+              void this._downloadDebugReport();
+            }}
+          >
+            <ha-icon icon="mdi:bug"></ha-icon> Download debug report
+          </button>
+          <button
             class="menu-item danger"
             @click=${() => {
               this._moreOptionsPopoverOpen = false;
@@ -2938,6 +3204,35 @@ export class SpatialContextPanel extends LitElement {
       </app-header>
 
       <div class="main">
+        ${
+          this._versionNotice
+            ? html`<div class="save-error floating-panel" role="status">
+                <ha-icon icon="mdi:update"></ha-icon>
+                <span
+                  >${
+                    this._versionNotice === "restart"
+                      ? "Spatial Context was updated — restart Home Assistant to finish. Until then, some changes may not save."
+                      : "This page is running an older Spatial Context panel than the one installed. Reload the page (in Safari: Option+Cmd+R)."
+                  }</span
+                >
+                <button @click=${() => (this._versionNotice = null)}>
+                  Dismiss
+                </button>
+              </div>`
+            : nothing
+        }
+        ${
+          this._saveError
+            ? html`<div class="save-error floating-panel" role="alert">
+                <ha-icon icon="mdi:alert"></ha-icon>
+                <span
+                  >Couldn't save: ${this._saveError} Your changes are still here
+                  — keep this tab open.</span
+                >
+                <button @click=${this._onSaveClick}>Retry</button>
+              </div>`
+            : nothing
+        }
         ${
           this._view === "property"
             ? html`
@@ -3053,6 +3348,7 @@ export class SpatialContextPanel extends LitElement {
                     @room-trace-complete=${this._onRoomTraceComplete}
                     @room-vertex-changed=${this._onRoomVertexChanged}
                     @room-label-moved=${this._onRoomLabelMoved}
+                    @room-move=${this._onRoomMove}
                     @room-select=${this._onRoomSelect}
                     @wall-trace-complete=${this._onWallTraceComplete}
                     @wall-vertex-changed=${this._onWallVertexChanged}

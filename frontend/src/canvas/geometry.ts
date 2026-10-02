@@ -267,3 +267,22 @@ export function openingEndpoints(
     [x + dx * half, y + dy * half],
   ];
 }
+
+/** Drops focus from a control of *this panel* that last had it (shadow
+ * DOM aware) — a click on the canvas should leave keyboard shortcuts to
+ * the canvas, but an SVG can't take focus itself, so nothing else would
+ * release it. Scoped to `within`'s own tree: focus elsewhere on the page
+ * (HA's sidebar link, just after opening the panel) is left alone, since
+ * blurring HA's own UI made it redraw. */
+export function blurActiveElement(within: Node): void {
+  const scope = within.getRootNode();
+  let el: Element | null = document.activeElement;
+  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+  if (!(el instanceof HTMLElement)) return;
+  // Walk out through shadow roots until reaching the panel's own root.
+  let root: Node | null = el.getRootNode();
+  while (root && root !== scope) {
+    root = root instanceof ShadowRoot ? root.host.getRootNode() : null;
+  }
+  if (root === scope) el.blur();
+}

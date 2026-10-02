@@ -17,6 +17,7 @@ import type {
   ViewBox,
 } from "../types";
 import {
+  blurActiveElement,
   roomLabelPoint,
   clamp,
   distance,
@@ -107,6 +108,7 @@ type Gesture =
   | { kind: "vertex"; index: number }
   | { kind: "pin"; pinId: string }
   | { kind: "roomLabel"; roomId: string }
+  | { kind: "roomMove"; roomId: string; startX: number; startY: number }
   | { kind: "openingMove"; openingId: string }
   | { kind: "openingHandle"; openingId: string; whichEnd: 0 | 1 }
   | {
@@ -198,6 +200,10 @@ export class FloorplanCanvas extends LitElement {
         paint-order: stroke;
         stroke: var(--sc-bg);
         stroke-width: 3px;
+      }
+      /* A selected room can be dragged whole (see the "roomMove" gesture). */
+      svg:not(.pan-mode):not(.draw-mode) .room-poly.selected {
+        cursor: move;
       }
       .room-poly {
         /* fill/fill-opacity/stroke/stroke-opacity/stroke-width are set
@@ -419,6 +425,13 @@ export class FloorplanCanvas extends LitElement {
   } | null = null;
   @state() private _pendingScalePoints: [number, number][] = [];
   @state() private _liveEditPoints: [number, number][] | null = null;
+  /** A selected room being dragged whole — its outline, label and the
+   * devices inside it all follow; committed as one "room-move" on release. */
+  @state() private _liveRoomMove: {
+    id: string;
+    dx: number;
+    dy: number;
+  } | null = null;
   @state() private _liveDragPin: { id: string; x: number; y: number } | null =
     null;
   @state() private _liveOpeningEdit: {
@@ -523,8 +536,21 @@ export class FloorplanCanvas extends LitElement {
       img.src = this.backgroundImageUrl;
     }
     if (changed.has("initialViewBox")) {
-      if (this.initialViewBox) {
-        this._viewBox = { ...this.initialViewBox };
+      const vb = this.initialViewBox;
+      const cur = this._viewBox;
+      if (
+        vb &&
+        vb.x === cur.x &&
+        vb.y === cur.y &&
+        vb.w === cur.w &&
+        vb.h === cur.h
+      ) {
+        // A save writes the live view back into the layout — the same
+        // values, a new object. Re-applying it would snap a pan that's
+        // still in progress back to where the save captured it.
+        this._hasFittedOnce = true;
+      } else if (vb) {
+        this._viewBox = { ...vb };
         this._hasFittedOnce = true;
       } else if (!this.sameBuildingAsPrevious) {
         this.fitToScreen();
@@ -649,12 +675,31 @@ export class FloorplanCanvas extends LitElement {
     points: [number, number][],
   ): [number, number][] {
     const target = this._editingTarget;
-    return target &&
+    if (
+      target &&
       target.kind === kind &&
       target.id === id &&
       this._liveEditPoints
-      ? this._liveEditPoints
-      : points;
+    ) {
+      return this._liveEditPoints;
+    }
+    const move = this._liveRoomMove;
+    if (kind === "room" && move?.id === id) {
+      return points.map(([x, y]) => [x + move.dx, y + move.dy]);
+    }
+    return points;
+  }
+
+  /** Pins as drawn right now — the ones inside a room being dragged ride
+   * along with it. */
+  private get _displayPins(): Pin[] {
+    const move = this._liveRoomMove;
+    if (!move) return this.pins;
+    return this.pins.map((pin) =>
+      pin.room_id === move.id
+        ? { ...pin, x: pin.x + move.dx, y: pin.y + move.dy }
+        : pin,
+    );
   }
 
   /** Snaps a new trace point onto horizontal/vertical from the trace's
@@ -908,6 +953,7 @@ export class FloorplanCanvas extends LitElement {
 
   private _onPointerDown = (e: PointerEvent): void => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    blurActiveElement(this);
     this._svg.setPointerCapture(e.pointerId);
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -1043,6 +1089,12 @@ export class FloorplanCanvas extends LitElement {
       this._liveEditPoints = points;
     } else if (this._gesture?.kind === "pin") {
       this._liveDragPin = { id: this._gesture.pinId, x: image.x, y: image.y };
+    } else if (this._gesture?.kind === "roomMove") {
+      this._liveRoomMove = {
+        id: this._gesture.roomId,
+        dx: image.x - this._gesture.startX,
+        dy: image.y - this._gesture.startY,
+      };
     } else if (this._gesture?.kind === "roomLabel") {
       this._liveRoomLabel = {
         id: this._gesture.roomId,
@@ -1114,6 +1166,20 @@ export class FloorplanCanvas extends LitElement {
       return { kind: "pin", pinId: this._downHit.pin.id };
     if (this._downHit?.type === "roomLabel")
       return { kind: "roomLabel", roomId: this._downHit.room.id };
+    // Dragging inside the *selected* room moves it whole; any other room
+    // still pans, so nothing moves without being selected first.
+    if (
+      this._downHit?.type === "room" &&
+      this._downHit.room.id === this.selectedRoomId &&
+      this._lastImage
+    ) {
+      return {
+        kind: "roomMove",
+        roomId: this._downHit.room.id,
+        startX: this._lastImage.x,
+        startY: this._lastImage.y,
+      };
+    }
     if (this._downHit?.type === "openingHandle") {
       return {
         kind: "openingHandle",
@@ -1188,6 +1254,17 @@ export class FloorplanCanvas extends LitElement {
         }),
       );
       this._liveDragPin = null;
+    } else if (this._gesture?.kind === "roomMove" && this._liveRoomMove) {
+      this.dispatchEvent(
+        new CustomEvent("room-move", {
+          detail: {
+            roomId: this._liveRoomMove.id,
+            dx: this._liveRoomMove.dx,
+            dy: this._liveRoomMove.dy,
+          },
+        }),
+      );
+      this._liveRoomMove = null;
     } else if (this._gesture?.kind === "roomLabel" && this._liveRoomLabel) {
       this.dispatchEvent(
         new CustomEvent("room-label-moved", {
@@ -1547,7 +1624,12 @@ export class FloorplanCanvas extends LitElement {
     if (this._liveRoomLabel?.id === room.id) {
       return [this._liveRoomLabel.x, this._liveRoomLabel.y];
     }
-    return room.label_position ?? roomLabelPoint(points);
+    const move = this._liveRoomMove?.id === room.id ? this._liveRoomMove : null;
+    // Computed from the stored outline while moving, then offset — so the
+    // cached automatic position isn't recomputed on every drag frame.
+    const [x, y] =
+      room.label_position ?? roomLabelPoint(move ? room.points : points);
+    return move ? [x + move.dx, y + move.dy] : [x, y];
   }
 
   /** Whether `image` is on a room's name label (16px .room-label,
@@ -1793,7 +1875,7 @@ export class FloorplanCanvas extends LitElement {
    * stack, no distance-threshold fuzziness needed. */
   private _pinGroups(): { x: number; y: number; pins: Pin[] }[] {
     const groups = new Map<string, Pin[]>();
-    for (const pin of this.pins) {
+    for (const pin of this._displayPins) {
       const key = `${pin.x},${pin.y}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(pin);

@@ -8,7 +8,12 @@ import type {
   PropertyPlacement,
   ViewBox,
 } from "../types";
-import { clamp, distance, pointToSegmentDistance } from "./geometry";
+import {
+  blurActiveElement,
+  clamp,
+  distance,
+  pointToSegmentDistance,
+} from "./geometry";
 import { pinDisplayLabel } from "./device-display";
 import { qualityColor } from "./mesh-colors";
 import { PinIconResolver, pinStyles } from "./pin-render";
@@ -461,6 +466,7 @@ export class PropertyCanvas extends LitElement {
 
   private _onPointerDown = (e: PointerEvent): void => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    blurActiveElement(this);
     this._svg.setPointerCapture(e.pointerId);
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 

@@ -12,7 +12,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
-from . import registry_snapshot, wifi_mesh, zigbee_mesh
+from . import debug, registry_snapshot, wifi_mesh, zigbee_mesh
 from .export import async_get_map_data
 from .storage import (
     async_get_floor_layout,
@@ -304,6 +304,7 @@ _SETTINGS_SCHEMA = {
         None, str
     ),
     vol.Optional("auto_save", default=True): bool,
+    vol.Optional("debug_logging", default=False): bool,
 }
 
 
@@ -447,6 +448,51 @@ async def ws_get_wifi_mesh(
     connection.send_result(msg["id"], mesh)
 
 
+@websocket_api.websocket_command({vol.Required("type"): "spatial_context/version"})
+@websocket_api.async_response
+async def ws_version(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """The backend HA is running vs. what's installed, and the installed
+    panel's build id — so the panel can ask for a reload or a restart (see
+    debug.py)."""
+    connection.send_result(msg["id"], await debug.async_get_version_info(hass))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "spatial_context/debug_log",
+        vol.Required("entries"): vol.All(
+            [{vol.Required("event"): str, vol.Optional("t"): str, vol.Extra: object}],
+            vol.Length(max=200),
+        ),
+    }
+)
+@websocket_api.async_response
+async def ws_debug_log(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Append panel events to the debug log (a no-op unless enabled)."""
+    await debug.async_append_debug_entries(hass, msg["entries"])
+    connection.send_result(msg["id"], {"success": True})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "spatial_context/debug_report"})
+@websocket_api.async_response
+async def ws_debug_report(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Versions, settings, layout counts and the debug log's tail — safe to
+    attach to a public issue (see debug.py)."""
+    connection.send_result(msg["id"], await debug.async_build_debug_report(hass))
+
+
 def async_register_commands(hass: HomeAssistant) -> None:
     """Register every Spatial Context WebSocket command."""
     websocket_api.async_register_command(hass, ws_list_floors)
@@ -462,3 +508,6 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_export_snapshot)
     websocket_api.async_register_command(hass, ws_get_zigbee_mesh)
     websocket_api.async_register_command(hass, ws_get_wifi_mesh)
+    websocket_api.async_register_command(hass, ws_version)
+    websocket_api.async_register_command(hass, ws_debug_log)
+    websocket_api.async_register_command(hass, ws_debug_report)

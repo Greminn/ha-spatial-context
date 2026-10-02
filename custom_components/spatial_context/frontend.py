@@ -14,7 +14,9 @@ from homeassistant.components.frontend import (
     add_extra_js_url,
     async_register_built_in_panel,
 )
-from homeassistant.components.http import StaticPathConfig
+from aiohttp import web
+
+from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -45,6 +47,33 @@ def _cache_bust_token(filename: str) -> str:
         return "0"
 
 
+# The panel bundle's own URL — outside URL_BASE's static path, so it can be
+# served with `Cache-Control: no-cache` (see PanelBundleView).
+PANEL_URL = f"{URL_BASE}_panel.js"
+
+
+class PanelBundleView(HomeAssistantView):
+    """Serves the panel bundle with `Cache-Control: no-cache`.
+
+    The registered panel URL only changes at startup (its ?v= token), and
+    without cache headers a browser — Safari especially — may reuse a stale
+    copy indefinitely after the file is updated in place. no-cache keeps
+    caching but revalidates every load (a cheap 304 via ETag/Last-Modified),
+    so an updated bundle is always picked up.
+    """
+
+    url = PANEL_URL
+    name = "spatial_context:panel_bundle"
+    # Loaded by the frontend as a plain module import, which carries no
+    # auth header — same as the static path it replaces.
+    requires_auth = False
+
+    async def get(self, request: web.Request) -> web.FileResponse:
+        return web.FileResponse(
+            WWW_DIR / PANEL_FILENAME, headers={"Cache-Control": "no-cache"}
+        )
+
+
 async def async_register_static_paths(hass: HomeAssistant) -> None:
     """Register /spatial_context/* as a static HTTP path serving www/."""
     try:
@@ -54,6 +83,7 @@ async def async_register_static_paths(hass: HomeAssistant) -> None:
         _LOGGER.debug("Static path registered: %s", URL_BASE)
     except RuntimeError:
         _LOGGER.debug("Static path already registered: %s", URL_BASE)
+    hass.http.register_view(PanelBundleView())
 
 
 def async_register_icons(hass: HomeAssistant) -> None:
@@ -72,7 +102,7 @@ def async_register_icons(hass: HomeAssistant) -> None:
 
 def async_register_sidebar_panel(hass: HomeAssistant) -> None:
     """Register the Spatial Context sidebar panel (browser_mod pattern)."""
-    panel_url = f"{URL_BASE}/{PANEL_FILENAME}?v={_cache_bust_token(PANEL_FILENAME)}"
+    panel_url = f"{PANEL_URL}?v={_cache_bust_token(PANEL_FILENAME)}"
 
     async_register_built_in_panel(
         hass,

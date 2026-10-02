@@ -17,6 +17,7 @@ import type {
   Wall,
   WifiMesh,
   ZigbeeMesh,
+  VersionInfo,
 } from "./types";
 import { DEFAULT_WALL_MATERIAL, wallMaterial } from "./canvas/materials";
 
@@ -113,6 +114,26 @@ export class HaClient {
       floor_order: settings.floor_order,
       zigbee_coordinator_device_id: settings.zigbee_coordinator_device_id,
       auto_save: settings.auto_save,
+      debug_logging: settings.debug_logging,
+    });
+  }
+
+  async getVersionInfo(): Promise<VersionInfo> {
+    return this.hass.connection.sendMessagePromise<VersionInfo>({
+      type: "spatial_context/version",
+    });
+  }
+
+  async sendDebugLog(entries: Record<string, unknown>[]): Promise<void> {
+    await this.hass.connection.sendMessagePromise({
+      type: "spatial_context/debug_log",
+      entries,
+    });
+  }
+
+  async getDebugReport(): Promise<Record<string, unknown>> {
+    return this.hass.connection.sendMessagePromise<Record<string, unknown>>({
+      type: "spatial_context/debug_report",
     });
   }
 
@@ -329,6 +350,7 @@ export function emptySettings(): Settings {
     floor_order: "top_down",
     zigbee_coordinator_device_id: null,
     auto_save: true,
+    debug_logging: false,
   };
 }
 

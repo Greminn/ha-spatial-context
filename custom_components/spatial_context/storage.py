@@ -175,6 +175,9 @@ def _empty_settings() -> dict[str, Any]:
         # (#32) — the panel's own debounce; the manual Save button still
         # works either way.
         "auto_save": True,
+        # Send panel events to <config>/spatial_context_debug.log (see
+        # debug.py) — off unless someone is chasing a problem.
+        "debug_logging": False,
     }
 
 

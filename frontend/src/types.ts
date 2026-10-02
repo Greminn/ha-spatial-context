@@ -88,6 +88,18 @@ export interface Settings {
   /** Save layout edits automatically a few seconds after each change
    * (#32). The manual Save button works either way. */
   auto_save: boolean;
+  /** Send panel events to the backend's debug log file (see debug.py). */
+  debug_logging: boolean;
+}
+
+/** What the backend reports for the version handshake (see debug.py). */
+export interface VersionInfo {
+  /** The version HA loaded at startup — the backend actually running. */
+  loaded_version: string | null;
+  /** The version installed on disk now. */
+  installed_version: string | null;
+  /** Build id of the panel bundle installed on disk. */
+  panel_build_id: string | null;
 }
 
 export type FloorOrder = "top_down" | "ground_up";
