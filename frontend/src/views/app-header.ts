@@ -77,6 +77,13 @@ export class AppHeader extends LitElement {
       floor-tabs::-webkit-scrollbar {
         display: none;
       }
+      @media (max-width: 600px) {
+        /* Seven header actions (incl. undo/redo) need to fit a phone. */
+        .icon-button {
+          width: 40px;
+          height: 40px;
+        }
+      }
       @media (max-width: 480px) {
         .identity .subtitle {
           display: none;
@@ -124,6 +131,8 @@ export class AppHeader extends LitElement {
   @property({ type: Boolean }) propertySelected = false;
   @property({ type: Boolean }) dirty = false;
   @property({ type: Boolean }) saving = false;
+  @property({ type: Boolean }) canUndo = false;
+  @property({ type: Boolean }) canRedo = false;
 
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
@@ -154,6 +163,22 @@ export class AppHeader extends LitElement {
       ></floor-tabs>
       <div class="actions">
         <slot></slot>
+        <button
+          class="icon-button"
+          title="Undo (Ctrl/Cmd+Z)"
+          ?disabled=${!this.canUndo}
+          @click=${() => this._fire("undo-click")}
+        >
+          <ha-icon icon="mdi:undo"></ha-icon>
+        </button>
+        <button
+          class="icon-button"
+          title="Redo (Ctrl/Cmd+Shift+Z)"
+          ?disabled=${!this.canRedo}
+          @click=${() => this._fire("redo-click")}
+        >
+          <ha-icon icon="mdi:redo"></ha-icon>
+        </button>
         <button
           class="icon-button"
           title=${

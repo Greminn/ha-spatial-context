@@ -32,6 +32,7 @@ import { PROPERTY_LOCATION_ID } from "./types";
 import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
+import { EditHistory } from "./history";
 import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
 import {
   HaClient,
@@ -224,6 +225,9 @@ export class SpatialContextPanel extends LitElement {
    * Save" — auto-save stays off until a manual Save (or a discard) so an
    * accidental reset isn't committed three seconds later. */
   private _autoSaveHeld = false;
+  /** Undo/redo (#15) — the open floor's and the Property tab's, separately. */
+  private _floorHistory = new EditHistory<FloorLayout>();
+  private _propertyHistory = new EditHistory<PropertyLayout>();
   @state() private _propertySaving = false;
   @state() private _selectedPlacementId: string | null = null;
   @state() private _propertyMode: "select" | "place" | "place-pin" = "select";
@@ -923,6 +927,7 @@ export class SpatialContextPanel extends LitElement {
     // pin sits, never a user choice, so a stale value here is always safe
     // to correct. Only marks the floor dirty (prompting a Save) if this
     // actually found something to fix.
+    this._floorHistory.clear();
     const healedPins = reassignPinRooms(this._layout.rooms, this._layout.pins);
     if (healedPins !== this._layout.pins) {
       this._layout = { ...this._layout, pins: healedPins };
@@ -1033,6 +1038,7 @@ export class SpatialContextPanel extends LitElement {
   }
 
   private _updateLayout(patch: Partial<FloorLayout>): void {
+    this._floorHistory.record(this._layout);
     this._layout = { ...this._layout, ...patch };
     this._dirty = true;
   }
@@ -1064,6 +1070,7 @@ export class SpatialContextPanel extends LitElement {
     }
     this._autoSaveHeld = false;
     this._propertyLayout = await this._client.getPropertyLayout();
+    this._propertyHistory.clear();
     this._propertyDirty = false;
     this._selectedPlacementId = null;
     this._selectedOutdoorPinId = null;
@@ -1075,8 +1082,61 @@ export class SpatialContextPanel extends LitElement {
   }
 
   private _updatePropertyLayout(patch: Partial<PropertyLayout>): void {
+    this._propertyHistory.record(this._propertyLayout);
     this._propertyLayout = { ...this._propertyLayout, ...patch };
     this._propertyDirty = true;
+  }
+
+  // --- undo/redo (#15) ------------------------------------------------------
+
+  /** Restores content only: the current pan/zoom stays (an undo shouldn't
+   * jump the view), and so does the floor's building link (owned by Align
+   * Floors, which clears this history anyway). */
+  private _undoRedo(direction: "undo" | "redo"): void {
+    if (this._view === "property") {
+      const current = this._propertyLayout;
+      const restored =
+        direction === "undo"
+          ? this._propertyHistory.undo(current)
+          : this._propertyHistory.redo(current);
+      if (!restored) return;
+      this._propertyLayout = { ...restored, view_box: current.view_box };
+      this._propertyDirty = true;
+      this._selectedPlacementId = null;
+      this._selectedOutdoorPinId = null;
+      this._selectedPropertyMeshLinkKey = null;
+      return;
+    }
+    const current = this._layout;
+    const restored =
+      direction === "undo"
+        ? this._floorHistory.undo(current)
+        : this._floorHistory.redo(current);
+    if (!restored) return;
+    this._layout = {
+      ...restored,
+      view_box: current.view_box,
+      building_id: current.building_id,
+    };
+    this._dirty = true;
+    // Whatever was selected or mid-edit may not exist in the restored state.
+    this._resetSelection();
+    this._pinStackIds = null;
+  }
+
+  private _onUndo = () => this._undoRedo("undo");
+  private _onRedo = () => this._undoRedo("redo");
+
+  private get _canUndo(): boolean {
+    return this._view === "property"
+      ? this._propertyHistory.canUndo
+      : this._floorHistory.canUndo;
+  }
+
+  private get _canRedo(): boolean {
+    return this._view === "property"
+      ? this._propertyHistory.canRedo
+      : this._floorHistory.canRedo;
   }
 
   private async _saveProperty(): Promise<void> {
@@ -1472,6 +1532,7 @@ export class SpatialContextPanel extends LitElement {
         return;
       }
       this._autoSaveHeld = true;
+      this._propertyHistory.record(this._propertyLayout);
       this._propertyLayout = emptyPropertyLayout();
       this._propertyDirty = true;
       this._selectedPlacementId = null;
@@ -1491,6 +1552,7 @@ export class SpatialContextPanel extends LitElement {
       return;
     }
     this._autoSaveHeld = true;
+    this._floorHistory.record(this._layout);
     this._layout = emptyFloorLayout();
     this._dirty = true;
     this._resetSelection();
@@ -1757,10 +1819,18 @@ export class SpatialContextPanel extends LitElement {
     // Undo the last point of an in-progress trace (#26): Backspace, or
     // Ctrl/Cmd+Z. Checked before Delete/Backspace's delete-selection so
     // Backspace mid-trace never deletes whatever happens to be selected.
-    const isUndo =
-      (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z";
+    const mod = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    const isUndo = mod && !e.shiftKey && key === "z";
+    const isRedo = mod && ((e.shiftKey && key === "z") || key === "y");
     if ((isUndo || e.key === "Backspace") && this._canvas?.undoLastPoint()) {
       e.preventDefault();
+      return;
+    }
+    // Otherwise Ctrl/Cmd+Z undoes the last edit itself (#15).
+    if (isUndo || isRedo) {
+      e.preventDefault();
+      this._undoRedo(isUndo ? "undo" : "redo");
       return;
     }
 
@@ -2001,6 +2071,9 @@ export class SpatialContextPanel extends LitElement {
     this._floors = await this._client.listFloors();
     this._mode = "select";
     this._resetAlignState();
+    // Alignment rewrote another floor in storage and relinked buildings —
+    // undoing past it would quietly break that link.
+    this._floorHistory.clear();
   };
 
   private _onRoomRename = () => {
@@ -2564,6 +2637,10 @@ export class SpatialContextPanel extends LitElement {
         .propertySelected=${this._view === "property"}
         .dirty=${this._view === "property" ? this._propertyDirty : this._dirty}
         .saving=${this._view === "property" ? this._propertySaving : this._saving}
+        .canUndo=${this._canUndo}
+        .canRedo=${this._canRedo}
+        @undo-click=${this._onUndo}
+        @redo-click=${this._onRedo}
         @floor-selected=${this._onFloorSelected}
         @property-selected=${this._onPropertySelected}
         @save-click=${this._onSaveClick}
