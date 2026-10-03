@@ -8,7 +8,19 @@ A Home Assistant custom integration for tracing your home's floor plans and plac
 
 ## What it does
 
-Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter/Bluetooth mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo, to see how everything relates at a glance. Your chosen pan/zoom on each tab is remembered across visits once saved.
+Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter/Bluetooth mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo, along with devices that live outdoors (garden lights, a gate sensor), to see how everything relates at a glance. Edits save automatically and can be undone, and your chosen pan/zoom on each tab is remembered across visits.
+
+## Requirements
+
+- **Home Assistant 2024.10** or newer, with your floors set up in **Settings → Areas → Floors**.
+- The **Connectivity Map** layers each need their own source — install whichever apply:
+
+| Layer | Needs |
+|---|---|
+| Zigbee | **Zigbee2MQTT**, connected to Home Assistant over MQTT (ZHA isn't supported) |
+| Wi-Fi | An integration that reports each client's access point: **UniFi Network**, **TP-Link Omada**, or the custom **TP-Link Deco** integration |
+| Matter | Home Assistant's **Matter** integration |
+| Bluetooth | **Home Assistant 2025.2** or newer, an **admin** account, and Bluetooth devices registered by an integration (BTHome, Xiaomi BLE, SwitchBot and similar); ESPHome Bluetooth proxies are supported |
 
 ## Installation
 
@@ -45,7 +57,7 @@ Copy `custom_components/spatial_context/` from this repository into your Home As
 3. **Add a background image** — **Background** icon, top-right, or just drag an image file straight onto the canvas. Starting from a PDF? See [Getting a background image](#getting-a-background-image).
 4. **Set the scale** — **Set Scale**, click two points a known distance apart. Do this before anything else; it's what puts every later measurement in real metres.
 5. **Trace rooms and walls** — **Trace Room** / **Trace Wall**. Assign each room a real HA area, each wall a material and thickness.
-6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be placed once, on one floor.
+6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be in one place: one floor, or outdoors on the Property tab.
 7. **Repeat steps 3–6 for every floor.**
 8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
 9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
@@ -87,10 +99,33 @@ While tracing a room or wall, a new point snaps onto a nearby existing wall/room
 | Icon | Name | What it does |
 |---|---|---|
 | <img src="https://api.iconify.design/mdi/image.svg?color=%23888888" width="20"> | **Background** | Upload, replace, or remove the current floor's background image, and adjust its opacity. You can also just drag an image file straight onto the canvas instead of using this menu. |
-| <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Toggle a live mesh overlay — Zigbee, Wi-Fi, Matter/Thread, or Bluetooth — drawn between your placed devices, quality-graded (LQI/RSSI where available). Off by default; picking a layer shows it — Wi-Fi and Matter load instantly, and Zigbee shows its last cached scan (hit Load/Refresh Mesh for a new one). Click any line for details on what it connects and its link quality. A link to a device on a *different* floor draws as a dashed line toward that floor (its real direction, using your Property tab placements) instead of just disappearing — click its marker to jump straight there. Closing this menu turns the overlay back off. Zigbee results are cached — a real scan only happens on an explicit Load/Refresh. By default the Zigbee layer draws each device's strongest same-floor and cross-floor link, every parent/child route, and the coordinator's direct links (LQI 50+); tick **Show all links** for the full neighbor table, like Z2M's own map. LQI isn't comparable across chipsets (some Hue bulbs report near-255 for everything; TI coordinators read low), so each device's readings are corrected for its own scale — estimated from how it and its neighbors rate the same links — and a link is graded on the weaker corrected side. Click a line to see both the corrected and raw values. The **Bluetooth** layer shows each Bluetooth LE device that Home Assistant has registered (via BTHome, Xiaomi BLE, SwitchBot and similar integrations) linked to the scanner or ESPHome proxy that hears it best, graded by signal strength (RSSI) — live, from Home Assistant's own Bluetooth data, so it needs an admin account. Place the ESPHome device of each proxy (or the adapter's device) and your BLE devices for the lines to appear. Wi-Fi links come from integrations that report each client's access point — UniFi (including clients whose tracker entity you've disabled), TP-Link Deco and TP-Link Omada. Call the `spatial_context.refresh_zigbee_mesh` action from an automation (e.g. overnight) to pre-warm that cache before you open the panel. |
+| <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Show a live network overlay — **Zigbee**, **Wi-Fi**, **Matter/Thread** or **Bluetooth** — drawn between your placed devices and coloured by link quality. Off by default; closing the menu turns it off again. See [Connectivity Map](#connectivity-map) below for what each layer shows. |
+| <img src="https://api.iconify.design/mdi/undo.svg?color=%23888888" width="20"> <img src="https://api.iconify.design/mdi/redo.svg?color=%23888888" width="20"> | **Undo / Redo** | Step back through your edits on the current floor or the Property tab (also **Ctrl/Cmd+Z** and **Ctrl/Cmd+Shift+Z**). A drag counts as one step, and even **Reset floor** can be undone. History starts fresh when you switch floors. |
 | <img src="https://api.iconify.design/mdi/content-save.svg?color=%23888888" width="20"> | **Save** | Save the current floor's (or Property tab's) layout, including whatever pan/zoom you're currently looking at — that view is restored next time you open this floor/tab. A dot badge shows when there are unsaved changes. With **Auto-save changes** on (Settings, on by default) edits save themselves a few seconds after each change, and switching floors saves first instead of asking — except after **Reset floor/property** or **remove all devices**, which wait for you to press Save. Refreshing or closing the tab with unsaved changes asks first. |
-| <img src="https://api.iconify.design/mdi/cog.svg?color=%23888888" width="20"> | **Settings** | App-wide preferences, shared by everyone who opens the panel (not per-browser), applied instantly with no Save needed: **Metric (m / cm)** or **Imperial (ft / in)** for every real-world measurement (scale calibration, wall thickness, opening width, device height), **Floor tab order** (top floor first, like HA's own Areas page, or ground floor first — display only, your floors' levels aren't touched), the **Zigbee mesh timeout** (30–600s, default 180) used by the `raw` networkmap scan above — raise it if Load/Refresh Mesh times out on a larger mesh — **Debug logging** (writes `spatial_context_debug.log` in your config folder while you reproduce a problem — capped at about 1 MB, ids and counts only), and the **Zigbee coordinator** device: by default the coordinator's links attach to the Zigbee2MQTT Bridge device; if your radio is its own HA device (e.g. an SLZB-06 network adapter) and that's what you've placed on the plan, pick it here. |
-| <img src="https://api.iconify.design/mdi/dots-vertical.svg?color=%23888888" width="20"> | **More options** | **Export** — download a denormalized JSON snapshot (floors → rooms → devices, plus outdoor devices, in real units once calibrated) for use outside Home Assistant. **Reset floor / Reset property** — clear the current floor's rooms/walls/devices/background (or, on the Property tab, every building placement and the site photo) entirely, to start over. Asks for confirmation first, and only takes effect once you also hit Save. **Download debug report** — a JSON file with versions, settings, per-floor counts and the recent debug log, safe to attach to a GitHub issue (ids and counts only, no device names or positions). |
+| <img src="https://api.iconify.design/mdi/cog.svg?color=%23888888" width="20"> | **Settings** | App-wide preferences, shared by everyone who opens the panel and applied instantly. **Editing:** **Auto-save changes** (on by default), **Units** — Metric or Imperial, for every real-world measurement (scale, wall thickness, opening width, device height) — and **Floor tab order** (top floor first, like HA's Areas page, or ground floor first; display only, your floors' levels aren't touched). **Zigbee mesh:** the **Coordinator** device — by default the coordinator's links attach to the Zigbee2MQTT Bridge device; if your radio is its own HA device (e.g. an SLZB-06 network adapter) and that's what you've placed, pick it here — and the **Scan timeout** (30–600 s, default 180; raise it if Load Mesh times out on a large mesh). **Troubleshooting:** **Debug logging** — see [Reporting a problem](#reporting-a-problem). |
+| <img src="https://api.iconify.design/mdi/dots-vertical.svg?color=%23888888" width="20"> | **More options** | **Export JSON** — download a denormalized snapshot (floors → rooms → devices, plus outdoor devices, in real units once calibrated) for use outside Home Assistant. **Download debug report** — see [Reporting a problem](#reporting-a-problem). **Reset floor / Reset property** — clear the current floor's rooms, walls, devices and background (or, on the Property tab, every building placement, outdoor device and the site photo) to start over. Asks first, can be undone, and isn't saved until you press **Save** — even with auto-save on. |
+
+## Connectivity Map
+
+Pick a layer from the **Connectivity Map** menu (header, top-right) to draw that network's links between your placed devices, coloured weak → strong. Click any line for what it connects and its signal figures.
+
+- **Zigbee** — from Zigbee2MQTT's network scan. Scans take a minute or two, so results are cached: picking the layer shows the last scan, and **Load / Refresh Mesh** runs a new one. Call the `spatial_context.refresh_zigbee_mesh` action from an automation (overnight, say) to keep that cache warm. By default it draws each device's strongest link on its own floor and to other floors, every parent/child route, and the coordinator's direct links (LQI 50+); tick **Show all links** for the full neighbour table, like Z2M's own map. LQI isn't comparable between chipsets (some Hue bulbs report near 255 for everything; TI coordinators read low), so each device's readings are corrected for its own scale — worked out from how it and its neighbours rate the same links — and a link is graded on its weaker side. The link details show both the corrected and raw values.
+- **Wi-Fi** — each client linked to its access point, with signal strength where available. Works with UniFi Network (including clients whose tracker entity is disabled), TP-Link Omada and the custom TP-Link Deco integration.
+- **Matter / Thread** — Home Assistant's own Matter network topology, updating live.
+- **Bluetooth** — each Bluetooth LE device Home Assistant has registered, linked to the scanner or ESPHome proxy that hears it best, graded by RSSI. Updates live from Home Assistant's own Bluetooth data (the same as **Settings → Bluetooth → Visualization**). Place each proxy's ESPHome device and your BLE devices for the lines to appear.
+
+**Across floors and outdoors:** a link to a device on another floor draws as a dashed line toward that device's real position, with a marker you can click to jump to that floor (separate buildings use their Property tab placements for direction). Links to devices placed outdoors work the same way, labelled **Outside**, and the Property tab shows every link with an outdoor end.
+
+## Using it with AI assistants and automations
+
+- **`spatial_context.get_map`** returns the whole layout — floors, rooms, walls with their materials and signal loss, and every placed device (indoor and outdoor) with its position in real units — as the action's response. It's the same data as **Export JSON**, so an AI assistant or script can reason about where things physically are.
+- **`spatial_context.refresh_zigbee_mesh`** runs a fresh Zigbee scan (a minute or two) and caches the result, so the panel's Zigbee layer opens instantly — handy as a nightly automation.
+
+## Reporting a problem
+
+1. Turn on **Settings → Debug logging**, then reproduce the problem. The panel records what it does (loads, saves, errors, map loads) to `spatial_context_debug.log` in your Home Assistant config folder, capped at about 1 MB.
+2. Use **More options → Download debug report** and attach the file to a [GitHub issue](https://github.com/Greminn/ha-spatial-context/issues). It contains versions, settings, per-floor counts and the recent log — ids and counts only, never device names or positions.
+3. Turn Debug logging off again afterwards.
 
 ## After updating
 
@@ -121,7 +156,11 @@ The Property tab is a separate, whole-property view — upload a site/aerial pho
 
 ## Development (frontend)
 
-The panel is built from `frontend/` (Lit + TypeScript) into a single bundle at `custom_components/spatial_context/www/spatial-context-panel.js`, which is committed — HACS and a manual copy both install this repo as-is with no build step, so that file has to already be there and up to date with the source.
+The panel is built from `frontend/` (Lit + TypeScript) into `custom_components/spatial_context/www/`, and the output is committed — HACS and a manual copy both install this repo as-is with no build step, so the built files have to already be there and up to date with the source. A build writes three files that always go together:
+
+- `spatial-context-panel.js` — the panel itself.
+- `spatial-context-panel.build.json` — its build id, which the panel's update check compares against.
+- `mdi-index.json` — the icon picker's search index.
 
 To change the frontend:
 
@@ -131,9 +170,9 @@ npm install
 npm run build
 ```
 
-Then get that one built file onto your HA instance, however you can reach its config directory — copy it over Samba, use the File editor/Studio Code Server add-on, `scp`/`rsync` if you have SSH, or whatever else applies to your setup. A hard browser refresh picks it up immediately (no HA restart needed, since it's served from its own static path, not a versioned Lovelace resource).
+Then copy all three files onto your HA instance's `custom_components/spatial_context/www/`, however you can reach its config directory — Samba, the File editor/Studio Code Server add-on, `scp`/`rsync` over SSH, or whatever applies to your setup. A browser reload picks up the new panel (it's served with `Cache-Control: no-cache`). Changes to the Python side (`custom_components/spatial_context/*.py`) need a Home Assistant restart.
 
-If you *do* have SSH access to your HA host, `frontend/scripts/dev/push.mjs` (via `npm run push` / `npm run dev`) automates that last step — rsyncs the bundle over on every build, optionally watching for changes. It's purely a convenience for that one setup, not a requirement; copy `frontend/.env.example` to `frontend/.env` and fill in `HA_HOST`/`HA_DEV_PATH` to use it.
+If you *do* have SSH access to your HA host, `frontend/scripts/dev/push.mjs` (via `npm run push` / `npm run dev`) automates that last step — rsyncs all three build files over on every build, optionally watching for changes. It's purely a convenience for that one setup, not a requirement; copy `frontend/.env.example` to `frontend/.env` and fill in `HA_HOST`/`HA_DEV_PATH` to use it.
 
 ## Status
 

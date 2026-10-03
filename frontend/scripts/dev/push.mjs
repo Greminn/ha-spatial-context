@@ -31,11 +31,21 @@ const FRONTEND_ROOT = resolve(
   "..",
   "..",
 );
-const BUNDLE_PATH = resolve(
+const WWW_DIR = resolve(
   FRONTEND_ROOT,
   "..",
-  "custom_components/spatial_context/www/spatial-context-panel.js",
+  "custom_components/spatial_context/www",
 );
+const BUNDLE_PATH = resolve(WWW_DIR, "spatial-context-panel.js");
+// Everything a build writes, copied together: the build id must match the
+// bundle (the panel's version check compares them — a bundle without its
+// build id shows a false "reload" banner), and the icon picker's search
+// index is regenerated every build.
+const BUILD_OUTPUTS = [
+  BUNDLE_PATH,
+  resolve(WWW_DIR, "spatial-context-panel.build.json"),
+  resolve(WWW_DIR, "mdi-index.json"),
+];
 
 const { HA_HOST, HA_DEV_PATH } = process.env;
 
@@ -48,7 +58,7 @@ if (!HA_HOST || !HA_DEV_PATH) {
       "         HA_DEV_PATH=/config/custom_components/spatial_context/www/",
       "",
       "       No SSH access to your HA host? Skip this script — just copy",
-      "       spatial-context-panel.js onto HA yourself (Samba, the File",
+      "       the www/ build outputs onto HA yourself (Samba, the File",
       "       editor add-on, etc.). See the README's Development section.",
     ].join("\n"),
   );
@@ -64,7 +74,7 @@ const watchMode = process.argv.includes("--watch");
 const target = `${HA_HOST}:${HA_DEV_PATH}`;
 
 function rsyncOnce({ verbose } = { verbose: false }) {
-  const args = [verbose ? "-av" : "-a", BUNDLE_PATH, target];
+  const args = [verbose ? "-av" : "-a", ...BUILD_OUTPUTS, target];
   const result = spawnSync("rsync", args, { stdio: "inherit" });
   if (result.error?.code === "ENOENT") {
     console.error("[push] rsync not found on PATH. Install rsync and retry.");

@@ -1995,10 +1995,14 @@ export class SpatialContextPanel extends LitElement {
     this._bluetoothError = null;
     this._bluetoothBuffer = new Map();
     this._bluetoothAdverts = new Map();
+    let coreStream = false;
     try {
       this._bluetoothDevices = (
         await this._client.getBluetoothDevices()
       ).devices;
+      // Past this point an unknown command is HA core's own (the stream
+      // arrived in HA 2025.2), not ours — so it's HA that's too old.
+      coreStream = true;
       this._bluetoothUnsubscribe =
         await this._client.subscribeBluetoothAdvertisements((event) => {
           for (const advert of event.add ?? []) {
@@ -2028,10 +2032,10 @@ export class SpatialContextPanel extends LitElement {
       }, 300);
     } catch (err) {
       // HA allows the advertisement stream for admins only.
-      this._bluetoothError = this._meshErrorMessage(
-        err,
-        "Bluetooth subscription failed",
-      );
+      this._bluetoothError =
+        coreStream && (err as { code?: string })?.code === "unknown_command"
+          ? "The Bluetooth map needs Home Assistant 2025.2 or newer."
+          : this._meshErrorMessage(err, "Bluetooth subscription failed");
       debugLog.log("mesh_error", {
         network: "bluetooth",
         error: this._bluetoothError,
