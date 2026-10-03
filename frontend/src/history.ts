@@ -51,6 +51,16 @@ export class EditHistory<T> {
     return next;
   }
 
+  /** Forgets the most recent undo step if it's exactly `state` — for an
+   * edit that was cancelled and put back, so it doesn't leave a step that
+   * undoes nothing. */
+  discardIfLast(state: T): void {
+    if (this._past[this._past.length - 1] === state) {
+      this._past.pop();
+      this._lastRecordAt = Number.NEGATIVE_INFINITY;
+    }
+  }
+
   clear(): void {
     this._past = [];
     this._future = [];

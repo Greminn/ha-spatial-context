@@ -241,6 +241,8 @@ export class PropertyCanvas extends LitElement {
   private _moved = false;
   private _resizeObserver?: ResizeObserver;
   private _pinIcons = new PinIconResolver(this);
+  /** Set by Esc mid-drag (cancelGesture): the rest of the press is ignored. */
+  private _gestureCancelled = false;
   private _hasFittedOnce = false;
 
   override firstUpdated(): void {
@@ -552,6 +554,7 @@ export class PropertyCanvas extends LitElement {
     }
 
     if (this._pointers.size !== 1 || !this._downClient) return;
+    if (this._gestureCancelled) return;
 
     if (!this._moved) {
       const movedPx = distance(
@@ -563,7 +566,13 @@ export class PropertyCanvas extends LitElement {
       if (movedPx < CLICK_MOVE_THRESHOLD_PX) return;
       this._moved = true;
       this._gesture = this._lockGesture();
-      if (this._gesture?.kind === "pan") this._svg.style.cursor = "grabbing";
+      if (this._gesture?.kind === "pan") {
+        this._svg.style.cursor = "grabbing";
+      } else if (this._gesture) {
+        // The panel snapshots the layout here, for Esc to restore — these
+        // drags update the layout as they go (see cancelGesture).
+        this._fire("property-gesture-start");
+      }
     }
 
     const scale = this._svgTransform().scale || 1;
@@ -664,7 +673,7 @@ export class PropertyCanvas extends LitElement {
       return;
     }
 
-    if (!this._moved && this._downClient) {
+    if (!this._moved && this._downClient && !this._gestureCancelled) {
       this._handleClick();
     }
 
@@ -672,7 +681,22 @@ export class PropertyCanvas extends LitElement {
     this._downHit = null;
     this._downClient = null;
     this._moved = false;
+    this._gestureCancelled = false;
   };
+
+  /** Esc mid-drag of a building or outdoor device: stops the drag and
+   * returns true; the panel restores the layout it snapshotted when the
+   * drag started ("property-gesture-start"). */
+  cancelGesture(): boolean {
+    const kind = this._gesture?.kind;
+    if (!this._moved || !kind || kind === "pan" || kind === "pinch") {
+      return false;
+    }
+    this._gesture = null;
+    this._gestureCancelled = true;
+    this._svg.style.cursor = "";
+    return true;
+  }
 
   private _handleClick(): void {
     if (this.mode === "place" || this.mode === "place-pin") {

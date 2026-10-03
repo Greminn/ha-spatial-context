@@ -7,7 +7,6 @@ import type {
   ContentBounds,
   FloorLayout,
   FloorMeta,
-  FloorOrder,
   HomeAssistant,
   MatterNetworkTopology,
   NetworkType,
@@ -23,7 +22,6 @@ import type {
   ResolvedMeshStub,
   Room,
   Settings,
-  UnitSystem,
   VersionInfo,
   Wall,
   WifiMesh,
@@ -75,6 +73,8 @@ import "./views/canvas-overlay";
 import "./views/icon-popover";
 import "./views/entity-picker-sidebar";
 import "./views/property-overlay";
+import "./views/icon-picker-dialog";
+import "./views/settings-menu";
 import type { PropertyBuilding } from "./views/property-overlay";
 
 @safeCustomElement("spatial-context-panel")
@@ -243,6 +243,11 @@ export class SpatialContextPanel extends LitElement {
    * A failed save used to fail silently (only the dirty dot stayed on),
    * which with auto-save meant work could quietly never be stored. */
   @state() private _saveError: string | null = null;
+  /** Which pin's icon the icon picker (#17) is choosing, or null when closed. */
+  @state() private _iconPickerFor: {
+    kind: "floor" | "outdoor";
+    pinId: string;
+  } | null = null;
   /** Version handshake result (see debug.py): the browser is running an
    * older panel than the one installed ("reload"), or HA hasn't restarted
    * since an update ("restart"). Null when everything matches. */
@@ -257,6 +262,9 @@ export class SpatialContextPanel extends LitElement {
   /** Undo/redo (#15) — the open floor's and the Property tab's, separately. */
   private _floorHistory = new EditHistory<FloorLayout>();
   private _propertyHistory = new EditHistory<PropertyLayout>();
+  /** The Property layout as it was when the current drag started — what
+   * Esc restores (see property-canvas.ts's cancelGesture). */
+  private _propertyDragStart: PropertyLayout | null = null;
   @state() private _propertySaving = false;
   @state() private _selectedPlacementId: string | null = null;
   @state() private _propertyMode: "select" | "place" | "place-pin" = "select";
@@ -1310,13 +1318,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _onOutdoorPinIcon = () => {
     const pin = this._selectedOutdoorPin;
-    if (!pin) return;
-    const icon = window.prompt(
-      "Icon override (e.g. mdi:outdoor-lamp — blank to clear):",
-      pin.icon_override ?? "",
-    );
-    if (icon === null) return;
-    this._patchOutdoorPin(pin.id, { icon_override: icon.trim() || null });
+    if (pin) this._iconPickerFor = { kind: "outdoor", pinId: pin.id };
   };
 
   private _onOutdoorPinDelete = () => {
@@ -1578,19 +1580,6 @@ export class SpatialContextPanel extends LitElement {
     if (document.visibilityState === "visible") void this._checkVersion();
   };
 
-  private _onDebugLoggingToggle = (e: Event) => {
-    const debug_logging = (e.target as HTMLInputElement).checked;
-    this._settings = { ...this._settings, debug_logging };
-    void this._client.saveSettings(this._settings).then(() => {
-      debugLog.configure(this._client, debug_logging);
-      debugLog.log("debug_logging_on", {
-        panel_version: __VERSION__,
-        panel_build: __BUILD_ID__,
-        user_agent: navigator.userAgent,
-      });
-    });
-  };
-
   private async _downloadDebugReport(): Promise<void> {
     await debugLog.flush();
     const report = await this._client.getDebugReport();
@@ -1781,52 +1770,30 @@ export class SpatialContextPanel extends LitElement {
     this._settingsPopoverOpen = false;
   };
 
-  /** Instant-apply, no dirty-tracking — this is a small shared app-wide
-   * preference (see types.ts's Settings), not floor/property content, so
-   * it persists the moment you pick it rather than waiting for Save. */
-  private _onUnitSystemSelect = (system: UnitSystem) => {
-    this._settingsPopoverOpen = false;
-    if (this._settings.unit_system === system) return;
-    this._settings = { ...this._settings, unit_system: system };
-    void this._client.saveSettings(this._settings);
-  };
-
-  /** Same instant-apply pattern as _onUnitSystemSelect. The current floor
-   * stays selected — only the tab order changes. */
-  private _onFloorOrderSelect = (floor_order: FloorOrder) => {
-    this._settingsPopoverOpen = false;
-    if (this._settings.floor_order === floor_order) return;
-    this._settings = { ...this._settings, floor_order };
-    void this._client.saveSettings(this._settings);
-  };
-
-  private _onAutoSaveToggle = (e: Event) => {
-    const auto_save = (e.target as HTMLInputElement).checked;
-    this._settings = { ...this._settings, auto_save };
-    void this._client.saveSettings(this._settings);
-    this._scheduleAutoSave();
-  };
-
-  private _onCoordinatorDeviceChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
-    this._settings = {
-      ...this._settings,
-      zigbee_coordinator_device_id: value || null,
-    };
-    this._selectedMeshLink = null;
-    this._selectedMeshStub = null;
-    void this._client.saveSettings(this._settings);
-  };
-
-  /** Same instant-apply pattern as _onUnitSystemSelect. Clamped to the
-   * backend schema's own range (30-600s) before saving, so an out-of-range
-   * value never round-trips into a rejected save. */
-  private _onZigbeeTimeoutChange = (e: Event) => {
-    const raw = Number((e.target as HTMLInputElement).value);
-    if (!Number.isFinite(raw)) return;
-    const zigbee_timeout_seconds = Math.min(600, Math.max(30, Math.round(raw)));
-    this._settings = { ...this._settings, zigbee_timeout_seconds };
-    void this._client.saveSettings(this._settings);
+  /** Every Settings change (see views/settings-menu.ts). Instant-apply, no
+   * dirty-tracking — settings are small shared app-wide preferences, not
+   * floor/property content, so they persist the moment they change. The
+   * menu stays open, so several can be adjusted in one go. */
+  private _onSettingsChange = (e: CustomEvent<Partial<Settings>>) => {
+    const patch = e.detail;
+    this._settings = { ...this._settings, ...patch };
+    const saved = this._client.saveSettings(this._settings);
+    if ("auto_save" in patch) this._scheduleAutoSave();
+    if ("zigbee_coordinator_device_id" in patch) {
+      this._selectedMeshLink = null;
+      this._selectedMeshStub = null;
+    }
+    if ("debug_logging" in patch) {
+      const enabled = !!patch.debug_logging;
+      void saved.then(() => {
+        debugLog.configure(this._client, enabled);
+        debugLog.log("debug_logging_on", {
+          panel_version: __VERSION__,
+          panel_build: __BUILD_ID__,
+          user_agent: navigator.userAgent,
+        });
+      });
+    }
   };
 
   // Picking a layer shows it straight away wherever that's cheap: Wi-Fi is
@@ -2015,9 +1982,21 @@ export class SpatialContextPanel extends LitElement {
    * trace, armed placement mode), never a persisted selection. */
   private _onKeyDown = (e: KeyboardEvent): void => {
     if (this._isTypingTarget()) return;
+    // The icon picker handles its own keys; nothing behind it should react.
+    if (this._iconPickerFor) return;
 
     if (e.key === "Escape") {
       e.preventDefault();
+      // Mid-drag, Esc only puts the dragged thing back.
+      if (this._view === "floor" && this._canvas?.cancelGesture()) return;
+      if (this._view === "property" && this._propertyCanvas?.cancelGesture()) {
+        if (this._propertyDragStart) {
+          this._propertyHistory.discardIfLast(this._propertyDragStart);
+          this._propertyLayout = this._propertyDragStart;
+          this._propertyDragStart = null;
+        }
+        return;
+      }
       this._onCancelPending();
       this._mode = "select";
       this._armedEntityId = null;
@@ -2426,13 +2405,29 @@ export class SpatialContextPanel extends LitElement {
 
   private _onPinSetIcon = () => {
     const pin = this._selectedPin;
-    if (!pin) return;
-    const icon = window.prompt(
-      "Icon override, e.g. mdi:motion-sensor (blank to clear):",
-      pin.icon_override ?? "",
-    );
-    if (icon === null) return;
-    this._patchPin(pin.id, { icon_override: icon || null });
+    if (pin) this._iconPickerFor = { kind: "floor", pinId: pin.id };
+  };
+
+  /** The pin the icon picker is open for, from whichever layout it's in. */
+  private get _iconPickerPin(): Pin | null {
+    const target = this._iconPickerFor;
+    if (!target) return null;
+    const pins =
+      target.kind === "floor" ? this._layout.pins : this._propertyLayout.pins;
+    return pins.find((p) => p.id === target.pinId) ?? null;
+  }
+
+  private _onIconPicked = (e: CustomEvent<{ icon: string | null }>) => {
+    const target = this._iconPickerFor;
+    this._iconPickerFor = null;
+    if (!target) return;
+    const patch = { icon_override: e.detail.icon };
+    if (target.kind === "floor") this._patchPin(target.pinId, patch);
+    else this._patchOutdoorPin(target.pinId, patch);
+  };
+
+  private _onIconPickerCancel = () => {
+    this._iconPickerFor = null;
   };
 
   private _onPinSetHeight = () => {
@@ -3059,110 +3054,11 @@ export class SpatialContextPanel extends LitElement {
           .open=${this._settingsPopoverOpen}
           @toggle=${this._onToggleSettingsPopover}
         >
-          <label class="popover-row hint" style="padding: 8px 16px 4px">
-            <input
-              type="checkbox"
-              .checked=${this._settings.auto_save}
-              @change=${this._onAutoSaveToggle}
-            />
-            Auto-save changes
-          </label>
-          <label
-            class="popover-row hint"
-            style="padding: 4px 16px"
-            title="Writes spatial_context_debug.log in your Home Assistant config folder — ids and counts only, no device names or positions."
-          >
-            <input
-              type="checkbox"
-              .checked=${this._settings.debug_logging}
-              @change=${this._onDebugLoggingToggle}
-            />
-            Debug logging
-          </label>
-          <span class="popover-row hint" style="padding: 8px 16px 4px"
-            >Units</span
-          >
-          <button
-            class="menu-item ${this._settings.unit_system === "metric" ? "active" : ""}"
-            @click=${() => this._onUnitSystemSelect("metric")}
-          >
-            <ha-icon icon="mdi:ruler"></ha-icon> Metric (m / cm)
-          </button>
-          <button
-            class="menu-item ${this._settings.unit_system === "imperial" ? "active" : ""}"
-            @click=${() => this._onUnitSystemSelect("imperial")}
-          >
-            <ha-icon icon="mdi:ruler"></ha-icon> Imperial (ft / in)
-          </button>
-          <span class="popover-row hint" style="padding: 8px 16px 4px"
-            >Floor tab order</span
-          >
-          <button
-            class="menu-item ${this._settings.floor_order !== "ground_up" ? "active" : ""}"
-            @click=${() => this._onFloorOrderSelect("top_down")}
-          >
-            <ha-icon icon="mdi:sort-numeric-descending"></ha-icon> Top floor
-            first
-          </button>
-          <button
-            class="menu-item ${this._settings.floor_order === "ground_up" ? "active" : ""}"
-            @click=${() => this._onFloorOrderSelect("ground_up")}
-          >
-            <ha-icon icon="mdi:sort-numeric-ascending"></ha-icon> Ground floor
-            first
-          </button>
-          <span class="popover-row hint" style="padding: 8px 16px 4px"
-            >Zigbee mesh</span
-          >
-          <label class="popover-row hint" style="padding: 4px 16px"
-            >Coordinator
-            <select @change=${this._onCoordinatorDeviceChange}>
-              <option
-                value=""
-                ?selected=${!this._settings.zigbee_coordinator_device_id}
-              >
-                Zigbee2MQTT Bridge (default)
-              </option>
-              ${
-                // Keep a saved choice visible even once its pin is removed,
-                // rather than the select silently showing the default.
-                this._settings.zigbee_coordinator_device_id &&
-                !this._placedDeviceChoices.some(
-                  (c) =>
-                    c.deviceId === this._settings.zigbee_coordinator_device_id,
-                )
-                  ? html`<option
-                      value=${this._settings.zigbee_coordinator_device_id}
-                      selected
-                    >
-                      (device not placed)
-                    </option>`
-                  : nothing
-              }
-              ${this._placedDeviceChoices.map(
-                ({ deviceId, label }) =>
-                  html`<option
-                    value=${deviceId}
-                    ?selected=${
-                      deviceId === this._settings.zigbee_coordinator_device_id
-                    }
-                  >
-                    ${label}
-                  </option>`,
-              )}
-            </select>
-          </label>
-          <label class="popover-row hint" style="padding: 4px 16px 8px"
-            >Timeout (seconds)
-            <input
-              type="number"
-              min="30"
-              max="600"
-              step="10"
-              .value=${String(this._settings.zigbee_timeout_seconds)}
-              @change=${this._onZigbeeTimeoutChange}
-            />
-          </label>
+          <settings-menu
+            .settings=${this._settings}
+            .coordinatorChoices=${this._placedDeviceChoices}
+            @settings-change=${this._onSettingsChange}
+          ></settings-menu>
         </icon-popover>
         <icon-popover
           slot="end"
@@ -3262,6 +3158,8 @@ export class SpatialContextPanel extends LitElement {
                     .meshLinks=${this._propertyMeshLinks}
                     .selectedMeshLinkKey=${this._selectedPropertyMeshLinkKey}
                     @outdoor-pin-place=${this._onOutdoorPinPlace}
+                    @property-gesture-start=${() =>
+                      (this._propertyDragStart = this._propertyLayout)}
                     @outdoor-pin-move=${this._onOutdoorPinMove}
                     @outdoor-pin-select=${this._onOutdoorPinSelect}
                     @property-mesh-link-select=${this._onPropertyMeshLinkSelect}
@@ -3446,6 +3344,16 @@ export class SpatialContextPanel extends LitElement {
               `
         }
       </div>
+      ${
+        this._iconPickerPin
+          ? html`<icon-picker-dialog
+              .value=${this._iconPickerPin.icon_override ?? null}
+              .suggestFrom=${this._pinLabel(this._iconPickerPin)}
+              @icon-picked=${this._onIconPicked}
+              @icon-picker-cancel=${this._onIconPickerCancel}
+            ></icon-picker-dialog>`
+          : nothing
+      }
     `;
   }
 }

@@ -153,7 +153,65 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
                 )
 
     links.extend(_omada_links(hass, mac_to_device_ids, links))
+    links.extend(_unifi_client_links(hass, mac_to_device_ids, links))
     return {"links": links}
+
+
+def _unifi_client_links(
+    hass: HomeAssistant,
+    mac_to_device_ids: dict[str, list[str]],
+    existing: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Client→AP links for UniFi clients whose device_tracker is disabled.
+
+    The attribute loop above only sees *enabled* trackers — a disabled
+    entity has no state, so its `ap_mac` is invisible (seen live: two ESP
+    devices with no Wi-Fi link for exactly that reason). The UniFi
+    integration still polls every connected client regardless of which
+    entities are enabled, in its hub's `api.clients` (aiounifi).
+
+    Same caveat as `_omada_links`: integration internals, not a public API,
+    so everything is getattr-guarded and degrades to zero extra links.
+    Deduplicated against links already found.
+    """
+    seen = {(link["source_device_id"], link["target_device_id"]) for link in existing}
+    links: list[dict[str, Any]] = []
+    for entry in hass.config_entries.async_entries("unifi"):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
+        api = getattr(getattr(entry, "runtime_data", None), "api", None)
+        clients = getattr(api, "clients", None)
+        values = getattr(clients, "values", None)
+        if not callable(values):
+            continue
+        try:
+            client_list = list(values())
+        except Exception:  # noqa: BLE001 - internals may change shape; never break the Wi-Fi layer
+            continue
+        for client in client_list:
+            if getattr(client, "is_wired", False):
+                continue
+            client_mac = getattr(client, "mac", None)
+            ap_mac = getattr(client, "ap_mac", None)
+            if not client_mac or not ap_mac:
+                continue
+            # UniFi's `signal` is dBm (negative); its `rssi` is a positive
+            # margin over noise, so only `signal` maps onto our dBm scale.
+            signal = getattr(client, "signal", None)
+            rssi_dbm = signal if isinstance(signal, (int, float)) and signal < 0 else None
+            for client_device_id in mac_to_device_ids.get(dr.format_mac(client_mac), []):
+                for ap_device_id in mac_to_device_ids.get(dr.format_mac(ap_mac), []):
+                    if (client_device_id, ap_device_id) in seen:
+                        continue
+                    seen.add((client_device_id, ap_device_id))
+                    links.append(
+                        {
+                            "source_device_id": client_device_id,
+                            "target_device_id": ap_device_id,
+                            "rssi_dbm": rssi_dbm,
+                        }
+                    )
+    return links
 
 
 def _omada_links(

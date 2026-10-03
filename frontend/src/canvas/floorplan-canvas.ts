@@ -201,6 +201,14 @@ export class FloorplanCanvas extends LitElement {
         stroke: var(--sc-bg);
         stroke-width: 3px;
       }
+      .room-ghost {
+        fill: none;
+        stroke: var(--sc-fg-secondary);
+        stroke-width: 2;
+        stroke-dasharray: 6 4;
+        opacity: 0.7;
+        pointer-events: none;
+      }
       /* A selected room can be dragged whole (see the "roomMove" gesture). */
       svg:not(.pan-mode):not(.draw-mode) .room-poly.selected {
         cursor: move;
@@ -432,6 +440,17 @@ export class FloorplanCanvas extends LitElement {
     dx: number;
     dy: number;
   } | null = null;
+  /** Alignment guides while a room is dragged: the x and/or y its edge
+   * snapped to (another room's or a wall's corner), drawn as axis guides. */
+  @state() private _roomMoveGuides: { x: number | null; y: number | null } = {
+    x: null,
+    y: null,
+  };
+  /** Set by Esc mid-drag (cancelGesture): the rest of that pointer press is
+   * ignored and nothing is committed. */
+  private _gestureCancelled = false;
+  /** A dragged corner's outline before the drag, for Esc to restore. */
+  private _vertexDragStartPoints: [number, number][] | null = null;
   @state() private _liveDragPin: { id: string; x: number; y: number } | null =
     null;
   @state() private _liveOpeningEdit: {
@@ -1035,6 +1054,7 @@ export class FloorplanCanvas extends LitElement {
 
     if (this._pointers.size !== 1 || !this._downClient || !this._lastImage)
       return;
+    if (this._gestureCancelled) return;
 
     if (!this._moved) {
       const movedPx = distance(
@@ -1090,11 +1110,26 @@ export class FloorplanCanvas extends LitElement {
     } else if (this._gesture?.kind === "pin") {
       this._liveDragPin = { id: this._gesture.pinId, x: image.x, y: image.y };
     } else if (this._gesture?.kind === "roomMove") {
-      this._liveRoomMove = {
-        id: this._gesture.roomId,
-        dx: image.x - this._gesture.startX,
-        dy: image.y - this._gesture.startY,
-      };
+      let dx = image.x - this._gesture.startX;
+      let dy = image.y - this._gesture.startY;
+      const snapR = this._pxToUnits(SNAP_THRESHOLD_PX);
+      let guides: { x: number | null; y: number | null } = { x: null, y: null };
+      // Brought back near where it started, it snaps exactly home — so a
+      // room traced against its walls can be put back without a stray
+      // offset.
+      if (Math.hypot(dx, dy) <= snapR) {
+        dx = 0;
+        dy = 0;
+      } else if (!e.shiftKey) {
+        // Otherwise its corners line up with other rooms' and walls'
+        // corners, independently in x and y (Shift drags freely).
+        const snapped = this._snapRoomMove(this._gesture.roomId, dx, dy, snapR);
+        dx = snapped.dx;
+        dy = snapped.dy;
+        guides = snapped.guides;
+      }
+      this._liveRoomMove = { id: this._gesture.roomId, dx, dy };
+      this._roomMoveGuides = guides;
     } else if (this._gesture?.kind === "roomLabel") {
       this._liveRoomLabel = {
         id: this._gesture.roomId,
@@ -1160,8 +1195,12 @@ export class FloorplanCanvas extends LitElement {
     // generic pan fallback below would otherwise win here too, since
     // _downHit is always "empty" in any non-select mode).
     if (this.mode === "align") return { kind: "alignDrag" };
-    if (this._downHit?.type === "vertex")
+    if (this._downHit?.type === "vertex") {
+      this._vertexDragStartPoints = this._liveEditPoints
+        ? [...this._liveEditPoints]
+        : null;
       return { kind: "vertex", index: this._downHit.index };
+    }
     if (this._downHit?.type === "pin")
       return { kind: "pin", pinId: this._downHit.pin.id };
     if (this._downHit?.type === "roomLabel")
@@ -1213,7 +1252,9 @@ export class FloorplanCanvas extends LitElement {
       return;
     }
 
-    if (this._moved) {
+    if (this._gestureCancelled) {
+      // Esc already put everything back — this release does nothing.
+    } else if (this._moved) {
       this._commitGesture();
     } else if (this._downClient) {
       this._handleClick(this._downClient.x, this._downClient.y, e.shiftKey);
@@ -1223,6 +1264,8 @@ export class FloorplanCanvas extends LitElement {
     this._downHit = null;
     this._downClient = null;
     this._moved = false;
+    this._gestureCancelled = false;
+    this._vertexDragStartPoints = null;
   };
 
   private _dispatchVertexChanged(points: [number, number][]): void {
@@ -1255,6 +1298,13 @@ export class FloorplanCanvas extends LitElement {
       );
       this._liveDragPin = null;
     } else if (this._gesture?.kind === "roomMove" && this._liveRoomMove) {
+      const { dx, dy } = this._liveRoomMove;
+      this._roomMoveGuides = { x: null, y: null };
+      // Dropped back where it started: nothing changed, so no undo step.
+      if (dx === 0 && dy === 0) {
+        this._liveRoomMove = null;
+        return;
+      }
       this.dispatchEvent(
         new CustomEvent("room-move", {
           detail: {
@@ -1531,6 +1581,83 @@ export class FloorplanCanvas extends LitElement {
     this._pendingTrace = null;
   }
 
+  /** Esc mid-drag: puts whatever is being dragged (a room, a device, a
+   * room's label, a corner, a door/window) back where it was and ignores
+   * the rest of the press, so nothing is committed or recorded for undo.
+   * Returns whether there was a drag to cancel. */
+  cancelGesture(): boolean {
+    const kind = this._gesture?.kind;
+    if (
+      !this._moved ||
+      !kind ||
+      kind === "pan" ||
+      kind === "pinch" ||
+      kind === "alignDrag"
+    ) {
+      return false;
+    }
+    if (kind === "vertex" && this._vertexDragStartPoints) {
+      this._liveEditPoints = this._vertexDragStartPoints;
+    }
+    this._liveRoomMove = null;
+    this._roomMoveGuides = { x: null, y: null };
+    this._liveDragPin = null;
+    this._liveRoomLabel = null;
+    this._liveOpeningEdit = null;
+    this._gesture = null;
+    this._gestureCancelled = true;
+    this._svg.style.cursor = "";
+    return true;
+  }
+
+  /** A dragged room's offset adjusted so one of its corners lines up —
+   * separately in x and y — with a corner of another room or a wall,
+   * whichever is nearest within `radius`. */
+  private _snapRoomMove(
+    roomId: string,
+    dx: number,
+    dy: number,
+    radius: number,
+  ): {
+    dx: number;
+    dy: number;
+    guides: { x: number | null; y: number | null };
+  } {
+    const room = this.rooms.find((r) => r.id === roomId);
+    if (!room) return { dx, dy, guides: { x: null, y: null } };
+    const targets: [number, number][] = [
+      ...this.rooms.filter((r) => r.id !== roomId).flatMap((r) => r.points),
+      ...this.walls.flatMap((w) => w.points),
+    ];
+    let bestX: { delta: number; at: number } | null = null;
+    let bestY: { delta: number; at: number } | null = null;
+    for (const [vx, vy] of room.points) {
+      const mx = vx + dx;
+      const my = vy + dy;
+      for (const [tx, ty] of targets) {
+        const ddx = tx - mx;
+        if (
+          Math.abs(ddx) <= radius &&
+          (!bestX || Math.abs(ddx) < Math.abs(bestX.delta))
+        ) {
+          bestX = { delta: ddx, at: tx };
+        }
+        const ddy = ty - my;
+        if (
+          Math.abs(ddy) <= radius &&
+          (!bestY || Math.abs(ddy) < Math.abs(bestY.delta))
+        ) {
+          bestY = { delta: ddy, at: ty };
+        }
+      }
+    }
+    return {
+      dx: dx + (bestX?.delta ?? 0),
+      dy: dy + (bestY?.delta ?? 0),
+      guides: { x: bestX?.at ?? null, y: bestY?.at ?? null },
+    };
+  }
+
   /** Drops the last point of an in-progress room/wall trace or scale
    * calibration (#26) — a misplaced click no longer means redrawing the
    * whole shape. Removing the only point ends the trace. Returns whether
@@ -1664,7 +1791,19 @@ export class FloorplanCanvas extends LitElement {
     const fillOpacity = room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY;
     const borderOpacity = room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY;
 
+    // While the room is being dragged: a dashed outline of where it
+    // started, the spot it snaps back to.
+    const move = this._liveRoomMove?.id === room.id ? this._liveRoomMove : null;
+    const ghost =
+      move && (move.dx !== 0 || move.dy !== 0)
+        ? svg`<polygon
+            class="room-ghost"
+            points=${room.points.map(([x, y]) => `${x},${y}`).join(" ")}
+          ></polygon>`
+        : nothing;
+
     return svg`
+      ${ghost}
       <polygon
         class="room-poly ${isSelected ? "selected" : ""}"
         points=${pointsAttr}
@@ -1737,15 +1876,29 @@ export class FloorplanCanvas extends LitElement {
     `;
   }
 
+  /** Where a pin is drawn right now — mid-drag on its own, or riding along
+   * with a room being dragged — so mesh lines follow live instead of
+   * snapping over on release. */
+  private _livePinPosition(pin: Pin): { x: number; y: number } {
+    if (this._liveDragPin?.id === pin.id) return this._liveDragPin;
+    const move = this._liveRoomMove;
+    if (move && pin.room_id === move.id) {
+      return { x: pin.x + move.dx, y: pin.y + move.dy };
+    }
+    return pin;
+  }
+
   private _renderMeshLink(link: ResolvedMeshLink) {
     const key = `${link.fromPin.id}|${link.toPin.id}`;
+    const from = this._livePinPosition(link.fromPin);
+    const to = this._livePinPosition(link.toPin);
     return svg`
       <line
         class="mesh-link ${key === this.selectedMeshLinkKey ? "selected" : ""}"
-        x1=${link.fromPin.x}
-        y1=${link.fromPin.y}
-        x2=${link.toPin.x}
-        y2=${link.toPin.y}
+        x1=${from.x}
+        y1=${from.y}
+        x2=${to.x}
+        y2=${to.y}
         style="stroke:${qualityColor(link.quality)}"
       >
         <title>${link.detail ?? link.quality}</title>
@@ -1759,13 +1912,33 @@ export class FloorplanCanvas extends LitElement {
    * `_meshStubsForCurrentFloor`) — distinct from a normal solid
    * `.mesh-link` line so it reads as "continues elsewhere," not a second
    * real device on this floor. */
+  /** Axis guides showing what a dragged room's edge snapped to. */
+  private _renderRoomMoveGuides() {
+    if (!this._liveRoomMove) return nothing;
+    const { x, y } = this._roomMoveGuides;
+    const vb = this._viewBox;
+    return svg`
+      ${
+        x !== null
+          ? svg`<line class="axis-guide" x1=${x} y1=${vb.y} x2=${x} y2=${vb.y + vb.h}></line>`
+          : nothing
+      }
+      ${
+        y !== null
+          ? svg`<line class="axis-guide" x1=${vb.x} y1=${y} x2=${vb.x + vb.w} y2=${y}></line>`
+          : nothing
+      }
+    `;
+  }
+
   private _renderMeshStubLine(stub: ResolvedMeshStub) {
     const key = `${stub.fromPin.id}|${stub.targetDeviceId}`;
+    const from = this._livePinPosition(stub.fromPin);
     return svg`
       <line
         class="mesh-stub-line ${key === this.selectedMeshStubKey ? "selected" : ""}"
-        x1=${stub.fromPin.x}
-        y1=${stub.fromPin.y}
+        x1=${from.x}
+        y1=${from.y}
         x2=${stub.x}
         y2=${stub.y}
         style="stroke:${qualityColor(stub.quality)}"
@@ -2281,6 +2454,7 @@ export class FloorplanCanvas extends LitElement {
           ${this.meshLinks.map((link) => this._renderMeshLink(link))}
           ${this.meshStubs.map((stub) => this._renderMeshStubLine(stub))}
           ${this._renderMeshStubMarkers()}
+          ${this._renderRoomMoveGuides()}
           ${this.mode === "trace" || this.mode === "wall" ? this._renderPendingTrace() : nothing}
           ${this._renderScaleLine()}
           ${this.mode === "scale" ? this._renderPendingScale() : nothing}
