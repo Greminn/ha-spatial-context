@@ -18,6 +18,7 @@ import type {
   WifiMesh,
   ZigbeeMesh,
   VersionInfo,
+  BluetoothAdvertisementEvent,
 } from "./types";
 import { DEFAULT_WALL_MATERIAL, wallMaterial } from "./canvas/materials";
 
@@ -198,6 +199,24 @@ export class HaClient {
         type: "matter/subscribe_network_topology",
       },
     );
+  }
+
+  /** HA core's own advertisement stream (what Settings → Bluetooth →
+   * Visualization uses) — admin-only on HA's side (#4). */
+  async subscribeBluetoothAdvertisements(
+    callback: (event: BluetoothAdvertisementEvent) => void,
+  ): Promise<() => void> {
+    return this.hass.connection.subscribeMessage<BluetoothAdvertisementEvent>(
+      callback,
+      { type: "bluetooth/subscribe_advertisements" },
+    );
+  }
+
+  /** Bluetooth address → device candidates (see bluetooth_mesh.py). */
+  async getBluetoothDevices(): Promise<{ devices: Record<string, string[]> }> {
+    return this.hass.connection.sendMessagePromise({
+      type: "spatial_context/get_bluetooth_devices",
+    });
   }
 
   /** Uploads via HA core's built-in image_upload component, returns the new image id. */

@@ -10,9 +10,9 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
-from . import debug, registry_snapshot, wifi_mesh, zigbee_mesh
+from . import bluetooth_mesh, debug, registry_snapshot, wifi_mesh, zigbee_mesh
 from .export import async_get_map_data
 from .storage import (
     async_get_floor_layout,
@@ -448,6 +448,21 @@ async def ws_get_wifi_mesh(
     connection.send_result(msg["id"], mesh)
 
 
+@websocket_api.websocket_command(
+    {vol.Required("type"): "spatial_context/get_bluetooth_devices"}
+)
+@callback
+def ws_get_bluetooth_devices(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Bluetooth address → device candidates for the Bluetooth layer (see
+    bluetooth_mesh.py). The links themselves come from HA core's own
+    bluetooth/subscribe_advertisements, subscribed by the panel."""
+    connection.send_result(msg["id"], bluetooth_mesh.async_get_bluetooth_devices(hass))
+
+
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/version"})
 @websocket_api.async_response
 async def ws_version(
@@ -508,6 +523,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_export_snapshot)
     websocket_api.async_register_command(hass, ws_get_zigbee_mesh)
     websocket_api.async_register_command(hass, ws_get_wifi_mesh)
+    websocket_api.async_register_command(hass, ws_get_bluetooth_devices)
     websocket_api.async_register_command(hass, ws_version)
     websocket_api.async_register_command(hass, ws_debug_log)
     websocket_api.async_register_command(hass, ws_debug_report)

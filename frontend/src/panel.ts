@@ -3,6 +3,7 @@ import { query, state } from "lit/decorators.js";
 import { safeCustomElement } from "./define";
 import type {
   AreaMeta,
+  BluetoothAdvertisement,
   CanvasMode,
   ContentBounds,
   FloorLayout,
@@ -28,7 +29,12 @@ import type {
   ZigbeeMesh,
 } from "./types";
 import { PROPERTY_LOCATION_ID } from "./types";
-import { dbmToQuality, lqiToQuality, qualityColor } from "./canvas/mesh-colors";
+import {
+  bleRssiToQuality,
+  dbmToQuality,
+  lqiToQuality,
+  qualityColor,
+} from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import { EditHistory } from "./history";
@@ -227,6 +233,16 @@ export class SpatialContextPanel extends LitElement {
   @state() private _matterTopology: MatterNetworkTopology | null = null;
   @state() private _matterError: string | null = null;
   private _matterUnsubscribe: (() => void) | null = null;
+  /** Bluetooth layer (#4): latest advertisement per BLE address, published
+   * from a buffer every couple of seconds — HA streams one message per
+   * advertisement, far more often than the map needs redrawing. */
+  @state() private _bluetoothAdverts: Map<string, BluetoothAdvertisement> =
+    new Map();
+  private _bluetoothBuffer: Map<string, BluetoothAdvertisement> = new Map();
+  private _bluetoothFlushTimer: number | null = null;
+  @state() private _bluetoothDevices: Record<string, string[]> = {};
+  @state() private _bluetoothError: string | null = null;
+  private _bluetoothUnsubscribe: (() => void) | null = null;
   @state() private _backgroundPopoverOpen = false;
   @state() private _meshPopoverOpen = false;
   /** Shared across every viewer of the panel (see ha-client.ts's
@@ -563,6 +579,36 @@ export class SpatialContextPanel extends LitElement {
           link.rssi_dbm != null ? dbmToQuality(link.rssi_dbm) : "unknown",
         ...(link.rssi_dbm != null ? { detail: `${link.rssi_dbm} dBm` } : {}),
       }));
+    }
+    if (this._networkType === "bluetooth") {
+      // Each BLE device → the scanner that heard it, both resolved through
+      // their registered Bluetooth addresses (see bluetooth_mesh.py);
+      // every candidate pair is emitted and only placed ones get drawn.
+      const out: {
+        sourceDeviceId: string;
+        targetDeviceId: string;
+        quality: "strong" | "medium" | "weak" | "unknown";
+        detail?: string;
+      }[] = [];
+      for (const advert of this._bluetoothAdverts.values()) {
+        const devices = this._bluetoothDevices[advert.address] ?? [];
+        const scanners = this._bluetoothDevices[advert.source] ?? [];
+        for (const deviceId of devices) {
+          for (const scannerId of scanners) {
+            if (deviceId === scannerId) continue; // a proxy hearing itself
+            out.push({
+              sourceDeviceId: deviceId,
+              targetDeviceId: scannerId,
+              quality:
+                advert.rssi != null ? bleRssiToQuality(advert.rssi) : "unknown",
+              ...(advert.rssi != null
+                ? { detail: `RSSI ${advert.rssi} dBm` }
+                : {}),
+            });
+          }
+        }
+      }
+      return out;
     }
     if (this._networkType === "matter" && this._matterTopology) {
       const deviceIdByNodeId = new Map<string, string>();
@@ -1747,6 +1793,7 @@ export class SpatialContextPanel extends LitElement {
     this._moreOptionsPopoverOpen = false;
     if (!opening) {
       this._unsubscribeMatter();
+      this._unsubscribeBluetooth();
       // Reset to the neutral "nothing picked" state so the *next* open
       // (this session or a fresh page load) never shows a layer already
       // armed — every open should look and behave the same.
@@ -1805,11 +1852,15 @@ export class SpatialContextPanel extends LitElement {
     if (this._networkType === "matter" && type !== "matter") {
       this._unsubscribeMatter();
     }
+    if (this._networkType === "bluetooth" && type !== "bluetooth") {
+      this._unsubscribeBluetooth();
+    }
     this._networkType = type;
     this._selectedMeshLink = null;
     this._selectedMeshStub = null;
     if (type === "wifi") void this._refreshWifiMesh();
     else if (type === "matter") void this._subscribeMatter();
+    else if (type === "bluetooth") void this._subscribeBluetooth();
     else if (type === "zigbee") void this._loadCachedZigbeeMesh();
   };
 
@@ -1870,8 +1921,8 @@ export class SpatialContextPanel extends LitElement {
         ? this._zigbeeMesh.fetched_at * 1000
         : Date.now();
     } catch (err) {
-      const message = (err as { message?: string })?.message;
-      this._zigbeeMeshError = message || "Zigbee mesh request failed";
+      const message = this._meshErrorMessage(err, "Zigbee mesh request failed");
+      this._zigbeeMeshError = message;
       debugLog.log("mesh_error", { network: "zigbee", error: message });
     } finally {
       this._zigbeeMeshLoading = false;
@@ -1892,8 +1943,8 @@ export class SpatialContextPanel extends LitElement {
         links: this._wifiMesh.links.length,
       });
     } catch (err) {
-      const message = (err as { message?: string })?.message;
-      this._wifiMeshError = message || "Wi-Fi mesh request failed";
+      const message = this._meshErrorMessage(err, "Wi-Fi mesh request failed");
+      this._wifiMeshError = message;
       debugLog.log("mesh_error", { network: "wifi", error: message });
     } finally {
       this._wifiMeshLoading = false;
@@ -1910,14 +1961,91 @@ export class SpatialContextPanel extends LitElement {
         },
       );
     } catch (err) {
-      const message = (err as { message?: string })?.message;
-      this._matterError = message || "Matter topology subscription failed";
+      this._matterError = this._meshErrorMessage(
+        err,
+        "Matter topology subscription failed",
+      );
     }
   }
 
   private _unsubscribeMatter(): void {
     this._matterUnsubscribe?.();
     this._matterUnsubscribe = null;
+  }
+
+  /** A Connectivity Map error, worded as what to do about it. An unknown
+   * command means the panel is newer than the backend HA is running (it
+   * was updated without a restart yet). */
+  private _meshErrorMessage(err: unknown, fallback: string): string {
+    const { code, message } = (err ?? {}) as {
+      code?: string;
+      message?: string;
+    };
+    if (code === "unknown_command") {
+      return "Restart Home Assistant to finish updating Spatial Context.";
+    }
+    if (code === "unauthorized") {
+      return "This map needs a Home Assistant admin account.";
+    }
+    return message || fallback;
+  }
+
+  private async _subscribeBluetooth(): Promise<void> {
+    this._unsubscribeBluetooth();
+    this._bluetoothError = null;
+    this._bluetoothBuffer = new Map();
+    this._bluetoothAdverts = new Map();
+    try {
+      this._bluetoothDevices = (
+        await this._client.getBluetoothDevices()
+      ).devices;
+      this._bluetoothUnsubscribe =
+        await this._client.subscribeBluetoothAdvertisements((event) => {
+          for (const advert of event.add ?? []) {
+            this._bluetoothBuffer.set(advert.address, {
+              address: advert.address,
+              source: advert.source,
+              rssi: advert.rssi,
+              name: advert.name,
+            });
+          }
+          for (const { address } of event.remove ?? []) {
+            this._bluetoothBuffer.delete(address);
+          }
+          this._bluetoothFlushTimer ??= window.setTimeout(() => {
+            this._bluetoothFlushTimer = null;
+            this._bluetoothAdverts = new Map(this._bluetoothBuffer);
+          }, 2000);
+        });
+      // Show the first snapshot straight away rather than after the delay.
+      window.setTimeout(() => {
+        this._bluetoothAdverts = new Map(this._bluetoothBuffer);
+        debugLog.log("mesh_load", {
+          network: "bluetooth",
+          adverts: this._bluetoothBuffer.size,
+          known_addresses: Object.keys(this._bluetoothDevices).length,
+        });
+      }, 300);
+    } catch (err) {
+      // HA allows the advertisement stream for admins only.
+      this._bluetoothError = this._meshErrorMessage(
+        err,
+        "Bluetooth subscription failed",
+      );
+      debugLog.log("mesh_error", {
+        network: "bluetooth",
+        error: this._bluetoothError,
+      });
+    }
+  }
+
+  private _unsubscribeBluetooth(): void {
+    this._bluetoothUnsubscribe?.();
+    this._bluetoothUnsubscribe = null;
+    if (this._bluetoothFlushTimer !== null) {
+      window.clearTimeout(this._bluetoothFlushTimer);
+      this._bluetoothFlushTimer = null;
+    }
   }
 
   override connectedCallback(): void {
@@ -1937,6 +2065,7 @@ export class SpatialContextPanel extends LitElement {
     // anything pending on the way out instead.
     void this._flushAutoSave();
     this._unsubscribeMatter();
+    this._unsubscribeBluetooth();
     if (this._zigbeeMeshTimer !== null) {
       window.clearInterval(this._zigbeeMeshTimer);
       this._zigbeeMeshTimer = null;
@@ -2867,7 +2996,9 @@ export class SpatialContextPanel extends LitElement {
         ? this._zigbeeMeshError
         : this._networkType === "wifi"
           ? this._wifiMeshError
-          : this._matterError;
+          : this._networkType === "bluetooth"
+            ? this._bluetoothError
+            : this._matterError;
 
     return html`
       <app-header
@@ -2957,6 +3088,12 @@ export class SpatialContextPanel extends LitElement {
                     <ha-icon icon="mdi:router-wireless"></ha-icon> Matter
                     Network
                   </button>
+                  <button
+                    class="menu-item ${this._networkType === "bluetooth" ? "active" : ""}"
+                    @click=${() => this._onNetworkTypeSelect("bluetooth")}
+                  >
+                    <ha-icon icon="mdi:bluetooth"></ha-icon> Bluetooth
+                  </button>
                 </div>
                 ${
                   this._networkType === null
@@ -3008,8 +3145,10 @@ export class SpatialContextPanel extends LitElement {
                                   />
                                   Show all links
                                 </label>`
-                            : this._networkType === "matter" &&
-                                this._matterUnsubscribe
+                            : (this._networkType === "matter" &&
+                                  this._matterUnsubscribe) ||
+                                (this._networkType === "bluetooth" &&
+                                  this._bluetoothUnsubscribe)
                               ? html`<span
                                   class="hint"
                                   style="padding: 4px 16px 8px"

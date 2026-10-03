@@ -308,7 +308,24 @@ export interface ExportSnapshot {
 export type CanvasMode =
   "select" | "pan" | "trace" | "wall" | "opening" | "scale" | "place" | "align";
 
-export type NetworkType = "zigbee" | "wifi" | "matter";
+export type NetworkType = "zigbee" | "wifi" | "matter" | "bluetooth";
+
+/** One BLE device's latest advertisement as HA core's
+ * `bluetooth/subscribe_advertisements` reports it (#4) — trimmed to what
+ * the Bluetooth layer uses. Addresses are MACs, uppercase. */
+export interface BluetoothAdvertisement {
+  address: string;
+  /** The scanner (adapter or proxy) that heard it. */
+  source: string;
+  rssi: number | null;
+  name: string | null;
+}
+
+/** `bluetooth/subscribe_advertisements` event payload. */
+export interface BluetoothAdvertisementEvent {
+  add?: BluetoothAdvertisement[];
+  remove?: { address: string }[];
+}
 
 /** Live Zigbee2MQTT topology — never persisted, fetched fresh on each
  * "Refresh Mesh" click. Global/floor-agnostic like PlaceableEntity/AreaMeta;
