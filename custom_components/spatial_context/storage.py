@@ -8,6 +8,7 @@ settings_store.py: a single JSON document at
 from __future__ import annotations
 
 import asyncio
+import math
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -145,6 +146,70 @@ def _building_bounds(
         "max_x": max(b["max_x"] for b in boxes),
         "max_y": max(b["max_y"] for b in boxes),
     }
+
+
+def meters_per_unit(scale: dict | None) -> float | None:
+    """Derive metres-per-stored-unit from a floor's two-point calibration segment."""
+    if not scale:
+        return None
+    (x1, y1), (x2, y2) = scale["points"]
+    unit_distance = math.hypot(x2 - x1, y2 - y1)
+    if unit_distance == 0:
+        return None
+    return scale["meters"] / unit_distance
+
+
+def property_meters_per_unit(
+    floors: dict[str, dict[str, Any]], placements: list[dict[str, Any]]
+) -> float | None:
+    """Metres per Property-tab unit, derived from a placed building whose
+    floors are calibrated (#6) — no separate calibration step. A placement
+    is its building's traced footprint (`source_bounds`, floor units)
+    scaled to `width` site-photo units (aspect locked, so x and y agree),
+    so one conversion follows from the other. With several calibrated
+    buildings the largest placement wins: the bigger the rectangle, the
+    less a slightly-off fit against the photo matters. None when no placed
+    building has a calibrated floor.
+
+    Mirrored by frontend/src/panel.ts's _propertyMetersPerUnit — keep both
+    in sync."""
+    best: tuple[float, float] | None = None  # (area, metres per unit)
+    for placement in placements:
+        bounds = placement.get("source_bounds")
+        width = placement.get("width") or 0
+        if not bounds or width <= 0:
+            continue
+        source_width = bounds["max_x"] - bounds["min_x"]
+        if source_width <= 0:
+            continue
+        floor_mpu = _building_meters_per_unit(floors, placement)
+        if floor_mpu is None:
+            continue
+        area = width * (placement.get("height") or 0)
+        if best is None or area > best[0]:
+            best = (area, floor_mpu * source_width / width)
+    return best[1] if best else None
+
+
+def _building_meters_per_unit(
+    floors: dict[str, dict[str, Any]], placement: dict[str, Any]
+) -> float | None:
+    """A placement's building scale — its anchor floor's calibration, else
+    any other floor in the building (they share one coordinate system, so
+    any calibrated one applies to all)."""
+    anchor = floors.get(placement["floor_id"])
+    mpu = meters_per_unit(anchor.get("scale")) if anchor else None
+    if mpu is not None:
+        return mpu
+    building_id = placement.get("building_id")
+    if building_id is None:
+        return None
+    for layout in floors.values():
+        if layout.get("building_id") == building_id:
+            mpu = meters_per_unit(layout.get("scale"))
+            if mpu is not None:
+                return mpu
+    return None
 
 
 def _empty_settings() -> dict[str, Any]:

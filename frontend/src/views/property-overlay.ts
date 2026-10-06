@@ -68,6 +68,20 @@ export class PropertyOverlay extends LitElement {
         font-size: 0.875rem;
         padding: 6px 8px;
       }
+      .scale-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        max-width: 260px;
+        padding: 6px 12px;
+        font-size: 0.8125rem;
+        color: var(--sc-fg-secondary);
+        pointer-events: auto;
+      }
+      .scale-warning {
+        margin-top: 2px;
+        color: var(--warning-color, #db8b00);
+      }
       .selection-panel {
         position: absolute;
         bottom: 12px;
@@ -92,6 +106,10 @@ export class PropertyOverlay extends LitElement {
   @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
     null;
   @property({ attribute: false }) buildings: PropertyBuilding[] = [];
+  /** Derived from a placed, calibrated building (see panel.ts's
+   * _propertyScale) — null when there isn't one. */
+  @property({ attribute: false }) scaleReadout: string | null = null;
+  @property({ attribute: false }) scaleWarning: string | null = null;
   @property({ attribute: false }) armedBuildingKey: string | null = null;
   @property({ attribute: false }) selectedPlacement: PropertyPlacement | null =
     null;
@@ -201,6 +219,22 @@ export class PropertyOverlay extends LitElement {
             (b) => html`<option value=${b.key}>${b.name}</option>`,
           )}
         </select>
+      </div>
+
+      <div
+        class="scale-badge floating-panel"
+        title=${
+          this.scaleReadout
+            ? "Worked out from a placed building's floor scale"
+            : "Set Scale on a floor, then place its building here"
+        }
+      >
+        ${this.scaleReadout ?? "Not calibrated"}
+        ${
+          this.scaleWarning
+            ? html`<div class="scale-warning">${this.scaleWarning}</div>`
+            : nothing
+        }
       </div>
 
       ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}

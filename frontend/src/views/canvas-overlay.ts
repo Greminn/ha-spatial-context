@@ -11,6 +11,7 @@ import type {
   ResolvedMeshLink,
   ResolvedMeshStub,
   Room,
+  SnapMode,
   UnitSystem,
   Wall,
 } from "../types";
@@ -101,6 +102,9 @@ export class CanvasOverlay extends LitElement {
         padding: 8px 12px;
         pointer-events: auto;
       }
+      .snap-select {
+        padding: 4px;
+      }
       .hint {
         font-size: 0.8rem;
         color: var(--sc-fg-secondary);
@@ -174,6 +178,7 @@ export class CanvasOverlay extends LitElement {
     null;
   @property({ type: Boolean }) hasPendingTrace = false;
   @property({ type: Boolean }) hasPendingWall = false;
+  @property({ attribute: false }) snapMode: SnapMode = "all";
   @property({ type: Number }) pendingScaleCount = 0;
   @property({ attribute: false }) scaleReadout: string | null = null;
 
@@ -319,13 +324,47 @@ export class CanvasOverlay extends LitElement {
     `;
   }
 
+  /** Snap picker shown while tracing a room or wall (#36). Shift still
+   * frees a single point whatever this is set to. */
+  private _renderSnapSelect() {
+    return html`<select
+      class="snap-select"
+      title="What new points snap onto (hold Shift to place one point freely)"
+      @change=${(e: Event) =>
+        this._fire("snap-mode-change", {
+          snapMode: (e.target as HTMLSelectElement).value as SnapMode,
+        })}
+    >
+      <option value="all" ?selected=${this.snapMode === "all"}>
+        Snap: all
+      </option>
+      <option value="same" ?selected=${this.snapMode === "same"}>
+        Snap: ${this.mode === "wall" ? "walls only" : "rooms only"}
+      </option>
+      <option value="off" ?selected=${this.snapMode === "off"}>
+        Snap: off
+      </option>
+    </select>`;
+  }
+
   private _renderHintBar() {
-    if (this.mode === "trace" && this.hasPendingTrace) {
+    if (this.mode === "trace") {
       return html`<div class="hint-bar floating-panel">
-        <span class="hint">Click near the start to close the room.</span>
-        <button @click=${() => this._fire("cancel-pending-click")}>
-          Cancel
-        </button>
+        <span class="hint"
+          >${
+            this.hasPendingTrace
+              ? "Click near the start to close the room."
+              : "Click to add points."
+          }</span
+        >
+        ${this._renderSnapSelect()}
+        ${
+          this.hasPendingTrace
+            ? html`<button @click=${() => this._fire("cancel-pending-click")}>
+                Cancel
+              </button>`
+            : nothing
+        }
       </div>`;
     }
     if (this.mode === "wall") {
@@ -334,6 +373,7 @@ export class CanvasOverlay extends LitElement {
           >Click to add
           points${this.hasPendingWall ? ", then Finish." : "."}</span
         >
+        ${this._renderSnapSelect()}
         ${
           this.hasPendingWall
             ? html`<button

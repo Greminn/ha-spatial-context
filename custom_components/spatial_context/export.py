@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-import math
 from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 
 from . import registry_snapshot
-from .storage import async_get_floor_layout, async_get_property_layout
+from .storage import (
+    async_get_all_layouts,
+    async_get_floor_layout,
+    async_get_property_layout,
+    meters_per_unit,
+    property_meters_per_unit,
+)
 
 # Mirrors frontend/src/canvas/materials.ts — keep both in sync if this list
 # changes. attenuation_db_per_cm is an approximate 2.4GHz RF signal loss
@@ -77,17 +82,6 @@ def _wall_attenuation_db(wall: dict) -> float:
     return material["attenuation_db_per_cm"] * _wall_thickness_cm(wall)
 
 
-def _meters_per_unit(scale: dict | None) -> float | None:
-    """Derive metres-per-stored-unit from a floor's two-point calibration segment."""
-    if not scale:
-        return None
-    (x1, y1), (x2, y2) = scale["points"]
-    unit_distance = math.hypot(x2 - x1, y2 - y1)
-    if unit_distance == 0:
-        return None
-    return scale["meters"] / unit_distance
-
-
 async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     """Denormalized export: floors -> rooms -> devices, plus outdoor
     devices placed on the Property tab.
@@ -104,7 +98,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     exported_floors = []
     for floor_meta in floors_meta:
         layout = await async_get_floor_layout(hass, floor_meta["floor_id"])
-        meters_per_unit = _meters_per_unit(layout.get("scale"))
+        meters_per_unit = meters_per_unit(layout.get("scale"))
 
         rooms_by_id = {room["id"]: room for room in layout["rooms"]}
         room_devices: dict[str | None, list[dict]] = {
@@ -174,17 +168,21 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
         )
 
     # Placed on the Property tab's site photo rather than any floor (garden
-    # lights, say). x/y are site-photo units — the property has no scale
-    # calibration, so there's no x_m/y_m.
+    # lights, say). x/y are site-photo units; x_m/y_m come from the scale
+    # of a placed, calibrated building (see property_meters_per_unit).
     property_layout = await async_get_property_layout(hass)
+    property_mpu = property_meters_per_unit(
+        await async_get_all_layouts(hass), property_layout.get("placements", [])
+    )
     outdoor_devices = [
-        _export_device(pin, placeable_entities, None)
+        _export_device(pin, placeable_entities, property_mpu)
         for pin in property_layout.get("pins", [])
     ]
 
     return {
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "floors": exported_floors,
+        "property_meters_per_unit": property_mpu,
         "outdoor_devices": outdoor_devices,
     }
 

@@ -25,6 +25,7 @@ from .storage import (
     async_get_property_layout,
     async_save_all_layouts_raw,
     layout_bounds,
+    meters_per_unit,
 )
 
 # Entity domains that represent an actual kind of physical device worth a
@@ -154,6 +155,9 @@ async def async_list_floors(hass: HomeAssistant) -> list[dict[str, Any]]:
                 "has_layout": layout is not None,
                 "building_id": layout.get("building_id") if layout else None,
                 "content_bounds": _content_bounds(layout) if layout else None,
+                "meters_per_unit": (
+                    meters_per_unit(layout.get("scale")) if layout else None
+                ),
             }
         )
     # Matches HA's own Settings -> Areas page: highest level first (top

@@ -23,6 +23,7 @@ import type {
   ResolvedMeshStub,
   Room,
   Settings,
+  SnapMode,
   VersionInfo,
   Wall,
   WifiMesh,
@@ -82,6 +83,21 @@ import "./views/property-overlay";
 import "./views/icon-picker-dialog";
 import "./views/settings-menu";
 import type { PropertyBuilding } from "./views/property-overlay";
+
+/** Snap mode is per-browser, like the picker sidebar's width — a drawing
+ * habit, not a fact every viewer should share. Browser storage can throw
+ * or come back empty; fall back to snapping onto everything. */
+const SNAP_MODE_STORAGE_KEY = "spatial-context-snap-mode";
+
+function readStoredSnapMode(): SnapMode {
+  try {
+    const raw = localStorage.getItem(SNAP_MODE_STORAGE_KEY);
+    if (raw === "all" || raw === "same" || raw === "off") return raw;
+  } catch {
+    // Fall through to the default.
+  }
+  return "all";
+}
 
 @safeCustomElement("spatial-context-panel")
 export class SpatialContextPanel extends LitElement {
@@ -180,6 +196,7 @@ export class SpatialContextPanel extends LitElement {
   @state() private _entities: PlaceableEntity[] = [];
   @state() private _areas: AreaMeta[] = [];
   @state() private _mode: CanvasMode = "select";
+  @state() private _snapMode: SnapMode = readStoredSnapMode();
   /** Drop-zone highlight while dragging a file over the canvas — see
    * _onCanvasDragOver/_onCanvasDrop. */
   @state() private _dragOverCanvas = false;
@@ -942,6 +959,67 @@ export class SpatialContextPanel extends LitElement {
     return unitDistance / scale.meters;
   }
 
+  /** Metres per Property-tab unit, worked out from placed buildings whose
+   * floors are calibrated (#6). Mirrors storage.py's
+   * property_meters_per_unit — keep both in sync: a placement is its
+   * building's traced footprint scaled to `width` (aspect locked), so the
+   * floor's scale carries straight over; the largest placement wins, and
+   * `disagree` flags buildings more than 10% apart (one is probably sized
+   * wrong against the photo). */
+  private get _propertyScale(): {
+    metersPerUnit: number;
+    buildingName: string;
+    disagree: boolean;
+  } | null {
+    const candidates: { area: number; mpu: number; name: string }[] = [];
+    for (const placement of this._propertyLayout.placements) {
+      const b = placement.source_bounds;
+      if (!b || placement.width <= 0) continue;
+      const sourceWidth = b.max_x - b.min_x;
+      if (sourceWidth <= 0) continue;
+      const floorMpu = this._buildingMetersPerUnit(placement);
+      if (floorMpu === null) continue;
+      candidates.push({
+        area: placement.width * placement.height,
+        mpu: (floorMpu * sourceWidth) / placement.width,
+        name:
+          placement.label_override ??
+          this._floorNameById.get(placement.floor_id) ??
+          "a building",
+      });
+    }
+    if (candidates.length === 0) return null;
+    const best = candidates.reduce((a, c) => (c.area > a.area ? c : a));
+    return {
+      metersPerUnit: best.mpu,
+      buildingName: best.name,
+      disagree: candidates.some((c) => Math.abs(c.mpu / best.mpu - 1) > 0.1),
+    };
+  }
+
+  /** A placement's building scale: its anchor floor's calibration, else
+   * any other floor sharing its building_id (one coordinate system). */
+  private _buildingMetersPerUnit(placement: PropertyPlacement): number | null {
+    const anchor = this._floors.find((f) => f.floor_id === placement.floor_id);
+    if (anchor?.meters_per_unit) return anchor.meters_per_unit;
+    if (placement.building_id === null) return null;
+    const member = this._floors.find(
+      (f) => f.building_id === placement.building_id && f.meters_per_unit,
+    );
+    return member?.meters_per_unit ?? null;
+  }
+
+  private get _propertyScaleReadout(): string | null {
+    const scale = this._propertyScale;
+    if (!scale) return null;
+    const system = this._settings.unit_system;
+    const unitsPerDisplay = unitsPerDisplayUnit(
+      1 / scale.metersPerUnit,
+      system,
+    );
+    return `Scale (from ${scale.buildingName}): 1 ${largeUnitLabel(system)} ≈ ${unitsPerDisplay.toFixed(1)} units`;
+  }
+
   private get _scaleReadout(): string | null {
     const unitsPerMeter = this._unitsPerMeter();
     if (unitsPerMeter === null) return null;
@@ -1185,7 +1263,12 @@ export class SpatialContextPanel extends LitElement {
       }
     }
     this._autoSaveHeld = false;
-    this._propertyLayout = await this._client.getPropertyLayout();
+    // Floors too: their scales feed the Property tab's (see _propertyScale)
+    // and may have been calibrated since the panel loaded.
+    [this._propertyLayout, this._floors] = await Promise.all([
+      this._client.getPropertyLayout(),
+      this._client.listFloors(),
+    ]);
     this._propertyHistory.clear();
     debugLog.log("property_load", {
       placements: this._propertyLayout.placements.length,
@@ -2978,6 +3061,15 @@ export class SpatialContextPanel extends LitElement {
     this._pendingCount = e.detail.count;
   };
 
+  private _onSnapModeChange = (e: CustomEvent<{ snapMode: SnapMode }>) => {
+    this._snapMode = e.detail.snapMode;
+    try {
+      localStorage.setItem(SNAP_MODE_STORAGE_KEY, this._snapMode);
+    } catch {
+      // Won't persist across reloads — snapping still follows the choice.
+    }
+  };
+
   private _meshAgeLabel(fetchedAt: number): string {
     const seconds = Math.round((Date.now() - fetchedAt) / 1000);
     if (seconds < 60) return `refreshed ${seconds}s ago`;
@@ -3315,6 +3407,12 @@ export class SpatialContextPanel extends LitElement {
                   <property-overlay
                     .mode=${this._propertyMode}
                     .buildings=${this._buildings}
+                    .scaleReadout=${this._propertyScaleReadout}
+                    .scaleWarning=${
+                      this._propertyScale?.disagree
+                        ? "Placed buildings give different scales. Check their sizes against the photo."
+                        : null
+                    }
                     .armedBuildingKey=${this._armedBuildingKey}
                     .selectedPlacement=${this._selectedPlacement}
                     .selectedPinLabel=${
@@ -3376,6 +3474,7 @@ export class SpatialContextPanel extends LitElement {
                     .initialViewBox=${this._layout.view_box}
                     .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
                     .mode=${this._mode}
+                    .snapMode=${this._snapMode}
                     .armedEntityId=${this._armedEntityId}
                     .armedOpeningType=${this._armedOpeningType}
                     .selectedRoomId=${this._selectedRoomId}
@@ -3413,6 +3512,7 @@ export class SpatialContextPanel extends LitElement {
                     .armedOpeningType=${this._armedOpeningType}
                     .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
                     .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
+                    .snapMode=${this._snapMode}
                     .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
                     .scaleReadout=${this._scaleReadout}
                     .unitSystem=${this._settings.unit_system}
@@ -3442,6 +3542,7 @@ export class SpatialContextPanel extends LitElement {
                     @add-opening-click=${this._onAddOpeningClick}
                     @cancel-pending-click=${this._onCancelPending}
                     @finish-wall-click=${this._onFinishWall}
+                    @snap-mode-change=${this._onSnapModeChange}
                     @room-rename-click=${this._onRoomRename}
                     @room-area-change=${this._onRoomAreaChange}
                     @room-visible-toggle=${this._onRoomVisibleToggle}

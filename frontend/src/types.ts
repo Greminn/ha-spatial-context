@@ -182,6 +182,10 @@ export interface FloorMeta {
    * building (e.g. a detached Garage never aligned to anything). */
   building_id: string | null;
   content_bounds: ContentBounds | null;
+  /** Metres per stored unit from this floor's Scale calibration, null when
+   * uncalibrated. Absent from a backend older than v0.13 (until HA is
+   * restarted onto it) — treat as null. */
+  meters_per_unit?: number | null;
 }
 
 /** One building's labeled, rotatable footprint on the Property tab's
@@ -307,6 +311,12 @@ export interface ExportSnapshot {
 
 export type CanvasMode =
   "select" | "pan" | "trace" | "wall" | "opening" | "scale" | "place" | "align";
+
+/** How a new trace point (or a dragged vertex) snaps (#36): "all" onto
+ * any nearby wall or room edge, "same" only onto shapes of the kind being
+ * drawn (walls onto walls, rooms onto rooms), "off" not at all — the same
+ * as holding Shift. A per-browser preference, see panel.ts. */
+export type SnapMode = "all" | "same" | "off";
 
 export type NetworkType = "zigbee" | "wifi" | "matter" | "bluetooth";
 

@@ -15,6 +15,7 @@ import type {
   UnitSystem,
   Wall,
   ViewBox,
+  SnapMode,
 } from "../types";
 import {
   blurActiveElement,
@@ -395,6 +396,7 @@ export class FloorplanCanvas extends LitElement {
    * `_selectFloor`. */
   @property({ type: Boolean }) sameBuildingAsPrevious = false;
   @property({ attribute: false }) mode: CanvasMode = "select";
+  @property({ attribute: false }) snapMode: SnapMode = "all";
   @property({ attribute: false }) armedEntityId: string | null = null;
   @property({ attribute: false }) armedOpeningType: OpeningType | null = null;
   @property({ attribute: false }) selectedRoomId: string | null = null;
@@ -785,7 +787,7 @@ export class FloorplanCanvas extends LitElement {
     closed: boolean,
     disableSnap: boolean,
   ): [number, number] {
-    if (disableSnap) return [x, y];
+    if (disableSnap || this.snapMode === "off") return [x, y];
     const threshold = this._pxToUnits(SNAP_THRESHOLD_PX);
     const prevIndex = index > 0 ? index - 1 : closed ? points.length - 1 : -1;
     if (prevIndex >= 0 && prevIndex !== index) {
@@ -845,10 +847,16 @@ export class FloorplanCanvas extends LitElement {
     lockedX: boolean;
     lockedY: boolean;
   } {
-    if (!disableSnap) {
+    const off = disableSnap || this.snapMode === "off";
+    if (!off) {
       const hitR = this._pxToUnits(HIT_RADIUS_PX);
+      // "same" keeps a wall trace off room edges and a room trace off
+      // walls — drawing walls along already-traced rooms otherwise always
+      // lands on the room edge, however far you zoom in (#36).
+      const snapWalls = this.snapMode === "all" || this.mode === "wall";
+      const snapRooms = this.snapMode === "all" || this.mode === "trace";
       let best: { point: [number, number]; dist: number } | null = null;
-      for (const wall of this.walls) {
+      for (const wall of snapWalls ? this.walls : []) {
         const halfThickness =
           parseFloat(this._wallStrokeWidth(wall, wallMaterial(wall.material))) /
           2;
@@ -859,7 +867,7 @@ export class FloorplanCanvas extends LitElement {
         const dist = distance(x, y, point[0], point[1]);
         if (!best || dist < best.dist) best = { point, dist };
       }
-      const room = findRoomAt(this.rooms, x, y, hitR);
+      const room = snapRooms ? findRoomAt(this.rooms, x, y, hitR) : null;
       if (room) {
         const point = nearestPointOnClosedPolygon(room.points, x, y).point;
         const dist = distance(x, y, point[0], point[1]);
@@ -878,7 +886,7 @@ export class FloorplanCanvas extends LitElement {
       existingTracePoints,
       x,
       y,
-      disableSnap,
+      off,
     );
     return {
       point,
