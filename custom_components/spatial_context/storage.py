@@ -148,6 +148,33 @@ def _building_bounds(
     }
 
 
+def live_layouts(
+    floors: dict[str, dict[str, Any]], live_floor_ids: set[str]
+) -> dict[str, dict[str, Any]]:
+    """`floors` minus layouts whose floor has since been deleted in HA
+    (#37). They no longer hold devices as "placed", but their data stays
+    in storage: HA derives floor_id from the name, so re-creating a floor
+    with the same name brings its layout back."""
+    return {fid: layout for fid, layout in floors.items() if fid in live_floor_ids}
+
+
+def live_placements(
+    floors: dict[str, dict[str, Any]], placements: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Property placements whose building still has a floor in `floors`
+    (already filtered by live_layouts): the anchor floor itself, or any
+    floor sharing its building_id. Mirrored by frontend/src/panel.ts's
+    _livePlacements — keep both in sync."""
+    live_building_ids = {
+        layout.get("building_id") for layout in floors.values()
+    } - {None}
+    return [
+        p
+        for p in placements
+        if p["floor_id"] in floors or p.get("building_id") in live_building_ids
+    ]
+
+
 def meters_per_unit(scale: dict | None) -> float | None:
     """Derive metres-per-stored-unit from a floor's two-point calibration segment."""
     if not scale:

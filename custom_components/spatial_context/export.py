@@ -12,6 +12,8 @@ from .storage import (
     async_get_all_layouts,
     async_get_floor_layout,
     async_get_property_layout,
+    live_layouts,
+    live_placements,
     meters_per_unit,
     property_meters_per_unit,
 )
@@ -171,8 +173,11 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     # lights, say). x/y are site-photo units; x_m/y_m come from the scale
     # of a placed, calibrated building (see property_meters_per_unit).
     property_layout = await async_get_property_layout(hass)
+    floors = live_layouts(
+        await async_get_all_layouts(hass), {f["floor_id"] for f in floors_meta}
+    )
     property_mpu = property_meters_per_unit(
-        await async_get_all_layouts(hass), property_layout.get("placements", [])
+        floors, live_placements(floors, property_layout.get("placements", []))
     )
     outdoor_devices = [
         _export_device(pin, placeable_entities, property_mpu)

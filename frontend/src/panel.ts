@@ -462,11 +462,31 @@ export class SpatialContextPanel extends LitElement {
     );
   }
 
+  /** Placements whose building still has a floor in HA (#37) — a
+   * building whose floors were all deleted stays in storage, just not
+   * drawn. One whose anchor floor alone was deleted is re-anchored (in
+   * this display copy only) onto a surviving floor of its building, so
+   * its name/icon still resolve. Mirrors storage.py's live_placements. */
+  private get _livePlacements(): PropertyPlacement[] {
+    const live: PropertyPlacement[] = [];
+    for (const p of this._propertyLayout.placements) {
+      if (this._floors.some((f) => f.floor_id === p.floor_id)) {
+        live.push(p);
+        continue;
+      }
+      const member =
+        p.building_id !== null
+          ? this._floors.find((f) => f.building_id === p.building_id)
+          : undefined;
+      if (member) live.push({ ...p, floor_id: member.floor_id });
+    }
+    return live;
+  }
+
   private get _selectedPlacement(): PropertyPlacement | null {
     return (
-      this._propertyLayout.placements.find(
-        (p) => p.id === this._selectedPlacementId,
-      ) ?? null
+      this._livePlacements.find((p) => p.id === this._selectedPlacementId) ??
+      null
     );
   }
 
@@ -972,7 +992,7 @@ export class SpatialContextPanel extends LitElement {
     disagree: boolean;
   } | null {
     const candidates: { area: number; mpu: number; name: string }[] = [];
-    for (const placement of this._propertyLayout.placements) {
+    for (const placement of this._livePlacements) {
       const b = placement.source_bounds;
       if (!b || placement.width <= 0) continue;
       const sourceWidth = b.max_x - b.min_x;
@@ -3374,7 +3394,7 @@ export class SpatialContextPanel extends LitElement {
                   @drop=${this._onCanvasDrop}
                 >
                   <property-canvas
-                    .placements=${this._propertyLayout.placements}
+                    .placements=${this._livePlacements}
                     .floorNameById=${this._floorNameById}
                     .floorIconById=${this._floorIconById}
                     .backgroundImageUrl=${backgroundImageUrl(

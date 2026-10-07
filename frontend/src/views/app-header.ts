@@ -7,7 +7,8 @@ import { sharedStyles } from "../styles";
 import "./floor-tabs";
 
 /** Fixed page header: identity (icon/title/subtitle, WashData-style) —
- * floor tabs, dead-center in the row (the standard HA hass-tabs-subpage
+ * floor tabs, dead-center in the row (their own second row on narrow
+ * screens) (the standard HA hass-tabs-subpage
  * underline style) — icon actions. Sizing matches HA's own toolbar
  * exactly, measured directly off this instance's own sidebar toggle row:
  * 56px height, 48x48 icon buttons with 20px (not 24px) icons at normal
@@ -77,6 +78,33 @@ export class AppHeader extends LitElement {
       floor-tabs::-webkit-scrollbar {
         display: none;
       }
+      /* Narrow screens (HA's own mobile breakpoint): the identity block
+       * and seven action icons leave the middle column no width at all,
+       * so the floor tabs drop to a second, full-width row that scrolls
+       * sideways when there are more floors than fit (#21). */
+      @media (max-width: 870px) {
+        :host {
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-rows: 56px 48px;
+          grid-template-areas:
+            "identity actions"
+            "tabs tabs";
+          height: auto;
+          padding: 0;
+        }
+        .identity {
+          grid-area: identity;
+          padding-left: 4px;
+        }
+        .actions {
+          grid-area: actions;
+          padding-right: 8px;
+        }
+        floor-tabs {
+          grid-area: tabs;
+          border-top: 1px solid var(--sc-divider);
+        }
+      }
       @media (max-width: 600px) {
         /* Seven header actions (incl. undo/redo) need to fit a phone. */
         .icon-button {
@@ -90,6 +118,9 @@ export class AppHeader extends LitElement {
         }
         .identity h1 {
           font-size: 16px;
+        }
+        .identity .app-icon {
+          display: none;
         }
       }
       .actions {

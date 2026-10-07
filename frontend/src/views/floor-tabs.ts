@@ -92,12 +92,13 @@ export class FloorTabs extends LitElement {
         opacity: 0.6;
         font-style: italic;
       }
+      /* Tabs get a row of their own on narrow screens (see app-header),
+       * so names stay visible — an icon alone rarely tells floors apart. */
       @media (max-width: 600px) {
         button {
           padding: 0 12px;
-        }
-        button span {
-          display: none;
+          white-space: nowrap;
+          flex: none;
         }
       }
     `,

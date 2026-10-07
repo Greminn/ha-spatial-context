@@ -25,6 +25,7 @@ from .storage import (
     async_get_property_layout,
     async_save_all_layouts_raw,
     layout_bounds,
+    live_layouts,
     meters_per_unit,
 )
 
@@ -265,7 +266,12 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
     # enforces the same one-place invariant by silently stripping a moved
     # device's old pin; this is the read-side half that lets the frontend
     # warn *before* that happens instead of only after.)
-    all_layouts = await async_get_all_layouts(hass)
+    # Layouts of floors since deleted in HA don't count — their devices
+    # are placeable again (#37).
+    all_layouts = live_layouts(
+        await async_get_all_layouts(hass),
+        {f.floor_id for f in floor_registry.async_list_floors()},
+    )
     device_id_to_floor_id: dict[str, str] = {}
     for floor_id, layout in all_layouts.items():
         for pin in layout.get("pins", []):
