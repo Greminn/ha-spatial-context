@@ -22,7 +22,7 @@ import { pinDisplayLabel } from "./device-display";
 import { qualityColor } from "./mesh-colors";
 import { PinIconResolver, pinStyles } from "./pin-render";
 import { BASE_WIDTH } from "./floorplan-canvas";
-import { sharedStyles } from "../styles";
+import { sharedStyles, zoomControlsStyles } from "../styles";
 
 /** The Property tab's own canvas — a whole-property site photo with a
  * labeled, rotatable rectangle placed per building (see panel.ts's
@@ -241,18 +241,7 @@ export class PropertyCanvas extends LitElement {
         stroke-width: 1.5;
         pointer-events: none;
       }
-      .controls {
-        position: absolute;
-        right: 12px;
-        bottom: 12px;
-        display: flex;
-        gap: 4px;
-      }
-      .controls button {
-        background: var(--sc-panel-bg);
-        box-shadow: var(--sc-panel-shadow);
-        border-radius: var(--sc-panel-radius);
-      }
+      ${zoomControlsStyles}
     `,
   ];
 
@@ -1183,14 +1172,14 @@ export class PropertyCanvas extends LitElement {
           : nothing
       }
       <div class="controls">
-        <button @click=${() => this.fitToScreen()} title="Fit to screen">
-          ⤢ Fit
-        </button>
         <button @click=${() => this._zoomButton(0.87)} title="Zoom in">
-          +
+          <ha-icon icon="mdi:plus"></ha-icon>
         </button>
         <button @click=${() => this._zoomButton(1.15)} title="Zoom out">
-          −
+          <ha-icon icon="mdi:minus"></ha-icon>
+        </button>
+        <button @click=${() => this.fitToScreen()} title="Fit to screen">
+          <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
         </button>
       </div>
     `;

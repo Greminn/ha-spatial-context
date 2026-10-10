@@ -58,21 +58,36 @@ export class CanvasOverlay extends LitElement {
         gap: 2px;
         align-items: center;
         pointer-events: auto;
+        border-radius: 24px;
+        padding: 4px 6px;
       }
       .mode-toolbar button {
         display: flex;
         align-items: center;
         gap: 4px;
         padding: 6px 10px;
+        border-radius: 18px;
+      }
+      /* A thin divider between tool groups: view, draw, place/align. */
+      .tool-divider {
+        align-self: stretch;
+        width: 1px;
+        margin: 6px 4px;
+        background: var(--sc-divider);
       }
       .mode-toolbar ha-icon,
       .selection-panel ha-icon,
       .pin-stack ha-icon {
         --mdc-icon-size: 20px;
       }
+      /* Tonal active state, like HA's selected chips and tabs: the primary
+       * colour at low strength behind a primary icon. */
       .mode-toolbar button.active {
-        background: var(--sc-accent);
-        color: white;
+        background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
+        color: var(--sc-accent);
+      }
+      .mode-toolbar button.active ha-icon {
+        color: var(--sc-accent);
       }
       .hint-bar {
         position: absolute;
@@ -88,7 +103,8 @@ export class CanvasOverlay extends LitElement {
         position: absolute;
         top: 12px;
         right: 12px;
-        padding: 6px 12px;
+        border-radius: 16px;
+        padding: 6px 14px;
         font-size: 0.8125rem;
         color: var(--sc-fg-secondary);
         pointer-events: auto;
@@ -314,11 +330,13 @@ export class CanvasOverlay extends LitElement {
       <div class="mode-toolbar floating-panel">
         ${this._modeButton("select", "mdi:cursor-default-click", localize("canvas.mode.select"))}
         ${this._modeButton("pan", "mdi:hand-back-right-outline", localize("canvas.mode.pan"))}
+        <span class="tool-divider"></span>
         ${this._modeButton("trace", "mdi:vector-square", localize("canvas.mode.trace"))}
         ${this._modeButton("wall", "mdi:wall", localize("canvas.mode.wall"))}
         ${this._openingModeButton("door", "mdi:door", localize("canvas.mode.door"))}
         ${this._openingModeButton("window", "mdi:window-closed-variant", localize("canvas.mode.window"))}
         ${this._modeButton("scale", "mdi:ruler", localize("canvas.mode.scale"))}
+        <span class="tool-divider"></span>
         ${this._modeButton("place", "mdi:map-marker-plus", localize("canvas.mode.place"))}
         ${this._modeButton("align", "mdi:compare", localize("canvas.mode.align"))}
       </div>

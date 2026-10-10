@@ -101,3 +101,38 @@ export const sharedStyles = css`
     color: var(--sc-danger);
   }
 `;
+
+/** The floating zoom stack (+ / − / fit) shared by the floor-plan and
+ * Property canvases: one rounded card with stacked icon buttons, like the
+ * zoom control on HA's own Map page. */
+export const zoomControlsStyles = css`
+  .controls {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    background: var(--sc-panel-bg);
+    box-shadow: var(--sc-panel-shadow);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .controls button {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 0;
+    color: var(--sc-fg);
+  }
+  .controls button + button {
+    border-top: 1px solid var(--sc-divider);
+  }
+  .controls button:hover {
+    background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+  }
+  .controls ha-icon {
+    --mdc-icon-size: 22px;
+  }
+`;

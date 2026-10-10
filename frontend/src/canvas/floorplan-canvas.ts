@@ -47,7 +47,7 @@ import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
 import { qualityColor } from "./mesh-colors";
 import { GROUP_ICON_PATH } from "./pin-icons";
 import { formatLarge, largeUnitLabel } from "../units";
-import { sharedStyles } from "../styles";
+import { sharedStyles, zoomControlsStyles } from "../styles";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
  * independent of the uploaded background image's actual pixel resolution. */
@@ -354,18 +354,7 @@ export class FloorplanCanvas extends LitElement {
         opacity: 0.5;
         cursor: copy;
       }
-      .controls {
-        position: absolute;
-        right: 12px;
-        bottom: 12px;
-        display: flex;
-        gap: 4px;
-      }
-      .controls button {
-        background: var(--sc-panel-bg);
-        box-shadow: var(--sc-panel-shadow);
-        border-radius: var(--sc-panel-radius);
-      }
+      ${zoomControlsStyles}
     `,
   ];
 
@@ -2470,12 +2459,14 @@ export class FloorplanCanvas extends LitElement {
         </svg>
       `}
       <div class="controls">
-        <button @click=${() => this.fitToScreen()} title="Fit to screen">
-          ⤢ Fit
+        <button @click=${() => this._zoomButton(0.8)} title="Zoom in">
+          <ha-icon icon="mdi:plus"></ha-icon>
         </button>
-        <button @click=${() => this._zoomButton(0.8)} title="Zoom in">+</button>
         <button @click=${() => this._zoomButton(1.25)} title="Zoom out">
-          −
+          <ha-icon icon="mdi:minus"></ha-icon>
+        </button>
+        <button @click=${() => this.fitToScreen()} title="Fit to screen">
+          <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
         </button>
       </div>
     `;
