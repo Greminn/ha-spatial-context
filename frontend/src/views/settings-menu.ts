@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { Settings } from "../types";
-import { sharedStyles } from "../styles";
+import { sharedStyles, switchStyles } from "../styles";
 
 /** The Settings menu's content: grouped rows, label (and an optional
  * one-line description) on the left, its control on the right. Every
@@ -12,6 +12,7 @@ import { sharedStyles } from "../styles";
 export class SettingsMenu extends LitElement {
   static override styles = [
     sharedStyles,
+    switchStyles,
     css`
       :host {
         display: block;
@@ -64,44 +65,6 @@ export class SettingsMenu extends LitElement {
         font-size: 0.75rem;
         line-height: 1.3;
         color: var(--sc-fg-secondary);
-      }
-
-      /* On/off switch — a styled checkbox, so it stays keyboard and
-       * screen-reader accessible. */
-      .switch {
-        appearance: none;
-        -webkit-appearance: none;
-        position: relative;
-        width: 36px;
-        height: 20px;
-        margin: 0;
-        border-radius: 10px;
-        background: var(--sc-divider);
-        cursor: pointer;
-        transition: background 0.15s;
-        flex: none;
-      }
-      .switch::before {
-        content: "";
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: white;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        transition: transform 0.15s;
-      }
-      .switch:checked {
-        background: var(--sc-accent);
-      }
-      .switch:checked::before {
-        transform: translateX(16px);
-      }
-      .switch:focus-visible {
-        outline: 2px solid var(--sc-accent);
-        outline-offset: 2px;
       }
 
       /* Two-option segmented control. */

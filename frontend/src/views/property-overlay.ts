@@ -3,7 +3,7 @@ import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
-import { sharedStyles } from "../styles";
+import { selectStyles, sharedStyles } from "../styles";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import { localize } from "../i18n";
 
@@ -32,6 +32,7 @@ export interface PropertyBuilding {
 export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,
+    selectStyles,
     meshLegendStyles,
     css`
       :host {
@@ -44,39 +45,52 @@ export class PropertyOverlay extends LitElement {
         top: 12px;
         left: 12px;
         display: flex;
-        gap: 6px;
+        gap: 2px;
         align-items: center;
         pointer-events: auto;
+        border-radius: 24px;
+        padding: 4px 6px;
       }
       .mode-toolbar button {
         display: flex;
         align-items: center;
         gap: 4px;
         padding: 6px 10px;
+        border-radius: 18px;
+      }
+      .tool-divider {
+        align-self: stretch;
+        width: 1px;
+        margin: 6px 4px;
+        background: var(--sc-divider);
       }
       .mode-toolbar ha-icon,
       .selection-panel ha-icon {
         --mdc-icon-size: 20px;
       }
       .mode-toolbar button.active {
-        background: var(--sc-accent);
-        color: white;
+        background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
+        color: var(--sc-accent);
+      }
+      .mode-toolbar button.active ha-icon {
+        color: var(--sc-accent);
       }
       .place-picker {
         border: 1px solid var(--sc-divider);
-        border-radius: 4px;
+        border-radius: 18px;
         background: var(--sc-bg);
         color: var(--sc-fg);
         font-family: inherit;
         font-size: 0.875rem;
-        padding: 6px 8px;
+        padding: 6px 14px;
       }
       .scale-badge {
         position: absolute;
         top: 12px;
         right: 12px;
         max-width: 260px;
-        padding: 6px 12px;
+        border-radius: 16px;
+        padding: 6px 14px;
         font-size: 0.8125rem;
         color: var(--sc-fg-secondary);
         pointer-events: auto;
@@ -287,20 +301,23 @@ export class PropertyOverlay extends LitElement {
               </button>`
             : nothing
         }
-        <select
-          class="place-picker"
-          title="Place a building's footprint"
-          .value=${this.armedBuildingKey ?? ""}
-          @change=${(e: Event) => {
-            const key = (e.target as HTMLSelectElement).value;
-            if (key) this._fire("placement-arm", { key });
-          }}
-        >
-          <option value="">Place building…</option>
-          ${this.buildings.map(
-            (b) => html`<option value=${b.key}>${b.name}</option>`,
-          )}
-        </select>
+        <span class="tool-divider"></span>
+        <span class="select-wrap"
+          ><select
+            class="place-picker"
+            title="Place a building's footprint"
+            .value=${this.armedBuildingKey ?? ""}
+            @change=${(e: Event) => {
+              const key = (e.target as HTMLSelectElement).value;
+              if (key) this._fire("placement-arm", { key });
+            }}
+          >
+            <option value="">Place building…</option>
+            ${this.buildings.map(
+              (b) => html`<option value=${b.key}>${b.name}</option>`,
+            )}</select
+          ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+        ></span>
       </div>
 
       <div

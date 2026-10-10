@@ -68,7 +68,7 @@ import {
   parseLarge,
   unitsPerDisplayUnit,
 } from "./units";
-import { sharedStyles } from "./styles";
+import { sharedStyles, switchStyles } from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
 import "./canvas/property-canvas";
@@ -107,6 +107,7 @@ function readStoredSnapMode(): SnapMode {
 export class SpatialContextPanel extends LitElement {
   static override styles = [
     sharedStyles,
+    switchStyles,
     css`
       :host {
         display: flex;
@@ -156,6 +157,15 @@ export class SpatialContextPanel extends LitElement {
         display: flex;
         align-items: center;
         gap: 8px;
+      }
+      .menu-divider {
+        height: 1px;
+        margin: 6px 0;
+        background: var(--sc-divider);
+      }
+      .menu-item .trail {
+        margin-left: auto;
+        color: var(--sc-accent);
       }
       /* Innerspace-style layer menu: "Connectivity Map" opens a list of
        * mutually-exclusive layers (only one network is ever drawn at once)
@@ -3377,12 +3387,14 @@ export class SpatialContextPanel extends LitElement {
                     @click=${() => this._onNetworkTypeSelect("zigbee")}
                   >
                     <ha-icon icon="mdi:zigbee"></ha-icon> Zigbee Mesh
+                    ${this._networkType === "zigbee" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("wifi")}
                   >
                     <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Network
+                    ${this._networkType === "wifi" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "matter" ? "active" : ""}"
@@ -3390,14 +3402,17 @@ export class SpatialContextPanel extends LitElement {
                   >
                     <ha-icon icon="mdi:router-wireless"></ha-icon> Matter
                     Network
+                    ${this._networkType === "matter" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "bluetooth" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("bluetooth")}
                   >
                     <ha-icon icon="mdi:bluetooth"></ha-icon> Bluetooth
+                    ${this._networkType === "bluetooth" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                 </div>
+                <div class="menu-divider"></div>
                 ${
                   this._networkType === null
                     ? html`<span class="hint" style="padding: 4px 16px 8px"
@@ -3427,6 +3442,8 @@ export class SpatialContextPanel extends LitElement {
                                 >
                                   <input
                                     type="checkbox"
+                                    class="switch"
+                                    role="switch"
                                     .checked=${this._zigbeeShowAllLinks}
                                     @change=${(e: Event) => {
                                       this._zigbeeShowAllLinks = (

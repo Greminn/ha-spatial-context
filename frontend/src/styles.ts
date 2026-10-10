@@ -67,6 +67,7 @@ export const sharedStyles = css`
   }
   .floating-panel {
     background: var(--sc-panel-bg);
+    border: 1px solid var(--sc-divider);
     border-radius: var(--sc-panel-radius);
     box-shadow: var(--sc-panel-shadow);
     padding: 6px;
@@ -115,6 +116,7 @@ export const zoomControlsStyles = css`
     display: flex;
     flex-direction: column;
     background: var(--sc-panel-bg);
+    border: 1px solid var(--sc-divider);
     box-shadow: var(--sc-panel-shadow);
     border-radius: 12px;
     overflow: hidden;
@@ -136,5 +138,71 @@ export const zoomControlsStyles = css`
   }
   .controls ha-icon {
     --mdc-icon-size: 22px;
+  }
+`;
+
+/** A native <select> drawn with HA's dropdown chevron instead of the
+ * browser's up/down arrows: wrap it in `.select-wrap` and add
+ * `<ha-icon class="chev" icon="mdi:menu-down">` after it. */
+export const selectStyles = css`
+  .select-wrap {
+    position: relative;
+    display: inline-flex;
+    min-width: 0;
+  }
+  .select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    padding-right: 30px;
+  }
+  .select-wrap .chev {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    --mdc-icon-size: 20px;
+    color: var(--sc-fg-secondary);
+    pointer-events: none;
+  }
+`;
+
+/** On/off switch — a styled checkbox, so it stays keyboard and
+ * screen-reader accessible. */
+export const switchStyles = css`
+  .switch {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    border-radius: 10px;
+    background: var(--sc-divider);
+    cursor: pointer;
+    transition: background 0.15s;
+    flex: none;
+  }
+  .switch::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s;
+  }
+  .switch:checked {
+    background: var(--sc-accent);
+  }
+  .switch:checked::before {
+    transform: translateX(16px);
+  }
+  .switch:focus-visible {
+    outline: 2px solid var(--sc-accent);
+    outline-offset: 2px;
   }
 `;

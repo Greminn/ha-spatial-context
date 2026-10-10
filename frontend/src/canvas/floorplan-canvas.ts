@@ -179,14 +179,16 @@ export class FloorplanCanvas extends LitElement {
        * hue-rotate(180deg) keeps any colour in the plan close to its
        * original hue. The Background menu's opacity still applies. */
       :host([dark]) {
-        background: var(--sc-bg);
+        /* A step lighter than the cards, so the floating toolbar and panels
+         * (card colour) stand out from the canvas. */
+        background: color-mix(in srgb, var(--sc-bg) 88%, white);
       }
       :host([dark]) .bg-overlay img {
         filter: invert(1) hue-rotate(180deg);
       }
       /* Door/window jambs were drawn dark-on-white. */
       :host([dark]) .opening-jamb-case {
-        stroke: var(--sc-bg);
+        stroke: color-mix(in srgb, var(--sc-bg) 88%, white);
       }
       :host([dark]) .opening-jamb {
         stroke: var(--sc-fg);

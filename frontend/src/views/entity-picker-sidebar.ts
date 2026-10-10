@@ -4,7 +4,7 @@ import { safeCustomElement } from "../define";
 import { PROPERTY_LOCATION_ID } from "../types";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
-import { sharedStyles } from "../styles";
+import { selectStyles, sharedStyles } from "../styles";
 
 /** Fallback row icon when a device's integration has no brand logo on
  * brands.home-assistant.io (see the `<img>`/`@error` pair below) — one
@@ -28,6 +28,7 @@ interface DeviceGroup {
 export class EntityPickerSidebar extends LitElement {
   static override styles = [
     sharedStyles,
+    selectStyles,
     css`
       :host {
         display: flex;
@@ -53,20 +54,23 @@ export class EntityPickerSidebar extends LitElement {
       .search {
         padding: 12px;
       }
-      .clear-all-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        margin-top: 8px;
-        padding: 8px 12px;
-        font-size: 13px;
-        color: var(--sc-danger);
-        border-radius: 8px;
-        justify-content: flex-start;
+      .more-button {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+        color: var(--sc-fg-secondary);
       }
-      .clear-all-button ha-icon {
-        --mdc-icon-size: 18px;
+      .more-menu {
+        position: absolute;
+        right: 12px;
+        z-index: 5;
+        margin-top: 4px;
+        min-width: 220px;
+        padding: 6px;
       }
       .search-box {
         display: flex;
@@ -108,6 +112,9 @@ export class EntityPickerSidebar extends LitElement {
         display: flex;
         gap: 8px;
         margin-top: 8px;
+      }
+      .filters .select-wrap {
+        flex: 1;
       }
       .filters select {
         flex: 1;
@@ -204,6 +211,7 @@ export class EntityPickerSidebar extends LitElement {
     `,
   ];
 
+  @state() private _menuOpen = false;
   @property({ attribute: false }) entities: PlaceableEntity[] = [];
   @property({ attribute: false }) placedDeviceIds: Set<string> = new Set();
   @property({ attribute: false }) armedEntityId: string | null = null;
@@ -435,58 +443,77 @@ export class EntityPickerSidebar extends LitElement {
           }
         </div>
         <div class="filters">
-          <select @change=${this._onFloorFilterChange}>
-            <option value="all" ?selected=${this._floorFilter === "all"}>
-              All Floors
-            </option>
-            <option
-              value=${PROPERTY_LOCATION_ID}
-              ?selected=${this._effectiveFloorFilter === PROPERTY_LOCATION_ID}
+          <span class="select-wrap"
+            ><select @change=${this._onFloorFilterChange}>
+              <option value="all" ?selected=${this._floorFilter === "all"}>
+                All Floors
+              </option>
+              <option
+                value=${PROPERTY_LOCATION_ID}
+                ?selected=${this._effectiveFloorFilter === PROPERTY_LOCATION_ID}
+              >
+                Outdoor / no floor
+              </option>
+              ${this.floors.map(
+                (f) =>
+                  html`<option
+                    value=${f.floor_id}
+                    ?selected=${this._effectiveFloorFilter === f.floor_id}
+                  >
+                    ${f.name}
+                  </option>`,
+              )}</select
+            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+          ></span>
+          <span class="select-wrap"
+            ><select
+              @change=${(e: Event) =>
+                (this._areaFilter =
+                  (e.target as HTMLSelectElement).value || null)}
             >
-              Outdoor / no floor
-            </option>
-            ${this.floors.map(
-              (f) =>
-                html`<option
-                  value=${f.floor_id}
-                  ?selected=${this._effectiveFloorFilter === f.floor_id}
+              <option value="" ?selected=${!this._areaFilter}>All Areas</option>
+              ${this._areasForFilter.map(
+                (a) =>
+                  html`<option
+                    value=${a.area_id}
+                    ?selected=${this._areaFilter === a.area_id}
+                  >
+                    ${a.name}
+                  </option>`,
+              )}</select
+            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+          ></span>
+          ${
+            this.placedDeviceIds.size > 0
+              ? html`<button
+                  class="more-button"
+                  title="More"
+                  @click=${() => (this._menuOpen = !this._menuOpen)}
                 >
-                  ${f.name}
-                </option>`,
-            )}
-          </select>
-          <select
-            @change=${(e: Event) =>
-              (this._areaFilter =
-                (e.target as HTMLSelectElement).value || null)}
-          >
-            <option value="" ?selected=${!this._areaFilter}>All Areas</option>
-            ${this._areasForFilter.map(
-              (a) =>
-                html`<option
-                  value=${a.area_id}
-                  ?selected=${this._areaFilter === a.area_id}
-                >
-                  ${a.name}
-                </option>`,
-            )}
-          </select>
+                  <ha-icon icon="mdi:dots-vertical"></ha-icon>
+                </button>`
+              : nothing
+          }
         </div>
         ${
-          this.placedDeviceIds.size > 0
-            ? html`<button
-                class="clear-all-button"
-                @click=${() =>
-                  this.dispatchEvent(
-                    new CustomEvent("clear-all-pins", {
-                      bubbles: true,
-                      composed: true,
-                    }),
-                  )}
-              >
-                <ha-icon icon="mdi:playlist-remove"></ha-icon> Clear all placed
-                devices
-              </button>`
+          this._menuOpen && this.placedDeviceIds.size > 0
+            ? html`<div class="more-menu floating-panel">
+                <button
+                  class="menu-item danger"
+                  @click=${() => {
+                    this._menuOpen = false;
+                    this.dispatchEvent(
+                      new CustomEvent("clear-all-pins", {
+                        bubbles: true,
+                        composed: true,
+                      }),
+                    );
+                  }}
+                >
+                  <ha-icon icon="mdi:playlist-remove"></ha-icon> Clear all
+                  placed devices
+                </button>
+              </div>`
             : nothing
         }
       </div>

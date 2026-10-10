@@ -168,8 +168,12 @@ export class CanvasOverlay extends LitElement {
         gap: 8px;
         width: 100%;
         text-align: left;
-        padding: 8px;
-        border-radius: 6px;
+        padding: 8px 12px;
+        border-radius: 12px;
+      }
+      .pin-stack > button:last-child {
+        color: var(--sc-accent);
+        justify-content: center;
       }
       .pin-stack-row {
         display: flex;
