@@ -109,11 +109,6 @@ export const sharedStyles = css`
     text-align: left;
     justify-content: flex-start;
   }
-  a.menu-item {
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
-  }
   .menu-item ha-icon {
     --mdc-icon-size: 22px;
     color: var(--sc-fg-secondary);

@@ -42,6 +42,20 @@ export class SettingsMenu extends LitElement {
         justify-content: flex-end;
         padding: 12px 24px 20px;
       }
+      a.link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--sc-accent);
+        text-decoration: none;
+        font-size: var(--sc-fs-body);
+      }
+      a.link:hover {
+        text-decoration: underline;
+      }
+      a.link ha-icon {
+        --mdc-icon-size: 16px;
+      }
       .done {
         height: 48px;
         padding: 0 28px;
@@ -359,6 +373,17 @@ export class SettingsMenu extends LitElement {
           ${this._row(
             localize("settings.version"),
             html`<span class="description">v${__VERSION__}</span>`,
+          )}
+          ${this._row(
+            localize("settings.github"),
+            html`<a
+              class="link"
+              href="https://github.com/Greminn/ha-spatial-context"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Greminn/ha-spatial-context
+              <ha-icon icon="mdi:open-in-new"></ha-icon
+            ></a>`,
           )}
         </div>
       </div>

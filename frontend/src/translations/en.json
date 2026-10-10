@@ -163,7 +163,8 @@
     "debugLogging": "Debug logging",
     "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",
     "about": "About",
-    "version": "Version"
+    "version": "Version",
+    "github": "GitHub repository"
   },
   "picker": {
     "search": "Search devices…",
@@ -219,9 +220,7 @@
     "debugReport": "Download debug report",
     "debugReportHint": "Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue",
     "resetFloor": "Reset floor",
-    "resetProperty": "Reset property",
-    "github": "GitHub repository",
-    "star": "Star on GitHub"
+    "resetProperty": "Reset property"
   },
   "network": {
     "zigbee": "Zigbee Mesh",

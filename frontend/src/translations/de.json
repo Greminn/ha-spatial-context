@@ -163,7 +163,8 @@
     "debugLogging": "Debug-Protokollierung",
     "debugLoggingHint": "Schreibt spatial_context_debug.log in Ihren Konfigurationsordner – nur IDs und Anzahlen",
     "about": "Info",
-    "version": "Version"
+    "version": "Version",
+    "github": "GitHub-Repository"
   },
   "picker": {
     "search": "Geräte suchen…",
@@ -219,9 +220,7 @@
     "debugReport": "Debug-Bericht herunterladen",
     "debugReportHint": "Versionen, Einstellungen, Layout-Anzahlen und das aktuelle Debug-Protokoll – sicher an ein GitHub-Issue anzuhängen",
     "resetFloor": "Etage zurücksetzen",
-    "resetProperty": "Anwesen zurücksetzen",
-    "github": "GitHub-Repository",
-    "star": "Auf GitHub mit einem Stern markieren"
+    "resetProperty": "Anwesen zurücksetzen"
   },
   "network": {
     "zigbee": "Zigbee-Mesh",
