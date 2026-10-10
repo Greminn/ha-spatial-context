@@ -217,54 +217,56 @@ export class PropertyOverlay extends LitElement {
     const setRotation = (deg: number) =>
       this._fire("map-rotation-set", { deg });
     return html`
-      <div class="hint-bar">
-        <span class="hint">${localize("mapBackground.adjustHint")}</span>
-        <button
-          title=${localize("mapBackground.zoomOut")}
-          @click=${() => this._fire("map-zoom-step", { factor: 1 / 1.1 })}
-        >
-          <ha-icon icon="mdi:magnify-minus-outline"></ha-icon>
-        </button>
-        <button
-          title=${localize("mapBackground.zoomIn")}
-          @click=${() => this._fire("map-zoom-step", { factor: 1.1 })}
-        >
-          <ha-icon icon="mdi:magnify-plus-outline"></ha-icon>
-        </button>
-        <span class="hint">${localize("mapBackground.rotation")}</span>
-        <input
-          type="range"
-          min="-180"
-          max="180"
-          step="0.5"
-          style="--pct:${((rotation + 180) / 360) * 100}%"
-          .value=${String(rotation)}
-          @input=${(e: Event) =>
-            setRotation(Number((e.target as HTMLInputElement).value))}
-        />
-        <input
-          type="number"
-          min="-180"
-          max="180"
-          step="0.5"
-          .value=${String(rotation)}
-          @change=${(e: Event) => {
-            const deg = Number((e.target as HTMLInputElement).value);
-            if (Number.isFinite(deg)) setRotation(deg);
-          }}
-        />°
-        <button
-          title=${localize("mapBackground.resetRotation")}
-          @click=${() => setRotation(0)}
-        >
-          <ha-icon icon="mdi:compass-outline"></ha-icon>
-        </button>
-        <button
-          class="primary"
-          @click=${() => this._fire("property-mode-change", { mode: "select" })}
-        >
-          ${localize("mapBackground.done")}
-        </button>
+      <div class="tool-row sub">
+        <div class="hint-bar">
+          <span class="hint">${localize("mapBackground.adjustHint")}</span>
+          <button
+            title=${localize("mapBackground.zoomOut")}
+            @click=${() => this._fire("map-zoom-step", { factor: 1 / 1.1 })}
+          >
+            <ha-icon icon="mdi:magnify-minus-outline"></ha-icon>
+          </button>
+          <button
+            title=${localize("mapBackground.zoomIn")}
+            @click=${() => this._fire("map-zoom-step", { factor: 1.1 })}
+          >
+            <ha-icon icon="mdi:magnify-plus-outline"></ha-icon>
+          </button>
+          <span class="hint">${localize("mapBackground.rotation")}</span>
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            step="0.5"
+            style="--pct:${((rotation + 180) / 360) * 100}%"
+            .value=${String(rotation)}
+            @input=${(e: Event) =>
+              setRotation(Number((e.target as HTMLInputElement).value))}
+          />
+          <input
+            type="number"
+            min="-180"
+            max="180"
+            step="0.5"
+            .value=${String(rotation)}
+            @change=${(e: Event) => {
+              const deg = Number((e.target as HTMLInputElement).value);
+              if (Number.isFinite(deg)) setRotation(deg);
+            }}
+          />°
+          <button
+            title=${localize("mapBackground.resetRotation")}
+            @click=${() => setRotation(0)}
+          >
+            <ha-icon icon="mdi:compass-outline"></ha-icon>
+          </button>
+          <button
+            class="primary"
+            @click=${() => this._fire("property-mode-change", { mode: "select" })}
+          >
+            ${localize("mapBackground.done")}
+          </button>
+        </div>
       </div>
     `;
   }
@@ -410,7 +412,6 @@ export class PropertyOverlay extends LitElement {
             ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
           ></span>
         </div>
-        ${this._renderMapPanel()}
 
         <slot name="row-end"></slot>
         <row-actions
@@ -421,7 +422,7 @@ export class PropertyOverlay extends LitElement {
         ></row-actions>
       </div>
 
-      ${this._renderScaleNotice()}
+      ${this._renderMapPanel()} ${this._renderScaleNotice()}
       ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}
       ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
       ${this._renderPlacementPanel()}

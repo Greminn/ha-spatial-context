@@ -299,6 +299,15 @@ export const toolRowStyles = css`
     padding: 0;
     flex: 1 0 auto;
   }
+  /* A third bar for mode-specific tools (e.g. lining up the map), laid
+   * over the top of the canvas right under the controls row. */
+  .tool-row.sub {
+    top: 56px;
+    z-index: 1;
+  }
+  .tool-row.sub .hint-bar button.primary {
+    margin-left: auto;
+  }
   .tool-row .hint-bar input[type="range"] {
     width: 130px;
   }
