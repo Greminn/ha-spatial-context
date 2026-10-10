@@ -220,7 +220,8 @@
     "debugReportHint": "Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue",
     "resetFloor": "Reset floor",
     "resetProperty": "Reset property",
-    "github": "GitHub repository"
+    "github": "GitHub repository",
+    "star": "Star on GitHub"
   },
   "network": {
     "zigbee": "Zigbee Mesh",

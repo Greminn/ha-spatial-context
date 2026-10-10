@@ -3665,6 +3665,15 @@ export class SpatialContextPanel extends LitElement {
           >
             <ha-icon icon="mdi:github"></ha-icon> ${localize("menu.github")}
           </a>
+          <a
+            class="menu-item"
+            href="https://github.com/Greminn/ha-spatial-context"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click=${() => (this._moreOptionsPopoverOpen = false)}
+          >
+            <ha-icon icon="mdi:star-outline"></ha-icon> ${localize("menu.star")}
+          </a>
           <button
             class="menu-item danger"
             @click=${() => {
