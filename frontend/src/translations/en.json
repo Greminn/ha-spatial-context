@@ -94,7 +94,17 @@
     "meshStub": {
       "goToFloor": "Go to floor"
     },
-    "notCalibrated": "Not calibrated"
+    "notCalibrated": "Not calibrated",
+    "card": {
+      "room": "Room",
+      "device": "Device",
+      "wall": "Wall",
+      "wallOpening": "In a wall",
+      "link": "Link",
+      "quality": "Signal",
+      "area": "Area",
+      "style": "Style"
+    }
   },
   "mapBackground": {
     "noWebgl": "This browser can't draw the map (WebGL2 is needed).",

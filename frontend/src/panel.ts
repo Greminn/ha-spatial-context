@@ -3182,6 +3182,12 @@ export class SpatialContextPanel extends LitElement {
     this._selectedPinId = e.detail.pinId;
   };
 
+  /** The info card's close button: drop whatever is selected. */
+  private _onSelectionClear = () => {
+    this._resetSelection();
+    this._pinStackIds = null;
+  };
+
   private _onPinStackDismiss = () => {
     this._pinStackIds = null;
   };
@@ -3803,6 +3809,7 @@ export class SpatialContextPanel extends LitElement {
                     @opening-delete-click=${this._onOpeningDelete}
                     @pin-stack-choose=${this._onPinStackChoose}
                     @pin-stack-dismiss=${this._onPinStackDismiss}
+                    @selection-clear=${this._onSelectionClear}
                     @pin-stack-remove-click=${this._onPinStackRemove}
                     @mesh-stub-goto-floor-click=${this._onMeshStubGotoFloorClick}
                   ></canvas-overlay>

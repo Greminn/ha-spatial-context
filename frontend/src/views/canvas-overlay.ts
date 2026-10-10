@@ -34,7 +34,12 @@ import {
   smallSubUnitsFor,
   type SmallSubUnit,
 } from "../units";
-import { sharedStyles, toolRowStyles } from "../styles";
+import {
+  selectStyles,
+  sharedStyles,
+  switchStyles,
+  toolRowStyles,
+} from "../styles";
 import { localize } from "../i18n";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -46,6 +51,8 @@ import { localize } from "../i18n";
 export class CanvasOverlay extends LitElement {
   static override styles = [
     sharedStyles,
+    selectStyles,
+    switchStyles,
     toolRowStyles,
     meshLegendStyles,
     css`
@@ -71,9 +78,7 @@ export class CanvasOverlay extends LitElement {
         margin: 6px 4px;
         background: var(--sc-divider);
       }
-      .mode-toolbar ha-icon,
-      .selection-panel ha-icon,
-      .pin-stack ha-icon {
+      .mode-toolbar ha-icon {
         --mdc-icon-size: 20px;
       }
       /* Tonal active state, like HA's selected chips and tabs: the primary
@@ -105,15 +110,143 @@ export class CanvasOverlay extends LitElement {
         color: var(--sc-fg-secondary);
         pointer-events: auto;
       }
-      .selection-panel {
+      /* HA map-panel style info card. */
+      .info-card {
         position: absolute;
-        bottom: 12px;
+        top: 68px;
         left: 12px;
+        width: min(340px, calc(100% - 24px));
+        max-height: calc(100% - 80px);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 24px;
+        pointer-events: auto;
+      }
+      .info-head {
         display: flex;
         align-items: center;
+        gap: 4px;
+        padding: 4px 4px 0;
+      }
+      .info-close {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+      }
+      .info-titles {
+        min-width: 0;
+      }
+      .info-title {
+        font-size: 1.125rem;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+      .info-sub {
+        font-size: 0.8125rem;
+        color: var(--sc-fg-secondary);
+      }
+      .info-body {
+        display: flex;
+        flex-direction: column;
         gap: 8px;
-        padding: 8px 12px;
-        pointer-events: auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .info-group {
+        padding: 4px 0;
+        border-radius: 16px;
+        background: var(--primary-background-color, var(--sc-bg));
+      }
+      .info-group-title {
+        padding: 8px 16px 0;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--sc-fg-secondary);
+      }
+      .info-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 48px;
+        padding: 6px 16px;
+        font-size: 0.9375rem;
+        text-align: left;
+      }
+      .info-row.action {
+        justify-content: flex-start;
+        border-radius: 0;
+      }
+      .info-row.action:hover {
+        background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+      }
+      .info-row.action.active {
+        color: var(--sc-accent);
+      }
+      .info-row ha-icon {
+        --mdc-icon-size: 22px;
+        color: var(--sc-fg-secondary);
+      }
+      .info-row.action.active ha-icon {
+        color: var(--sc-accent);
+      }
+      .info-row .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .info-row select {
+        max-width: 180px;
+        border-radius: 16px;
+      }
+      .inline-pair {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .info-row.stack-row {
+        padding: 0 4px 0 0;
+      }
+      .stack-choose {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 16px;
+        border-radius: 0;
+        text-align: left;
+        justify-content: flex-start;
+      }
+      .stack-remove {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+        color: var(--sc-danger);
+      }
+      .info-foot {
+        display: flex;
+        gap: 8px;
+        padding: 0 4px 4px;
+      }
+      .info-foot button {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 20px;
+        font-size: 0.9375rem;
+      }
+      .info-foot button.danger {
+        background: color-mix(in srgb, var(--sc-danger) 14%, transparent);
       }
       .snap-select {
         padding: 4px;
@@ -139,53 +272,6 @@ export class CanvasOverlay extends LitElement {
       }
       .room-opacity {
         width: 60px;
-      }
-      .pin-stack {
-        position: absolute;
-        bottom: 12px;
-        left: 12px;
-        display: flex;
-        flex-direction: column;
-        min-width: 220px;
-        padding: 4px;
-        pointer-events: auto;
-      }
-      .pin-stack .stack-title {
-        padding: 6px 8px 4px;
-        font-size: 0.75rem;
-        color: var(--sc-fg-secondary);
-      }
-      .pin-stack button {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 8px;
-        width: 100%;
-        text-align: left;
-        padding: 8px 12px;
-        border-radius: 12px;
-      }
-      .pin-stack > button:last-child {
-        color: var(--sc-accent);
-        justify-content: center;
-      }
-      .pin-stack-row {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-      }
-      .pin-stack-row .pin-stack-choose {
-        flex: 1;
-        min-width: 0;
-      }
-      .pin-stack-row .pin-stack-remove {
-        flex-shrink: 0;
-        width: 32px;
-        justify-content: center;
-        color: var(--sc-danger);
-      }
-      .pin-stack-row .pin-stack-remove ha-icon {
-        --mdc-icon-size: 18px;
       }
     `,
   ];
@@ -524,205 +610,308 @@ export class CanvasOverlay extends LitElement {
     );
   }
 
+  /** HA map-panel style info card: a floating card on the left with a close
+   * button, a title and subtitle, inner rounded groups of rows, and a
+   * footer of actions. Every selection type renders through this. */
+  private _card(opts: {
+    title: string;
+    subtitle?: string | undefined;
+    onClose: () => void;
+    body: unknown;
+    footer?: unknown;
+  }) {
+    return html`
+      <div class="info-card floating-panel">
+        <div class="info-head">
+          <button
+            class="info-close"
+            title=${localize("canvas.button.close")}
+            @click=${opts.onClose}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
+          <div class="info-titles">
+            <div class="info-title">${opts.title}</div>
+            ${
+              opts.subtitle
+                ? html`<div class="info-sub">${opts.subtitle}</div>`
+                : nothing
+            }
+          </div>
+        </div>
+        <div class="info-body">${opts.body}</div>
+        ${
+          opts.footer
+            ? html`<div class="info-foot">${opts.footer}</div>`
+            : nothing
+        }
+      </div>
+    `;
+  }
+
+  /** A clickable row: icon, label, optional trailing control. */
+  private _actionRow(
+    icon: string,
+    label: string,
+    onClick: () => void,
+    active = false,
+  ) {
+    return html`<button
+      class="info-row action ${active ? "active" : ""}"
+      @click=${onClick}
+    >
+      <ha-icon icon=${icon}></ha-icon>
+      <span class="grow">${label}</span>
+    </button>`;
+  }
+
+  /** A label on the left and its control on the right. */
+  private _fieldRow(label: string, control: unknown) {
+    return html`<div class="info-row">
+      <span class="grow">${label}</span>
+      ${control}
+    </div>`;
+  }
+
+  private _selectWrap(select: unknown) {
+    return html`<span class="select-wrap"
+      >${select}<ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+    ></span>`;
+  }
+
+  private _deleteButton(label: string, event: string) {
+    return html`<button class="danger" @click=${() => this._fire(event)}>
+      <ha-icon icon="mdi:delete"></ha-icon> ${label}
+    </button>`;
+  }
+
+  private _clearSelection = () => this._fire("selection-clear");
+
   private _renderSelectionPanel() {
     if (this.selectedRoom) {
       const room = this.selectedRoom;
       const visible = room.visible !== false;
-      return html`
-        <div class="selection-panel floating-panel">
-          <span class="hint">${room.name}</span>
-          <select
-            @change=${(e: Event) =>
-              this._fire("room-area-change", {
-                areaId: (e.target as HTMLSelectElement).value,
-              })}
-          >
-            <option value="" ?selected=${!room.area_id}>
-              ${localize("canvas.room.custom")}
-            </option>
-            ${this._areaOptions(
-              this.areas.filter((a) => a.floor_id !== null),
-              room.area_id,
+      const area = this.areas.find((a) => a.area_id === room.area_id);
+      return this._card({
+        title: room.name,
+        subtitle: area ? area.name : localize("canvas.card.room"),
+        onClose: this._clearSelection,
+        body: html`
+          <div class="info-group">
+            ${this._fieldRow(
+              localize("canvas.card.area"),
+              this._selectWrap(
+                html`<select
+                  @change=${(e: Event) =>
+                    this._fire("room-area-change", {
+                      areaId: (e.target as HTMLSelectElement).value,
+                    })}
+                >
+                  <option value="" ?selected=${!room.area_id}>
+                    ${localize("canvas.room.custom")}
+                  </option>
+                  ${this._areaOptions(
+                    this.areas.filter((a) => a.floor_id !== null),
+                    room.area_id,
+                  )}
+                  ${
+                    // Floor-less HA areas (decks, driveway…) — drawable onto any
+                    // floor's plan without changing the area's floor in HA.
+                    this.areas.some((a) => a.floor_id === null)
+                      ? html`<optgroup label=${localize("canvas.room.outdoor")}>
+                          ${this._areaOptions(
+                            this.areas.filter((a) => a.floor_id === null),
+                            room.area_id,
+                          )}
+                        </optgroup>`
+                      : nothing
+                  }
+                </select>`,
+              ),
+            )}
+            ${this._actionRow(
+              "mdi:pencil",
+              localize("canvas.room.rename"),
+              () => this._fire("room-rename-click"),
+            )}
+            ${this._actionRow(
+              "mdi:vector-polygon",
+              this.editingRoom
+                ? localize("canvas.room.doneEditing")
+                : localize("canvas.room.editVertices"),
+              () => this._fire("room-edit-vertices-click"),
+              this.editingRoom,
             )}
             ${
-              // Floor-less HA areas (decks, driveway…) — drawable onto any
-              // floor's plan without changing the area's floor in HA.
-              this.areas.some((a) => a.floor_id === null)
-                ? html`<optgroup label=${localize("canvas.room.outdoor")}>
-                    ${this._areaOptions(
-                      this.areas.filter((a) => a.floor_id === null),
-                      room.area_id,
-                    )}
-                  </optgroup>`
+              room.label_position
+                ? this._actionRow(
+                    "mdi:format-text-variant-outline",
+                    localize("canvas.room.resetLabel"),
+                    () => this._fire("room-label-reset-click"),
+                  )
                 : nothing
             }
-          </select>
-          <button
-            title=${visible ? localize("canvas.room.hide") : localize("canvas.room.show")}
-            @click=${() => this._fire("room-visible-toggle")}
-          >
-            <ha-icon icon="mdi:eye${visible ? "" : "-off"}"></ha-icon>
-          </button>
-          <input
-            type="color"
-            class="room-fill-color"
-            title=${localize("canvas.room.color")}
-            .value=${room.fill_color ?? DEFAULT_ROOM_FILL_COLOR}
-            @input=${(e: Event) =>
-              this._fire("room-fill-color-change", {
-                color: (e.target as HTMLInputElement).value,
-              })}
-          />
-          <input
-            type="range"
-            class="room-opacity"
-            title=${localize("canvas.room.fillOpacity")}
-            min="0"
-            max="1"
-            step="0.02"
-            .value=${String(room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY)}
-            @input=${(e: Event) =>
-              this._fire("room-fill-opacity-change", {
-                opacity: Number((e.target as HTMLInputElement).value),
-              })}
-          />
-          <input
-            type="range"
-            class="room-opacity"
-            title=${localize("canvas.room.borderOpacity")}
-            min="0"
-            max="1"
-            step="0.02"
-            .value=${String(room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY)}
-            @input=${(e: Event) =>
-              this._fire("room-border-opacity-change", {
-                opacity: Number((e.target as HTMLInputElement).value),
-              })}
-          />
-          <button
-            title=${localize("canvas.room.rename")}
-            @click=${() => this._fire("room-rename-click")}
-          >
-            <ha-icon icon="mdi:pencil"></ha-icon>
-          </button>
-          <button
-            title=${this.editingRoom ? localize("canvas.room.doneEditing") : localize("canvas.room.editVertices")}
-            class=${this.editingRoom ? "active" : ""}
-            @click=${() => this._fire("room-edit-vertices-click")}
-          >
-            <ha-icon icon="mdi:vector-polygon"></ha-icon>
-          </button>
-          ${
-            room.label_position
-              ? html`<button
-                  title=${localize("canvas.room.resetLabel")}
-                  @click=${() => this._fire("room-label-reset-click")}
-                >
-                  <ha-icon icon="mdi:format-text-variant-outline"></ha-icon>
-                </button>`
-              : nothing
-          }
-          <button
-            class="danger"
-            title=${localize("canvas.room.delete")}
-            @click=${() => this._fire("room-delete-click")}
-          >
-            <ha-icon icon="mdi:delete"></ha-icon>
-          </button>
-        </div>
-      `;
+            ${this._fieldRow(
+              visible
+                ? localize("canvas.room.hide")
+                : localize("canvas.room.show"),
+              html`<input
+                type="checkbox"
+                class="switch"
+                role="switch"
+                .checked=${visible}
+                @change=${() => this._fire("room-visible-toggle")}
+              />`,
+            )}
+          </div>
+          <div class="info-group">
+            <div class="info-group-title">${localize("canvas.card.style")}</div>
+            ${this._fieldRow(
+              localize("canvas.room.color"),
+              html`<input
+                type="color"
+                class="room-fill-color"
+                .value=${room.fill_color ?? DEFAULT_ROOM_FILL_COLOR}
+                @input=${(e: Event) =>
+                  this._fire("room-fill-color-change", {
+                    color: (e.target as HTMLInputElement).value,
+                  })}
+              />`,
+            )}
+            ${this._fieldRow(
+              localize("canvas.room.fillOpacity"),
+              html`<input
+                type="range"
+                class="room-opacity"
+                min="0"
+                max="1"
+                step="0.02"
+                .value=${String(room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY)}
+                @input=${(e: Event) =>
+                  this._fire("room-fill-opacity-change", {
+                    opacity: Number((e.target as HTMLInputElement).value),
+                  })}
+              />`,
+            )}
+            ${this._fieldRow(
+              localize("canvas.room.borderOpacity"),
+              html`<input
+                type="range"
+                class="room-opacity"
+                min="0"
+                max="1"
+                step="0.02"
+                .value=${String(room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY)}
+                @input=${(e: Event) =>
+                  this._fire("room-border-opacity-change", {
+                    opacity: Number((e.target as HTMLInputElement).value),
+                  })}
+              />`,
+            )}
+          </div>
+        `,
+        footer: this._deleteButton(
+          localize("canvas.room.delete"),
+          "room-delete-click",
+        ),
+      });
     }
     if (this.selectedPin) {
       const pin = this.selectedPin;
-      return html`
-        <div class="selection-panel floating-panel">
-          <span class="hint">${this._pinLabel(pin)}</span>
-          <button
-            title=${localize("canvas.pin.setLabel")}
-            @click=${() => this._fire("pin-set-label-click")}
-          >
-            <ha-icon icon="mdi:tag-text"></ha-icon>
-          </button>
-          <button
-            title=${localize("canvas.pin.setIcon")}
-            @click=${() => this._fire("pin-set-icon-click")}
-          >
-            <ha-icon icon="mdi:shape"></ha-icon>
-          </button>
-          <button
-            title=${localize("canvas.pin.setHeight")}
-            @click=${() => this._fire("pin-set-height-click")}
-          >
-            <ha-icon icon="mdi:human-male-height"></ha-icon>
-          </button>
-          <button
-            class="danger"
-            title=${localize("canvas.pin.delete")}
-            @click=${() => this._fire("pin-delete-click")}
-          >
-            <ha-icon icon="mdi:delete"></ha-icon>
-          </button>
-        </div>
-      `;
+      return this._card({
+        title: this._pinLabel(pin),
+        subtitle: localize("canvas.card.device"),
+        onClose: this._clearSelection,
+        body: html`<div class="info-group">
+          ${this._actionRow(
+            "mdi:tag-text",
+            localize("canvas.pin.setLabel"),
+            () => this._fire("pin-set-label-click"),
+          )}
+          ${this._actionRow("mdi:shape", localize("canvas.pin.setIcon"), () =>
+            this._fire("pin-set-icon-click"),
+          )}
+          ${this._actionRow(
+            "mdi:human-male-height",
+            localize("canvas.pin.setHeight"),
+            () => this._fire("pin-set-height-click"),
+          )}
+        </div>`,
+        footer: this._deleteButton(
+          localize("canvas.pin.delete"),
+          "pin-delete-click",
+        ),
+      });
     }
     if (this.selectedWall) {
       const wall = this.selectedWall;
       const wallUnit =
         this._wallThicknessUnit ?? defaultSmallSubUnit(this.unitSystem);
       const wallAttrs = this._thicknessInputAttrs(wallUnit);
-      return html`
-        <div class="selection-panel floating-panel">
-          <span class="hint">${localize("canvas.wall.material")}</span>
-          <select
-            @change=${(e: Event) =>
-              this._fire("wall-material-change", {
-                material: (e.target as HTMLSelectElement).value,
-              })}
-          >
-            ${WALL_MATERIALS.map(
-              (m) =>
-                html`<option value=${m.id} ?selected=${m.id === wall.material}>
-                  ${m.label}
-                </option>`,
-            )}
-          </select>
-          <input
-            type="number"
-            class="wall-thickness"
-            title=${localize("canvas.wall.thickness", { unit: wallUnit })}
-            min=${wallAttrs.min}
-            max=${wallAttrs.max}
-            step=${wallAttrs.step}
-            .value=${formatSmallAs(wallThicknessCm(wall), wallUnit)}
-            @change=${(e: Event) => {
-              const cm = parseSmallAs(
-                (e.target as HTMLInputElement).value,
-                wallUnit,
-              );
-              if (cm === null || !Number.isFinite(cm) || cm <= 0) return;
-              this._fire("wall-thickness-change", { thicknessCm: cm });
-            }}
-          />
-          ${this._unitSelect(
-            wallUnit,
-            (unit) => (this._wallThicknessUnit = unit),
+      return this._card({
+        title: localize("canvas.card.wall"),
+        subtitle: WALL_MATERIALS.find((m) => m.id === wall.material)?.label,
+        onClose: this._clearSelection,
+        body: html`<div class="info-group">
+          ${this._fieldRow(
+            localize("canvas.wall.material"),
+            this._selectWrap(
+              html`<select
+                @change=${(e: Event) =>
+                  this._fire("wall-material-change", {
+                    material: (e.target as HTMLSelectElement).value,
+                  })}
+              >
+                ${WALL_MATERIALS.map(
+                  (m) =>
+                    html`<option
+                      value=${m.id}
+                      ?selected=${m.id === wall.material}
+                    >
+                      ${m.label}
+                    </option>`,
+                )}
+              </select>`,
+            ),
           )}
-          <button
-            title=${this.editingWall ? localize("canvas.room.doneEditing") : localize("canvas.room.editVertices")}
-            class=${this.editingWall ? "active" : ""}
-            @click=${() => this._fire("wall-edit-vertices-click")}
-          >
-            <ha-icon icon="mdi:vector-polygon"></ha-icon>
-          </button>
-          <button
-            class="danger"
-            title=${localize("canvas.wall.delete")}
-            @click=${() => this._fire("wall-delete-click")}
-          >
-            <ha-icon icon="mdi:delete"></ha-icon>
-          </button>
-        </div>
-      `;
+          ${this._fieldRow(
+            localize("canvas.wall.thickness", { unit: wallUnit }),
+            html`<span class="inline-pair"
+              ><input
+                type="number"
+                class="wall-thickness"
+                min=${wallAttrs.min}
+                max=${wallAttrs.max}
+                step=${wallAttrs.step}
+                .value=${formatSmallAs(wallThicknessCm(wall), wallUnit)}
+                @change=${(e: Event) => {
+                  const cm = parseSmallAs(
+                    (e.target as HTMLInputElement).value,
+                    wallUnit,
+                  );
+                  if (cm === null || !Number.isFinite(cm) || cm <= 0) return;
+                  this._fire("wall-thickness-change", { thicknessCm: cm });
+                }}
+              />${this._unitSelect(
+                wallUnit,
+                (unit) => (this._wallThicknessUnit = unit),
+              )}</span
+            >`,
+          )}
+          ${this._actionRow(
+            "mdi:vector-polygon",
+            this.editingWall
+              ? localize("canvas.room.doneEditing")
+              : localize("canvas.room.editVertices"),
+            () => this._fire("wall-edit-vertices-click"),
+            this.editingWall,
+          )}
+        </div>`,
+        footer: this._deleteButton(
+          localize("canvas.wall.delete"),
+          "wall-delete-click",
+        ),
+      });
     }
     if (this.selectedOpening) {
       const opening = this.selectedOpening;
@@ -730,97 +919,105 @@ export class CanvasOverlay extends LitElement {
         this._openingWidthUnit ?? defaultSmallSubUnit(this.unitSystem);
       const openingAttrs = this._thicknessInputAttrs(openingUnit);
       const unitsPerMeter = this.unitsPerMeter;
-      return html`
-        <div class="selection-panel floating-panel">
-          <span class="hint"
-            >${localize(`canvas.openingLabel.${opening.type}`)}</span
-          >
-          <input
-            type="number"
-            class="wall-thickness"
-            title=${localize("canvas.opening.width", {
+      return this._card({
+        title: localize(`canvas.openingLabel.${opening.type}`),
+        subtitle: localize("canvas.card.wallOpening"),
+        onClose: this._clearSelection,
+        body: html`<div class="info-group">
+          ${this._fieldRow(
+            localize("canvas.opening.width", {
               unit:
                 unitsPerMeter !== null
                   ? openingUnit
                   : localize("canvas.opening.storedUnits"),
-            })}
-            min=${unitsPerMeter !== null ? openingAttrs.min : "1"}
-            step=${unitsPerMeter !== null ? openingAttrs.step : "1"}
-            .value=${
-              unitsPerMeter !== null
-                ? canvasUnitsToDisplayAs(
-                    opening.width,
-                    unitsPerMeter,
-                    openingUnit,
-                  )
-                : String(opening.width)
-            }
-            @change=${(e: Event) => {
-              const raw = (e.target as HTMLInputElement).value;
-              const width =
+            }),
+            html`<span class="inline-pair"
+              ><input
+                type="number"
+                class="wall-thickness"
+                min=${unitsPerMeter !== null ? openingAttrs.min : "1"}
+                step=${unitsPerMeter !== null ? openingAttrs.step : "1"}
+                .value=${
+                  unitsPerMeter !== null
+                    ? canvasUnitsToDisplayAs(
+                        opening.width,
+                        unitsPerMeter,
+                        openingUnit,
+                      )
+                    : String(opening.width)
+                }
+                @change=${(e: Event) => {
+                  const raw = (e.target as HTMLInputElement).value;
+                  const width =
+                    unitsPerMeter !== null
+                      ? displayToCanvasUnitsAs(raw, unitsPerMeter, openingUnit)
+                      : Number(raw);
+                  if (width === null || !Number.isFinite(width) || width <= 0)
+                    return;
+                  this._fire("opening-width-change", { width });
+                }}
+              />${
                 unitsPerMeter !== null
-                  ? displayToCanvasUnitsAs(raw, unitsPerMeter, openingUnit)
-                  : Number(raw);
-              if (width === null || !Number.isFinite(width) || width <= 0)
-                return;
-              this._fire("opening-width-change", { width });
-            }}
-          />
+                  ? this._unitSelect(
+                      openingUnit,
+                      (unit) => (this._openingWidthUnit = unit),
+                    )
+                  : nothing
+              }</span
+            >`,
+          )}
           ${
-            unitsPerMeter !== null
-              ? this._unitSelect(
-                  openingUnit,
-                  (unit) => (this._openingWidthUnit = unit),
-                )
-              : html`<span class="hint"
-                  >${localize("canvas.opening.calibrate")}</span
-                >`
+            unitsPerMeter === null
+              ? html`<div class="info-row">
+                  <span class="grow info-sub"
+                    >${localize("canvas.opening.calibrate")}</span
+                  >
+                </div>`
+              : nothing
           }
-          <button
-            class="danger"
-            title=${localize("canvas.opening.delete")}
-            @click=${() => this._fire("opening-delete-click")}
-          >
-            <ha-icon icon="mdi:delete"></ha-icon>
-          </button>
-        </div>
-      `;
+        </div>`,
+        footer: this._deleteButton(
+          localize("canvas.opening.delete"),
+          "opening-delete-click",
+        ),
+      });
     }
     if (this.selectedMeshLink) {
       const link = this.selectedMeshLink;
-      return html`
-        <div class="selection-panel floating-panel">
-          <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
-          <span class="hint"
-            >${this._pinLabel(link.fromPin)} →
-            ${this._pinLabel(link.toPin)}</span
-          >
-          <span class="hint" style="color:${qualityColor(link.quality)}"
-            >${link.detail ?? link.quality}</span
-          >
-        </div>
-      `;
+      return this._card({
+        title: `${this._pinLabel(link.fromPin)} → ${this._pinLabel(link.toPin)}`,
+        subtitle: localize("canvas.card.link"),
+        onClose: this._clearSelection,
+        body: html`<div class="info-group">
+          ${this._fieldRow(
+            localize("canvas.card.quality"),
+            html`<span style="color:${qualityColor(link.quality)}"
+              >${link.detail ?? link.quality}</span
+            >`,
+          )}
+        </div>`,
+      });
     }
     if (this.selectedMeshStub) {
       const stub = this.selectedMeshStub;
-      return html`
-        <div class="selection-panel floating-panel">
-          <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
-          <span class="hint"
-            >${this._pinLabel(stub.fromPin)} → ${stub.targetLabel}
-            (${stub.targetFloorName})</span
-          >
-          <span class="hint" style="color:${qualityColor(stub.quality)}"
-            >${stub.detail ?? stub.quality}</span
-          >
-          <button
-            title=${localize("canvas.meshStub.goToFloor")}
-            @click=${() => this._fire("mesh-stub-goto-floor-click")}
-          >
-            <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
-          </button>
-        </div>
-      `;
+      return this._card({
+        title: `${this._pinLabel(stub.fromPin)} → ${stub.targetLabel}`,
+        subtitle: stub.targetFloorName,
+        onClose: this._clearSelection,
+        body: html`<div class="info-group">
+          ${this._fieldRow(
+            localize("canvas.card.quality"),
+            html`<span style="color:${qualityColor(stub.quality)}"
+              >${stub.detail ?? stub.quality}</span
+            >`,
+          )}
+          ${this._actionRow(
+            "mdi:arrow-right-circle",
+            localize("canvas.meshStub.goToFloor"),
+            () => this._fire("mesh-stub-goto-floor-click"),
+          )}
+        </div>`,
+      });
     }
     return nothing;
   }
@@ -832,35 +1029,33 @@ export class CanvasOverlay extends LitElement {
 
   private _renderPinStack() {
     if (!this.pinStack) return nothing;
-    return html`
-      <div class="pin-stack floating-panel">
-        <span class="stack-title"
-          >${localize("canvas.pin.stackTitle", { count: this.pinStack.length })}</span
-        >
-        ${this.pinStack.map(
+    const stack = this.pinStack;
+    return this._card({
+      title: localize("canvas.pin.stackTitle", { count: stack.length }),
+      onClose: () => this._fire("pin-stack-dismiss"),
+      body: html`<div class="info-group">
+        ${stack.map(
           (pin) => html`
-            <div class="pin-stack-row">
+            <div class="info-row stack-row">
               <button
-                class="pin-stack-choose"
+                class="stack-choose"
                 @click=${() => this._fire("pin-stack-choose", { pinId: pin.id })}
               >
                 ${this._pinLabel(pin)}
               </button>
               <button
-                class="pin-stack-remove"
+                class="stack-remove"
                 title=${localize("canvas.pin.removeFromSpot")}
-                @click=${() => this._fire("pin-stack-remove-click", { pinId: pin.id })}
+                @click=${() =>
+                  this._fire("pin-stack-remove-click", { pinId: pin.id })}
               >
                 <ha-icon icon="mdi:delete"></ha-icon>
               </button>
             </div>
           `,
         )}
-        <button @click=${() => this._fire("pin-stack-dismiss")}>
-          ${localize("canvas.button.close")}
-        </button>
-      </div>
-    `;
+      </div>`,
+    });
   }
 
   override render() {
