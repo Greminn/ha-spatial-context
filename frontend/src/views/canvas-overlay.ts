@@ -69,7 +69,7 @@ export class CanvasOverlay extends LitElement {
         align-items: center;
         gap: 4px;
         padding: 6px 10px;
-        border-radius: 18px;
+        border-radius: 10px;
       }
       /* A thin divider between tool groups: view, draw, place/align. */
       .tool-divider {
@@ -104,8 +104,8 @@ export class CanvasOverlay extends LitElement {
         position: absolute;
         top: 12px;
         right: 12px;
-        border-radius: 16px;
-        padding: 6px 14px;
+        border-radius: 12px;
+        padding: 8px 14px;
         font-size: 0.8125rem;
         color: var(--sc-fg-secondary);
         pointer-events: auto;
@@ -203,7 +203,7 @@ export class CanvasOverlay extends LitElement {
       }
       .info-row select {
         max-width: 180px;
-        border-radius: 16px;
+        border-radius: 12px;
       }
       .inline-pair {
         display: inline-flex;
@@ -242,7 +242,7 @@ export class CanvasOverlay extends LitElement {
         justify-content: center;
         gap: 8px;
         padding: 10px 16px;
-        border-radius: 20px;
+        border-radius: 12px;
         font-size: 0.9375rem;
       }
       .info-foot button.danger {

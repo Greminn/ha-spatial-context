@@ -236,11 +236,17 @@ export const toolRowStyles = css`
   .tool-row > * {
     flex: none;
   }
+  /* HA's controls are rounded rectangles on a surface fill with a thin
+   * border — not pills. The tool group is one such container. */
   .tool-row .mode-toolbar {
     position: static;
     display: flex;
     gap: 2px;
     align-items: center;
+    padding: 3px;
+    border: 1px solid var(--sc-divider);
+    border-radius: 14px;
+    background: var(--sc-panel-bg);
   }
   .tool-row .hint-bar {
     position: static;
@@ -254,7 +260,7 @@ export const toolRowStyles = css`
   .tool-row .scale-badge {
     position: static;
     margin-left: auto;
-    background: transparent;
+    background: var(--sc-panel-bg);
     box-shadow: none;
     white-space: nowrap;
   }

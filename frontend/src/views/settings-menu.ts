@@ -71,7 +71,7 @@ export class SettingsMenu extends LitElement {
       .segmented {
         display: inline-flex;
         border: 1px solid var(--sc-divider);
-        border-radius: 18px;
+        border-radius: 12px;
         overflow: hidden;
       }
       .segmented button {
@@ -100,7 +100,7 @@ export class SettingsMenu extends LitElement {
         color: var(--sc-fg);
         background: var(--sc-bg);
         border: 1px solid var(--sc-divider);
-        border-radius: 16px;
+        border-radius: 12px;
         padding: 6px 12px;
       }
       select {

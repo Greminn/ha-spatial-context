@@ -50,7 +50,7 @@ export class PropertyOverlay extends LitElement {
         align-items: center;
         gap: 4px;
         padding: 6px 10px;
-        border-radius: 18px;
+        border-radius: 10px;
       }
       .tool-divider {
         align-self: stretch;
@@ -71,7 +71,7 @@ export class PropertyOverlay extends LitElement {
       }
       .place-picker {
         border: 1px solid var(--sc-divider);
-        border-radius: 18px;
+        border-radius: 12px;
         background: var(--sc-bg);
         color: var(--sc-fg);
         font-family: inherit;
@@ -83,8 +83,8 @@ export class PropertyOverlay extends LitElement {
         top: 12px;
         right: 12px;
         max-width: 260px;
-        border-radius: 16px;
-        padding: 6px 14px;
+        border-radius: 12px;
+        padding: 8px 14px;
         font-size: 0.8125rem;
         color: var(--sc-fg-secondary);
         pointer-events: auto;

@@ -15,7 +15,7 @@ export class RowActions extends LitElement {
       :host {
         display: flex;
         align-items: center;
-        gap: 2px;
+        gap: 6px;
       }
       button {
         position: relative;
@@ -24,7 +24,12 @@ export class RowActions extends LitElement {
         width: 40px;
         height: 40px;
         padding: 0;
-        border-radius: 50%;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
+        background: var(--sc-panel-bg);
+      }
+      button:disabled {
+        background: var(--sc-panel-bg);
       }
       ha-icon {
         --mdc-icon-size: 20px;

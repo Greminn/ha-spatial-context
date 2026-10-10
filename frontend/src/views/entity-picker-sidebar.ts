@@ -61,7 +61,8 @@ export class EntityPickerSidebar extends LitElement {
         width: 36px;
         height: 36px;
         padding: 0;
-        border-radius: 50%;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
         color: var(--sc-fg-secondary);
       }
       .more-menu {
@@ -79,7 +80,7 @@ export class EntityPickerSidebar extends LitElement {
         height: 40px;
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 22px;
+        border-radius: 12px;
         background: var(--sc-bg);
       }
       .search-box:focus-within {
@@ -122,7 +123,7 @@ export class EntityPickerSidebar extends LitElement {
         height: 36px;
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 18px;
+        border-radius: 12px;
         background: var(--sc-bg);
         color: var(--sc-fg);
         font-size: 13px;
