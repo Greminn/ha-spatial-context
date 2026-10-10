@@ -6,7 +6,7 @@
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context on the Top Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and the Zigbee2MQTT Bridge's card listing all 36 of its links](docs/screenshot-main.jpeg)
+![Spatial Context on the Top Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and the Zigbee2MQTT Bridge's card listing all 36 of its links](docs/screenshot-main-v2.jpeg)
 
 ## What you get
 
@@ -80,7 +80,7 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 ## The panel
 
-![The panel: header with the floor tabs, the controls row with the tools, and the canvas with its scale bar and zoom controls](docs/screenshot-panel.jpeg)
+![The panel: header with the floor tabs, the controls row with the tools, and the canvas with its scale bar and zoom controls](docs/screenshot-panel-v2.jpeg)
 
 **Header.** The floor tabs and the **Property** tab sit in the middle. On the right are the **Connectivity Map**, **Settings** and a **⋮** menu (Export JSON, Download debug report, Reset floor).
 
@@ -96,11 +96,11 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 **Info cards.** Click anything on the plan and a card opens on the left with its details and settings. On a phone it spans the width, and the chevron at its top-right folds it down to a header so you can keep working on the map with the item still selected.
 
-![A room's info card](docs/screenshot-room-card.jpeg)
+![A room's info card](docs/screenshot-room-card-v2.jpeg)
 
 On a phone the card spans the width and the controls row scrolls sideways.
 
-<img src="docs/screenshot-mobile.jpeg" alt="The panel on a phone, with the Zigbee layer on, the scale bar bottom-left and the zoom controls bottom-right" width="320">
+<img src="docs/screenshot-mobile-v2.jpeg" alt="The panel on a phone, with the Zigbee layer on, the scale bar bottom-left and the zoom controls bottom-right" width="320">
 
 ### Tools
 
@@ -115,7 +115,7 @@ On a phone the card spans the width and the controls row scrolls sideways.
 | **Place Device** | Opens the device picker. Pick a device, then click the plan to drop it. Click an existing pin to stack another device on top. |
 | **Align Floors** | Overlays another floor so you can line the two up and apply the transform. |
 
-![Tracing a wall, with the Snap menu and alignment guides](docs/screenshot-trace.jpeg)
+![Tracing a wall, with the Snap menu and alignment guides](docs/screenshot-trace-v2.jpeg)
 
 New points snap to nearby walls and room edges and line up with your last point, with a live preview before you click. The **Snap** menu picks what they snap to: everything, walls only, rooms only, or nothing. Hold **Shift** to place a single point freely.
 
@@ -130,7 +130,7 @@ New points snap to nearby walls and room edges and line up with your last point,
 | **Connectivity link** | See both ends and the signal quality. A link to a device on another floor can jump to that floor. |
 | **Devices on one spot** | Choose which to select, or remove one from the spot. |
 
-![A device's info card, listing its Zigbee links with the signal for each](docs/screenshot-device-card.jpeg)
+![A device's info card, listing its Zigbee links with the signal for each](docs/screenshot-device-card-v2.jpeg)
 
 ### Keyboard
 
@@ -171,19 +171,19 @@ The cog in the header opens **Settings**. They're shared by everyone who uses th
 - **Debug logging** (off by default). See [Reporting a problem](#reporting-a-problem).
 - **About**: the installed version and a link to this repository.
 
-![The Settings dialog](docs/screenshot-settings.jpeg)
+![The Settings dialog](docs/screenshot-settings-v2.jpeg)
 
 ## Placing devices
 
 **Place Device** opens a picker beside the plan (a sheet under it on a phone). Search it, filter by floor and area, and click a device to arm it, then click the plan. A device already placed elsewhere is greyed out, with where it is, so a device is never in two places. The ⋮ in the picker clears every placed device on the floor, after asking.
 
-![The device picker open beside the floor plan](docs/screenshot-picker.jpeg)
+![The device picker open beside the floor plan](docs/screenshot-picker-v2.jpeg)
 
 ## Connectivity Map
 
 The **network** button in the header opens the layers. Pick one to draw that network's links between your placed devices, coloured weak to strong, with a key along the bottom of the canvas. The layer **stays on** after you close the menu (the button turns blue while one is showing); pick it again to turn it off. Select a device and its card lists every link it has, strongest first, with the signal detail. Click a line for that link's details.
 
-![Zigbee mesh layer on the Top Floor, with a link selected and its signal shown in the card](docs/screenshot-zigbee-mesh.jpeg)
+![Zigbee mesh layer on the Top Floor, with a link selected and its signal shown in the card](docs/screenshot-zigbee-mesh-v2.jpeg)
 
 - **Zigbee** comes from Zigbee2MQTT's network scan. A scan takes a minute or two, so results are cached: picking the layer shows the last scan, and **Refresh Mesh** runs a new one. By default it draws each device's strongest link on its own floor and to other floors, every parent and child route, and the coordinator's direct links (LQI 50+). **Show all links** draws the full neighbour table, like Z2M's own map. LQI isn't comparable between chipsets (some Hue bulbs report near 255 for everything, TI coordinators read low), so each device's readings are corrected for its own scale, worked out from how it and its neighbours rate the same links, and a link is graded on its weaker side. The link details show the corrected and the raw values.
 - **Wi-Fi** links each client to its access point, with signal strength where available. It works with UniFi Network (including clients whose tracker entity is disabled), TP-Link Omada and the custom TP-Link Deco integration.
@@ -196,7 +196,7 @@ The **network** button in the header opens the layers. Pick one to draw that net
 
 The **Property** tab is a whole-site view. Give it a backdrop (an uploaded site photo, a live map, or both), then place a labelled, rotatable rectangle for each *building*. Two floors linked with **Align Floors** collapse to a single placement, so a multi-storey house is one shape. A floor that was never aligned to another, such as a detached garage, gets its own.
 
-![The Property tab on an aerial map in Move map mode: the buildings stay put, and the third bar holds the zoom and rotation controls](docs/screenshot-map-adjust.jpeg)
+![The Property tab on an aerial map in Move map mode: the buildings stay put, and the third bar holds the zoom and rotation controls](docs/screenshot-map-adjust-v2.jpeg)
 
 - **Map background** (HA 2026.10+): **Background → Add map background** puts a live map behind everything, centred on your Home Assistant home location. **Map type** switches between **Street map**, drawn from Home Assistant's own map tile service with no key and no third-party request, and **Aerial photo (Esri)**, which makes it far easier to place a house on its roof. Aerial tiles are loaded by your browser straight from Esri's servers, so Esri sees your IP address and the area you're viewing, and the credit is shown on the canvas. A **Map opacity** slider sits beside it, and an uploaded image still draws on top of the map, so you can use both.
 - **Move map**: your buildings stay where they are and the map moves under them, so you can line a footprint up with the real roof. A third bar appears with the controls. **Drag** to move the map, **Ctrl+scroll** or the zoom buttons to zoom, **Shift+scroll** or the slider to rotate (the compass button resets to north-up), or **pinch and twist** on a touch screen. The map is saved with the layout and its moves can be undone.
