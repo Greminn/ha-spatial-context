@@ -1139,6 +1139,7 @@ export class CanvasOverlay extends LitElement {
         <div class="scale-badge floating-panel">
           ${this.scaleReadout ?? localize("canvas.notCalibrated")}
         </div>
+        <slot name="row-end"></slot>
         <row-actions
           .dirty=${this.dirty}
           .saving=${this.saving}

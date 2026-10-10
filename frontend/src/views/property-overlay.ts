@@ -336,6 +336,7 @@ export class PropertyOverlay extends LitElement {
           }
           ${this.scaleReadout ?? "Not calibrated"}
         </div>
+        <slot name="row-end"></slot>
         <row-actions
           .dirty=${this.dirty}
           .saving=${this.saving}

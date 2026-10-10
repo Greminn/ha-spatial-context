@@ -3248,6 +3248,111 @@ export class SpatialContextPanel extends LitElement {
     return `refreshed ${Math.round(seconds / 60)}m ago`;
   }
 
+  /** The Background menu — per floor (or Property tab), so it lives in the
+   * controls row; each overlay slots it in as `row-end`. */
+  private _renderBackgroundPopover() {
+    return html`
+      <icon-popover
+        slot="row-end"
+        compact
+        icon="mdi:image"
+        label="Background"
+        .open=${this._backgroundPopoverOpen}
+        @toggle=${this._onToggleBackgroundPopover}
+      >
+        <input
+          id="file-input"
+          class="hidden-file-input"
+          type="file"
+          accept="image/png,image/jpeg,image/gif"
+          @change=${this._onFileInputChange}
+        />
+        <button class="menu-item" @click=${() => this._fileInput?.click()}>
+          <ha-icon icon="mdi:image-plus"></ha-icon>
+          ${this._activeBackground.imageId ? "Replace background" : "Upload background"}
+        </button>
+        ${
+          this._view === "property" &&
+          this._mapTilesAvailable &&
+          this._propertyLayout.map_background !== undefined
+            ? html`<button
+                  class="menu-item"
+                  @click=${this._onToggleMapBackground}
+                >
+                  <ha-icon icon="mdi:map"></ha-icon>
+                  ${
+                    this._propertyLayout.map_background
+                      ? localize("mapBackground.remove")
+                      : localize("mapBackground.add")
+                  }
+                </button>
+                ${
+                  this._propertyLayout.map_background
+                    ? html`<label
+                          class="popover-row hint"
+                          style="padding: 8px 16px 4px"
+                          >${localize("mapBackground.style")}
+                          <select @change=${this._onMapStyleChange}>
+                            <option
+                              value="street"
+                              ?selected=${this._propertyLayout.map_background.style !== "aerial"}
+                            >
+                              ${localize("mapBackground.street")}
+                            </option>
+                            <option
+                              value="aerial"
+                              ?selected=${this._propertyLayout.map_background.style === "aerial"}
+                            >
+                              ${localize("mapBackground.aerial")}
+                            </option>
+                          </select>
+                        </label>
+                        <label
+                          class="popover-row hint"
+                          style="padding: 8px 16px 4px"
+                          >${localize("mapBackground.opacity")}
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="1"
+                            step="0.05"
+                            .value=${String(this._propertyLayout.map_background.opacity)}
+                            @input=${this._onMapOpacityChange}
+                          />
+                        </label>`
+                    : nothing
+                }`
+            : nothing
+        }
+        ${
+          this._activeBackground.imageId
+            ? html`<button
+                class="menu-item"
+                @click=${this._onRemoveBackgroundClick}
+              >
+                <ha-icon icon="mdi:image-remove"></ha-icon> Remove background
+              </button>`
+            : nothing
+        }
+        ${
+          this._activeBackground.imageId
+            ? html`<label class="popover-row hint" style="padding: 8px 16px 4px"
+                >Opacity
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  .value=${String(this._activeBackground.opacity)}
+                  @input=${this._onOpacityChange}
+                />
+              </label>`
+            : nothing
+        }
+      </icon-popover>
+    `;
+  }
+
   override render() {
     if (this._loading) {
       return html`<div class="loading">Loading Spatial Context…</div>`;
@@ -3276,104 +3381,6 @@ export class SpatialContextPanel extends LitElement {
         @floor-selected=${this._onFloorSelected}
         @property-selected=${this._onPropertySelected}
       >
-        <icon-popover
-          icon="mdi:image"
-          label="Background"
-          .open=${this._backgroundPopoverOpen}
-          @toggle=${this._onToggleBackgroundPopover}
-        >
-          <input
-            id="file-input"
-            class="hidden-file-input"
-            type="file"
-            accept="image/png,image/jpeg,image/gif"
-            @change=${this._onFileInputChange}
-          />
-          <button class="menu-item" @click=${() => this._fileInput?.click()}>
-            <ha-icon icon="mdi:image-plus"></ha-icon>
-            ${this._activeBackground.imageId ? "Replace background" : "Upload background"}
-          </button>
-          ${
-            this._view === "property" &&
-            this._mapTilesAvailable &&
-            this._propertyLayout.map_background !== undefined
-              ? html`<button
-                    class="menu-item"
-                    @click=${this._onToggleMapBackground}
-                  >
-                    <ha-icon icon="mdi:map"></ha-icon>
-                    ${
-                      this._propertyLayout.map_background
-                        ? localize("mapBackground.remove")
-                        : localize("mapBackground.add")
-                    }
-                  </button>
-                  ${
-                    this._propertyLayout.map_background
-                      ? html`<label
-                            class="popover-row hint"
-                            style="padding: 8px 16px 4px"
-                            >${localize("mapBackground.style")}
-                            <select @change=${this._onMapStyleChange}>
-                              <option
-                                value="street"
-                                ?selected=${this._propertyLayout.map_background.style !== "aerial"}
-                              >
-                                ${localize("mapBackground.street")}
-                              </option>
-                              <option
-                                value="aerial"
-                                ?selected=${this._propertyLayout.map_background.style === "aerial"}
-                              >
-                                ${localize("mapBackground.aerial")}
-                              </option>
-                            </select>
-                          </label>
-                          <label
-                            class="popover-row hint"
-                            style="padding: 8px 16px 4px"
-                            >${localize("mapBackground.opacity")}
-                            <input
-                              type="range"
-                              min="0.1"
-                              max="1"
-                              step="0.05"
-                              .value=${String(this._propertyLayout.map_background.opacity)}
-                              @input=${this._onMapOpacityChange}
-                            />
-                          </label>`
-                      : nothing
-                  }`
-              : nothing
-          }
-          ${
-            this._activeBackground.imageId
-              ? html`<button
-                  class="menu-item"
-                  @click=${this._onRemoveBackgroundClick}
-                >
-                  <ha-icon icon="mdi:image-remove"></ha-icon> Remove background
-                </button>`
-              : nothing
-          }
-          ${
-            this._activeBackground.imageId
-              ? html`<label
-                  class="popover-row hint"
-                  style="padding: 8px 16px 4px"
-                  >Opacity
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1"
-                    step="0.05"
-                    .value=${String(this._activeBackground.opacity)}
-                    @input=${this._onOpacityChange}
-                  />
-                </label>`
-              : nothing
-          }
-        </icon-popover>
         ${
           this._view === "floor" || this._view === "property"
             ? html`<icon-popover
@@ -3665,7 +3672,8 @@ export class SpatialContextPanel extends LitElement {
                     @placement-rename-click=${this._onPlacementRenameClick}
                     @placement-delete-click=${this._onPlacementDeleteClick}
                     @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
-                  ></property-overlay>
+                    >${this._renderBackgroundPopover()}</property-overlay
+                  >
                 </div>
                 ${
                   this._propertyMode === "place-pin"
@@ -3812,7 +3820,8 @@ export class SpatialContextPanel extends LitElement {
                     @selection-clear=${this._onSelectionClear}
                     @pin-stack-remove-click=${this._onPinStackRemove}
                     @mesh-stub-goto-floor-click=${this._onMeshStubGotoFloorClick}
-                  ></canvas-overlay>
+                    >${this._renderBackgroundPopover()}</canvas-overlay
+                  >
                 </div>
                 ${
                   this._mode === "place"

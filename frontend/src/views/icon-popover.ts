@@ -1,5 +1,5 @@
-import { LitElement, html, css, nothing } from "lit";
-import { property } from "lit/decorators.js";
+import { LitElement, html, css, nothing, type PropertyValues } from "lit";
+import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import { sharedStyles } from "../styles";
 
@@ -42,12 +42,21 @@ export class IconPopover extends LitElement {
         border-radius: 28px;
         overflow: hidden;
       }
+      /* Compact: the row's own button style (40px rounded square). */
+      :host([compact]) .icon-button {
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
+        background: var(--sc-panel-bg);
+      }
       .popover {
-        position: absolute;
-        top: 100%;
-        right: 0;
+        /* Fixed, placed from the button's rect, so it isn't clipped by a
+         * scrolling row it sits in. */
+        position: fixed;
         z-index: 10;
-        margin-top: 8px;
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
         min-width: 240px;
         padding: 8px;
         display: flex;
@@ -62,6 +71,20 @@ export class IconPopover extends LitElement {
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) dialog = false;
   @property({ type: Boolean }) highlight = false;
+  @property({ type: Boolean, reflect: true }) compact = false;
+  @state() private _top = 0;
+  @state() private _right = 0;
+
+  override willUpdate(changed: PropertyValues) {
+    if (changed.has("open") && this.open) {
+      const button = this.renderRoot.querySelector(".icon-button");
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        this._top = rect.bottom + 8;
+        this._right = Math.max(8, window.innerWidth - rect.right);
+      }
+    }
+  }
 
   override render() {
     return html`
@@ -79,6 +102,7 @@ export class IconPopover extends LitElement {
         this.open
           ? html`<div
               class="popover floating-panel ${this.dialog ? "dialog" : ""}"
+              style="top:${this._top}px; right:${this._right}px"
             >
               <slot></slot>
             </div>`
