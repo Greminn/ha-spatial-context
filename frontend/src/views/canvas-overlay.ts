@@ -163,6 +163,8 @@ export class CanvasOverlay extends LitElement {
         overflow-y: auto;
       }
       .info-group {
+        /* Don't shrink to fit the card: the body scrolls instead. */
+        flex: none;
         padding: 4px 0;
         border-radius: 24px;
         overflow: hidden;
