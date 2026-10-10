@@ -21,14 +21,14 @@ export class SettingsMenu extends LitElement {
         flex-direction: column;
         min-height: 0;
         max-height: calc(100vh - 32px);
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
       }
       .header {
         display: flex;
         align-items: center;
         gap: 16px;
         padding: 16px 24px 8px 16px;
-        font-size: 1.375rem;
+        font-size: var(--sc-fs-dialog);
         font-weight: 500;
       }
       .body {
@@ -48,14 +48,14 @@ export class SettingsMenu extends LitElement {
         border-radius: 24px;
         background: var(--sc-accent);
         color: var(--text-primary-color, #fff);
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
         font-weight: 500;
       }
       .header button {
         display: grid;
         place-items: center;
         width: 40px;
-        height: 40px;
+        height: var(--sc-h-control);
         padding: 0;
         border-radius: 50%;
       }
@@ -67,7 +67,7 @@ export class SettingsMenu extends LitElement {
       }
       .section-title {
         padding: 16px 24px 4px;
-        font-size: 0.75rem;
+        font-size: var(--sc-fs-caption);
         font-weight: 400;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -87,7 +87,7 @@ export class SettingsMenu extends LitElement {
       }
       .description {
         margin-top: 2px;
-        font-size: 0.75rem;
+        font-size: var(--sc-fs-caption);
         line-height: 1.3;
         color: var(--sc-fg-secondary);
       }
@@ -96,13 +96,13 @@ export class SettingsMenu extends LitElement {
       .segmented {
         display: inline-flex;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         overflow: hidden;
       }
       .segmented button {
         padding: 6px 14px;
         border-radius: 0;
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         font-weight: 400;
         text-transform: none;
         letter-spacing: normal;
@@ -121,19 +121,19 @@ export class SettingsMenu extends LitElement {
       select,
       input[type="number"] {
         font: inherit;
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg);
         background: var(--sc-bg);
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         padding: 6px 12px;
       }
       select {
         max-width: 170px;
-        height: 36px;
+        height: var(--sc-h-field);
       }
       input[type="number"] {
-        height: 36px;
+        height: var(--sc-h-field);
         -moz-appearance: textfield;
       }
       input[type="number"]::-webkit-inner-spin-button,
@@ -146,7 +146,7 @@ export class SettingsMenu extends LitElement {
         align-items: center;
         gap: 4px;
         color: var(--sc-fg-secondary);
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
       }
       input[type="number"] {
         width: 64px;

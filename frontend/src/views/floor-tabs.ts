@@ -44,7 +44,7 @@ export class FloorTabs extends LitElement {
         height: 100%;
         border-radius: 0;
         padding: 0 24px;
-        font-size: 14px;
+        font-size: var(--sc-fs-body);
         font-weight: 400;
         letter-spacing: normal;
         text-transform: none;

@@ -14,6 +14,19 @@ export const sharedStyles = css`
     --sc-panel-radius: var(--ha-card-border-radius, 12px);
     --sc-panel-shadow: var(--ha-card-box-shadow, 0 2px 6px rgba(0, 0, 0, 0.3));
     --sc-header-bg: var(--app-header-background-color, var(--sc-bg));
+    /* Type scale. */
+    --sc-fs-caption: 0.75rem; /* section titles, map notes */
+    --sc-fs-small: 0.8125rem; /* hints, secondary text, chips */
+    --sc-fs-body: 0.875rem; /* buttons, fields, dropdowns */
+    --sc-fs-row: 0.9375rem; /* list rows, menu items, dialog rows */
+    --sc-fs-title: 1.125rem; /* card titles */
+    --sc-fs-header: 1.25rem; /* app bar title */
+    --sc-fs-dialog: 1.375rem; /* dialog titles */
+    /* Shape: controls are 12px rounded rectangles, 40px tall (36px for
+     * fields inside cards and dialogs). */
+    --sc-r-control: 12px;
+    --sc-h-control: 40px;
+    --sc-h-field: 36px;
     box-sizing: border-box;
     color: var(--sc-fg);
     font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
@@ -25,16 +38,20 @@ export const sharedStyles = css`
   }
   button {
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: var(--sc-fs-body);
     cursor: pointer;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--sc-r-control);
     padding: 6px 12px;
     background: transparent;
     color: var(--sc-fg);
   }
   button:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--sc-accent);
+    outline-offset: 2px;
   }
   button.primary {
     background: var(--sc-accent);
@@ -52,16 +69,17 @@ export const sharedStyles = css`
     background: transparent;
   }
   button.active {
-    background: var(--sc-accent);
-    color: white;
+    background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
+    color: var(--sc-accent);
   }
   input[type="text"],
   input[type="search"] {
     font-family: inherit;
-    font-size: 0.875rem;
-    padding: 6px 8px;
+    font-size: var(--sc-fs-body);
+    height: var(--sc-h-field);
+    padding: 0 12px;
     border: 1px solid var(--sc-divider);
-    border-radius: 4px;
+    border-radius: var(--sc-r-control);
     color: var(--sc-fg);
     background: var(--sc-bg);
   }
@@ -82,7 +100,7 @@ export const sharedStyles = css`
     width: 100%;
     padding: 12px 16px;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: var(--sc-fs-row);
     text-align: left;
     justify-content: flex-start;
   }
@@ -118,14 +136,14 @@ export const zoomControlsStyles = css`
     background: var(--sc-panel-bg);
     border: 1px solid var(--sc-divider);
     box-shadow: var(--sc-panel-shadow);
-    border-radius: 12px;
+    border-radius: var(--sc-r-control);
     overflow: hidden;
   }
   .controls button {
     display: grid;
     place-items: center;
     width: 40px;
-    height: 40px;
+    height: var(--sc-h-control);
     padding: 0;
     border-radius: 0;
     color: var(--sc-fg);
@@ -272,7 +290,7 @@ export const toolRowStyles = css`
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 40px;
+    height: var(--sc-h-control);
     padding-block: 0;
     background: var(--sc-panel-bg);
     box-shadow: none;
@@ -283,10 +301,10 @@ export const toolRowStyles = css`
   .tool-row select {
     appearance: none;
     -webkit-appearance: none;
-    height: 40px;
+    height: var(--sc-h-control);
     padding: 0 34px 0 14px;
     border: 1px solid var(--sc-divider);
-    border-radius: 12px;
+    border-radius: var(--sc-r-control);
     background-color: var(--sc-panel-bg);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%239b9b9b' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
@@ -294,7 +312,7 @@ export const toolRowStyles = css`
     background-size: 20px;
     color: var(--sc-fg);
     font: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--sc-fs-small);
   }
   .tool-row select:focus {
     outline: none;
@@ -310,12 +328,12 @@ export const toolRowStyles = css`
     background-color: transparent;
   }
   .tool-row .hint-bar button {
-    height: 40px;
+    height: var(--sc-h-control);
     padding: 0 16px;
     border: 1px solid var(--sc-divider);
-    border-radius: 12px;
+    border-radius: var(--sc-r-control);
     background: var(--sc-panel-bg);
-    font-size: 0.8125rem;
+    font-size: var(--sc-fs-small);
   }
   .tool-row .hint-bar button.primary {
     border-color: transparent;

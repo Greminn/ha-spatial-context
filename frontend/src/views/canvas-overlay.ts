@@ -112,9 +112,9 @@ export class CanvasOverlay extends LitElement {
         position: absolute;
         top: 12px;
         right: 12px;
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         padding: 8px 14px;
-        font-size: 0.8125rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
         pointer-events: auto;
       }
@@ -143,7 +143,7 @@ export class CanvasOverlay extends LitElement {
         place-items: center;
         flex: none;
         width: 40px;
-        height: 40px;
+        height: var(--sc-h-control);
         padding: 0;
         border-radius: 50%;
       }
@@ -151,12 +151,12 @@ export class CanvasOverlay extends LitElement {
         min-width: 0;
       }
       .info-title {
-        font-size: 1.125rem;
+        font-size: var(--sc-fs-title);
         line-height: 1.25;
         overflow-wrap: anywhere;
       }
       .info-sub {
-        font-size: 0.8125rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
       }
       .info-body {
@@ -176,7 +176,7 @@ export class CanvasOverlay extends LitElement {
       }
       .info-group-title {
         padding: 8px 16px 0;
-        font-size: 0.75rem;
+        font-size: var(--sc-fs-caption);
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--sc-fg-secondary);
@@ -188,7 +188,7 @@ export class CanvasOverlay extends LitElement {
         width: 100%;
         min-height: 48px;
         padding: 6px 16px;
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
         text-align: left;
       }
       .info-row.action {
@@ -214,7 +214,7 @@ export class CanvasOverlay extends LitElement {
       }
       .info-row select {
         max-width: 180px;
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
       }
       .inline-pair {
         display: inline-flex;
@@ -234,7 +234,7 @@ export class CanvasOverlay extends LitElement {
         white-space: nowrap;
       }
       .link-detail {
-        font-size: 0.8125rem;
+        font-size: var(--sc-fs-small);
       }
       .quality-dot {
         flex: none;
@@ -257,7 +257,7 @@ export class CanvasOverlay extends LitElement {
         display: grid;
         place-items: center;
         width: 36px;
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0;
         border-radius: 50%;
         color: var(--sc-danger);
@@ -276,7 +276,7 @@ export class CanvasOverlay extends LitElement {
         min-height: 44px;
         padding: 10px 16px;
         border-radius: 22px;
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
       }
       .info-foot button.danger {
         background: color-mix(in srgb, var(--sc-danger) 14%, transparent);
@@ -285,21 +285,21 @@ export class CanvasOverlay extends LitElement {
         padding: 4px;
       }
       .hint {
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
       }
       /* Controls inside the info card: HA-style rounded fields. */
       .info-row select,
       .info-row input[type="text"],
       .info-row input[type="number"] {
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
         color: var(--sc-fg);
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--sc-fs-body);
       }
       .info-row select:focus,
       .info-row input[type="text"]:focus,
@@ -317,12 +317,12 @@ export class CanvasOverlay extends LitElement {
         display: flex;
         align-items: center;
         gap: 8px;
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0 8px 0 10px;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
-        font-size: 0.875rem;
+        font-size: var(--sc-fs-body);
       }
       .swatch {
         flex: none;
@@ -350,7 +350,7 @@ export class CanvasOverlay extends LitElement {
         min-height: 44px;
         padding: 6px 14px;
         border-radius: 0;
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
         text-align: left;
         justify-content: flex-start;
         cursor: pointer;

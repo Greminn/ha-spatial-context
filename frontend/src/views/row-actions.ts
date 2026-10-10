@@ -22,10 +22,10 @@ export class RowActions extends LitElement {
         display: grid;
         place-items: center;
         width: 40px;
-        height: 40px;
+        height: var(--sc-h-control);
         padding: 0;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
       }
       button:disabled {

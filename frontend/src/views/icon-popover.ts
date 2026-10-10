@@ -62,9 +62,9 @@ export class IconPopover extends LitElement {
       /* Compact: the row's own button style (40px rounded square). */
       :host([compact]) .icon-button {
         width: 40px;
-        height: 40px;
+        height: var(--sc-h-control);
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
       }
       .modal ::slotted(*) {

@@ -60,10 +60,10 @@ export class EntityPickerSidebar extends LitElement {
         display: grid;
         place-items: center;
         width: 36px;
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         color: var(--sc-fg-secondary);
       }
       .more-menu {
@@ -78,10 +78,10 @@ export class EntityPickerSidebar extends LitElement {
         display: flex;
         align-items: center;
         gap: 8px;
-        height: 40px;
+        height: var(--sc-h-control);
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-bg);
       }
       .search-box:focus-within {
@@ -107,7 +107,7 @@ export class EntityPickerSidebar extends LitElement {
         border: none;
         outline: none;
         background: transparent;
-        font-size: 14px;
+        font-size: var(--sc-fs-body);
         color: var(--sc-fg);
       }
       .filters {
@@ -121,13 +121,13 @@ export class EntityPickerSidebar extends LitElement {
       .filters select {
         flex: 1;
         min-width: 0;
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-bg);
         color: var(--sc-fg);
-        font-size: 13px;
+        font-size: var(--sc-fs-small);
       }
       .list {
         overflow-y: auto;
@@ -168,7 +168,7 @@ export class EntityPickerSidebar extends LitElement {
         align-items: center;
         justify-content: center;
         width: 36px;
-        height: 36px;
+        height: var(--sc-h-field);
         border-radius: 50%;
         background: rgba(127, 127, 127, 0.2);
         flex-shrink: 0;
@@ -193,13 +193,13 @@ export class EntityPickerSidebar extends LitElement {
         gap: 2px;
       }
       .item .name {
-        font-size: 14px;
+        font-size: var(--sc-fs-body);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       .item .meta {
-        font-size: 12px;
+        font-size: var(--sc-fs-caption);
         color: var(--sc-fg-secondary);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -208,7 +208,7 @@ export class EntityPickerSidebar extends LitElement {
       .empty {
         padding: 16px;
         color: var(--sc-fg-secondary);
-        font-size: 14px;
+        font-size: var(--sc-fs-body);
       }
     `,
   ];

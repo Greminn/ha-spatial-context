@@ -17,7 +17,7 @@ export const meshLegendStyles = css`
     gap: 10px;
     padding: 6px 16px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: var(--sc-fs-caption);
     color: var(--sc-fg-secondary);
     pointer-events: none;
     white-space: nowrap;

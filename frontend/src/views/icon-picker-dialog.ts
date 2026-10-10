@@ -98,18 +98,20 @@ export class IconPickerDialog extends LitElement {
         padding: 16px;
       }
       .title {
-        font-size: 1.05rem;
+        font-size: var(--sc-fs-title);
         font-weight: 500;
       }
       input[type="search"] {
         width: 100%;
         box-sizing: border-box;
-        padding: 8px 10px;
+        height: var(--sc-h-field);
+        padding: 0 12px;
         font: inherit;
+        font-size: var(--sc-fs-body);
         color: var(--sc-fg);
         background: var(--sc-bg);
         border: 1px solid var(--sc-divider);
-        border-radius: 6px;
+        border-radius: var(--sc-r-control);
       }
       .grid {
         flex: 1;
@@ -135,7 +137,7 @@ export class IconPickerDialog extends LitElement {
         --mdc-icon-size: 28px;
       }
       .icon-choice span {
-        font-size: 0.7rem;
+        font-size: var(--sc-fs-caption);
         color: var(--sc-fg-secondary);
         max-width: 100%;
         overflow: hidden;
@@ -143,7 +145,7 @@ export class IconPickerDialog extends LitElement {
         white-space: nowrap;
       }
       .hint {
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
       }
       .actions {

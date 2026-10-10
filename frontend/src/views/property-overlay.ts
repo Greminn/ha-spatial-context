@@ -71,11 +71,11 @@ export class PropertyOverlay extends LitElement {
       }
       .place-picker {
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-bg);
         color: var(--sc-fg);
         font-family: inherit;
-        font-size: 0.875rem;
+        font-size: var(--sc-fs-body);
         padding: 6px 14px;
       }
       .scale-badge {
@@ -83,9 +83,9 @@ export class PropertyOverlay extends LitElement {
         top: 12px;
         right: 12px;
         max-width: 260px;
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         padding: 8px 14px;
-        font-size: 0.8125rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
         pointer-events: auto;
       }
@@ -105,7 +105,7 @@ export class PropertyOverlay extends LitElement {
         pointer-events: auto;
       }
       .hint {
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
       }
     `,

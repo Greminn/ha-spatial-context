@@ -136,7 +136,7 @@ export class SpatialContextPanel extends LitElement {
         max-width: min(640px, calc(100% - 32px));
         padding: 8px 12px;
         border-left: 4px solid var(--sc-danger);
-        font-size: 0.875rem;
+        font-size: var(--sc-fs-body);
       }
       .save-error ha-icon {
         color: var(--sc-danger);
@@ -165,7 +165,7 @@ export class SpatialContextPanel extends LitElement {
         gap: 16px;
         min-height: 44px;
         padding: 6px 16px;
-        font-size: 0.9375rem;
+        font-size: var(--sc-fs-row);
       }
       .menu-divider {
         height: 1px;
@@ -192,21 +192,21 @@ export class SpatialContextPanel extends LitElement {
         width: 130px;
       }
       .popover-row select {
-        height: 36px;
+        height: var(--sc-h-field);
         padding: 0 12px;
         border: 1px solid var(--sc-divider);
-        border-radius: 12px;
+        border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
         color: var(--sc-fg);
         font: inherit;
-        font-size: 0.875rem;
+        font-size: var(--sc-fs-body);
       }
       .popover-row select:focus {
         outline: none;
         border-color: var(--sc-accent);
       }
       .hint {
-        font-size: 0.8rem;
+        font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
       }
     `,

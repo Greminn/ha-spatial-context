@@ -42,12 +42,12 @@ export class AppHeader extends LitElement {
       .identity .menu-button {
         flex: none;
         width: 40px;
-        height: 40px;
+        height: var(--sc-h-control);
         margin-right: -4px;
       }
       .identity h1 {
         margin: 0;
-        font-size: 20px;
+        font-size: var(--sc-fs-header);
         font-weight: 400;
         line-height: 1.2;
         white-space: nowrap;
@@ -94,12 +94,12 @@ export class AppHeader extends LitElement {
         /* Seven header actions (incl. undo/redo) need to fit a phone. */
         .icon-button {
           width: 40px;
-          height: 40px;
+          height: var(--sc-h-control);
         }
       }
       @media (max-width: 480px) {
         .identity h1 {
-          font-size: 16px;
+          font-size: var(--sc-fs-title);
         }
       }
       .actions {
