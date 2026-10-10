@@ -217,7 +217,8 @@
     "debugReport": "Debug-Bericht herunterladen",
     "debugReportHint": "Versionen, Einstellungen, Layout-Anzahlen und das aktuelle Debug-Protokoll – sicher an ein GitHub-Issue anzuhängen",
     "resetFloor": "Etage zurücksetzen",
-    "resetProperty": "Anwesen zurücksetzen"
+    "resetProperty": "Anwesen zurücksetzen",
+    "github": "GitHub-Repository"
   },
   "network": {
     "zigbee": "Zigbee-Mesh",
