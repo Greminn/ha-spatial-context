@@ -100,6 +100,8 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 On a phone the card spans the width and the controls row scrolls sideways.
 
+<img src="docs/screenshot-mobile.jpeg" alt="The panel on a phone, with the Zigbee layer on, the scale bar bottom-left and the zoom controls bottom-right" width="320">
+
 ### Tools
 
 | Tool | What it does |
