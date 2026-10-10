@@ -112,9 +112,13 @@ export class PropertyCanvas extends LitElement {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: white;
+        /* Same backdrop as the floors, for when there's no photo or map. */
+        background: color-mix(in srgb, var(--sc-bg) 94%, black);
         user-select: none;
         -webkit-user-select: none;
+      }
+      :host([dark]) {
+        background: color-mix(in srgb, var(--sc-bg) 88%, white);
       }
       svg {
         position: relative;
@@ -283,6 +287,8 @@ export class PropertyCanvas extends LitElement {
   /** The live street map behind everything (#6), drawn by the lazily
    * loaded map module — see `_syncMap`. */
   @property({ attribute: false }) mapBackground: MapBackground | null = null;
+  /** HA is in a dark theme (sets the backdrop colour). */
+  @property({ type: Boolean, reflect: true }) dark = false;
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _mapError: string | null = null;
   private _map: MapLayerHandle | undefined;

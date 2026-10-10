@@ -3710,6 +3710,7 @@ export class SpatialContextPanel extends LitElement {
                   @drop=${this._onCanvasDrop}
                 >
                   <property-canvas
+                    .dark=${this._hass?.themes?.darkMode ?? false}
                     .placements=${this._livePlacements}
                     .ghosts=${this._placementGhosts}
                     .hass=${this._hass}
