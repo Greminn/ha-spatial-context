@@ -11,7 +11,6 @@ import logging
 from pathlib import Path
 
 from homeassistant.components.frontend import (
-    add_extra_js_url,
     async_register_built_in_panel,
 )
 from aiohttp import web
@@ -21,7 +20,6 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     FRONTEND_URL_PATH,
-    ICONS_FILENAME,
     PANEL_FILENAME,
     SIDEBAR_ICON,
     SIDEBAR_TITLE,
@@ -84,20 +82,6 @@ async def async_register_static_paths(hass: HomeAssistant) -> None:
     except RuntimeError:
         _LOGGER.debug("Static path already registered: %s", URL_BASE)
     hass.http.register_view(PanelBundleView())
-
-
-def async_register_icons(hass: HomeAssistant) -> None:
-    """Register the spatial-context: custom icon set, globally and eagerly.
-
-    The sidebar renders before our panel's own JS would otherwise load
-    (that only happens lazily, on navigating to the panel), so the icon
-    registration has to ship as its own extra module URL loaded on every
-    page — the same mechanism a custom theme or icon pack would use — not
-    bundled into spatial-context-panel.js.
-    """
-    icons_url = f"{URL_BASE}/{ICONS_FILENAME}?v={_cache_bust_token(ICONS_FILENAME)}"
-    add_extra_js_url(hass, icons_url)
-    _LOGGER.debug("Spatial Context icon set registered: %s", icons_url)
 
 
 def async_register_sidebar_panel(hass: HomeAssistant) -> None:
