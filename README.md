@@ -6,7 +6,7 @@
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context: the Top Floor traced over a floor plan, with rooms, walls and placed devices](docs/screenshot-main.jpeg)
+![Spatial Context showing a live Zigbee mesh over the Top Floor: rooms, walls, placed devices, and every link coloured by signal quality](docs/screenshot-main.jpeg)
 
 ## What you get
 
@@ -80,7 +80,7 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 ## The panel
 
-![The panel: header, controls row, canvas and an info card](docs/screenshot-panel.jpeg)
+![The panel: header with the floor tabs, the controls row with the tools, and the canvas with its scale bar and zoom controls](docs/screenshot-panel.jpeg)
 
 **Header.** The floor tabs and the **Property** tab sit in the middle. On the right are the **Connectivity Map**, **Settings** and a **⋮** menu (Export JSON, Download debug report, Reset floor).
 
@@ -98,9 +98,7 @@ pdftoppm -png -r 150 your-floor-plan.pdf your-floor-plan
 
 ![A room's info card](docs/screenshot-room-card.jpeg)
 
-On a phone the card spans the width and the controls row scrolls sideways:
-
-![The panel on a phone, with a device card folded to its header](docs/screenshot-mobile.jpeg)
+On a phone the card spans the width and the controls row scrolls sideways.
 
 ### Tools
 
@@ -185,7 +183,7 @@ The **network** button in the header opens the layers. Pick one to draw that net
 
 | Zigbee | Wi-Fi |
 |---|---|
-| ![Zigbee mesh overlay, including cross-floor link stubs](docs/screenshot-zigbee-mesh.jpeg) | ![Wi-Fi network overlay](docs/screenshot-wifi-network.jpeg) |
+| ![Zigbee mesh layer on the Bottom Floor, with the layer menu open and a device card listing its links](docs/screenshot-zigbee-mesh.jpeg) | ![Wi-Fi network overlay](docs/screenshot-wifi-network.jpeg) |
 
 | Matter / Thread | Bluetooth |
 |---|---|
