@@ -2366,8 +2366,22 @@ export class SpatialContextPanel extends LitElement {
     }
   }
 
+  /** Size the panel to what's actually visible. On iOS the CSS viewport
+   * units can include the area under the browser bar or home indicator, so
+   * the bottom of the canvas (and its zoom controls) ended up off screen;
+   * the visual viewport is the real visible height. */
+  private _fitToViewport = (): void => {
+    const visible = window.visualViewport?.height ?? window.innerHeight;
+    const top = Math.max(this.getBoundingClientRect().top, 0);
+    this.style.height = `${Math.max(240, Math.floor(visible - top))}px`;
+  };
+
   override connectedCallback(): void {
     super.connectedCallback();
+    this._fitToViewport();
+    window.visualViewport?.addEventListener("resize", this._fitToViewport);
+    window.addEventListener("resize", this._fitToViewport);
+    window.addEventListener("orientationchange", this._fitToViewport);
     window.addEventListener("keydown", this._onKeyDown);
     window.addEventListener("beforeunload", this._onBeforeUnload);
     document.addEventListener("visibilitychange", this._onVisibilityChange);
@@ -2375,6 +2389,9 @@ export class SpatialContextPanel extends LitElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.visualViewport?.removeEventListener("resize", this._fitToViewport);
+    window.removeEventListener("resize", this._fitToViewport);
+    window.removeEventListener("orientationchange", this._fitToViewport);
     window.removeEventListener("keydown", this._onKeyDown);
     window.removeEventListener("beforeunload", this._onBeforeUnload);
     document.removeEventListener("visibilitychange", this._onVisibilityChange);

@@ -162,6 +162,13 @@ export const zoomControlsStyles = css`
   .controls ha-icon {
     --mdc-icon-size: 22px;
   }
+  /* Touch screens: clear the browser's bottom bar / home indicator even
+   * where the safe-area inset isn't reported. */
+  @media (pointer: coarse) {
+    .controls {
+      bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    }
+  }
 `;
 
 /** A native <select> drawn with HA's dropdown chevron instead of the
