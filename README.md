@@ -102,6 +102,8 @@ On a phone the card spans the width and the controls row scrolls sideways.
 
 <img src="docs/screenshot-mobile-v2.jpeg" alt="The panel on a phone, with the Zigbee layer on, the scale bar bottom-left and the zoom controls bottom-right" width="320">
 
+*Taken at 11:11, so of course we made a wish. (Fewer bugs, please.)*
+
 ### Tools
 
 | Tool | What it does |
