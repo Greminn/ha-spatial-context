@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { Settings } from "../types";
-import { sharedStyles, switchStyles } from "../styles";
+import { selectStyles, sharedStyles, switchStyles } from "../styles";
 
 /** The Settings menu's content: grouped rows, label (and an optional
  * one-line description) on the left, its control on the right. Every
@@ -12,6 +12,7 @@ import { sharedStyles, switchStyles } from "../styles";
 export class SettingsMenu extends LitElement {
   static override styles = [
     sharedStyles,
+    selectStyles,
     switchStyles,
     css`
       :host {
@@ -24,7 +25,8 @@ export class SettingsMenu extends LitElement {
         align-items: center;
         gap: 8px;
         padding: 12px 12px 4px 8px;
-        font-size: 1.125rem;
+        font-size: 1.375rem;
+        font-weight: 500;
       }
       .header button {
         display: grid;
@@ -38,13 +40,13 @@ export class SettingsMenu extends LitElement {
         padding: 4px 0;
       }
       .section + .section {
-        border-top: 1px solid var(--sc-divider);
+        margin-top: 4px;
       }
       .section-title {
-        padding: 10px 12px 4px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        letter-spacing: 0.06em;
+        padding: 12px 12px 4px;
+        font-size: 0.75rem;
+        font-weight: 400;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--sc-fg-secondary);
       }
@@ -105,6 +107,16 @@ export class SettingsMenu extends LitElement {
       }
       select {
         max-width: 170px;
+        height: 36px;
+      }
+      input[type="number"] {
+        height: 36px;
+        -moz-appearance: textfield;
+      }
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
       }
       .number {
         display: inline-flex;
@@ -241,36 +253,38 @@ export class SettingsMenu extends LitElement {
         <div class="section-title">Zigbee mesh</div>
         ${this._row(
           "Coordinator",
-          html`<select
-            aria-label="Zigbee coordinator device"
-            @change=${(e: Event) =>
-              this._change({
-                zigbee_coordinator_device_id:
-                  (e.target as HTMLSelectElement).value || null,
-              })}
-          >
-            <option value="" ?selected=${!coordinator}>
-              Zigbee2MQTT Bridge
-            </option>
-            ${
-              // Keep a saved choice visible even once its pin is removed,
-              // rather than the select silently showing the default.
-              coordinator && !coordinatorPlaced
-                ? html`<option value=${coordinator} selected>
-                    (device not placed)
-                  </option>`
-                : nothing
-            }
-            ${this.coordinatorChoices.map(
-              ({ deviceId, label }) =>
-                html`<option
-                  value=${deviceId}
-                  ?selected=${deviceId === coordinator}
-                >
-                  ${label}
-                </option>`,
-            )}
-          </select>`,
+          html`<span class="select-wrap"
+            ><select
+              aria-label="Zigbee coordinator device"
+              @change=${(e: Event) =>
+                this._change({
+                  zigbee_coordinator_device_id:
+                    (e.target as HTMLSelectElement).value || null,
+                })}
+            >
+              <option value="" ?selected=${!coordinator}>
+                Zigbee2MQTT Bridge
+              </option>
+              ${
+                // Keep a saved choice visible even once its pin is removed,
+                // rather than the select silently showing the default.
+                coordinator && !coordinatorPlaced
+                  ? html`<option value=${coordinator} selected>
+                      (device not placed)
+                    </option>`
+                  : nothing
+              }
+              ${this.coordinatorChoices.map(
+                ({ deviceId, label }) =>
+                  html`<option
+                    value=${deviceId}
+                    ?selected=${deviceId === coordinator}
+                  >
+                    ${label}
+                  </option>`,
+              )}</select
+            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+          ></span>`,
           "The device placed for your radio, if it isn't the Bridge",
         )}
         ${this._row(
