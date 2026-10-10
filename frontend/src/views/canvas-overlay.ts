@@ -217,6 +217,21 @@ export class CanvasOverlay extends LitElement {
         align-items: center;
         gap: 6px;
       }
+      /* Two lines per link: "Device - Floor", then its signal detail. */
+      .link-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+      }
+      .link-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .link-detail {
+        font-size: 0.8125rem;
+      }
       .quality-dot {
         flex: none;
         width: 10px;
@@ -925,21 +940,23 @@ export class CanvasOverlay extends LitElement {
             </div>`
           : rows.map(
               (r) =>
-                html`<div class="info-row">
+                html`<div class="info-row link-row">
                   <span
                     class="quality-dot"
                     style="background:${qualityColor(r.quality)}"
                   ></span>
-                  <span class="grow"
-                    >${r.name}${
-                      r.where
-                        ? html`<span class="info-sub"> · ${r.where}</span>`
-                        : nothing
-                    }</span
-                  >
-                  <span style="color:${qualityColor(r.quality)}"
-                    >${r.detail}</span
-                  >
+                  <span class="link-text">
+                    <span
+                      class="link-name"
+                      title=${r.where ? `${r.name} - ${r.where}` : r.name}
+                      >${r.where ? `${r.name} - ${r.where}` : r.name}</span
+                    >
+                    <span
+                      class="link-detail"
+                      style="color:${qualityColor(r.quality)}"
+                      >${r.detail}</span
+                    >
+                  </span>
                 </div>`,
             )
       }
