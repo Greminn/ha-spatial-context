@@ -110,7 +110,9 @@
       "height": "Height ({unit})",
       "colour": "Colour",
       "colourDefault": "Default",
-      "colourCustom": "Custom"
+      "colourCustom": "Custom",
+      "links": "{count} links",
+      "noLinks": "No links to other placed devices"
     }
   },
   "mapBackground": {

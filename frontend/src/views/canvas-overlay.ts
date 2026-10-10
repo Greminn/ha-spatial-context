@@ -215,6 +215,12 @@ export class CanvasOverlay extends LitElement {
         align-items: center;
         gap: 6px;
       }
+      .quality-dot {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
       .info-row.stack-row {
         padding: 0 4px 0 0;
       }
@@ -415,6 +421,11 @@ export class CanvasOverlay extends LitElement {
   @property({ type: Boolean }) canUndo = false;
   @property({ type: Boolean }) canRedo = false;
   @property({ type: Boolean }) meshLegend = false;
+  /** The links drawn on this floor, and the active network layer's name
+   * (null when none is on) — the device card lists the selected device's. */
+  @property({ attribute: false }) meshLinks: ResolvedMeshLink[] = [];
+  @property({ attribute: false }) meshStubs: ResolvedMeshStub[] = [];
+  @property({ attribute: false }) networkLabel: string | null = null;
   @property({ attribute: false }) selectedMeshLink: ResolvedMeshLink | null =
     null;
   @property({ attribute: false }) selectedMeshStub: ResolvedMeshStub | null =
@@ -875,6 +886,64 @@ export class CanvasOverlay extends LitElement {
     `;
   }
 
+  /** The selected device's connections in the active network layer: who
+   * it links to and how strong, strongest first. Null with no layer on. */
+  private _renderDeviceNetwork(pin: Pin) {
+    if (!this.networkLabel) return nothing;
+    const order = { strong: 0, medium: 1, weak: 2, unknown: 3 };
+    const rows = [
+      ...this.meshLinks
+        .filter((l) => l.fromPin.id === pin.id || l.toPin.id === pin.id)
+        .map((l) => ({
+          name: this._pinLabel(l.fromPin.id === pin.id ? l.toPin : l.fromPin),
+          where: "",
+          quality: l.quality,
+          detail: l.detail ?? l.quality,
+        })),
+      ...this.meshStubs
+        .filter((st) => st.fromPin.id === pin.id)
+        .map((st) => ({
+          name: st.targetLabel,
+          where: st.targetFloorName,
+          quality: st.quality,
+          detail: st.detail ?? st.quality,
+        })),
+    ].sort((a, b) => order[a.quality] - order[b.quality]);
+    return html`<div class="info-group">
+      <div class="info-group-title">
+        ${this.networkLabel} ·
+        ${localize("canvas.card.links", { count: rows.length })}
+      </div>
+      ${
+        rows.length === 0
+          ? html`<div class="info-row">
+              <span class="grow info-sub"
+                >${localize("canvas.card.noLinks")}</span
+              >
+            </div>`
+          : rows.map(
+              (r) =>
+                html`<div class="info-row">
+                  <span
+                    class="quality-dot"
+                    style="background:${qualityColor(r.quality)}"
+                  ></span>
+                  <span class="grow"
+                    >${r.name}${
+                      r.where
+                        ? html`<span class="info-sub"> · ${r.where}</span>`
+                        : nothing
+                    }</span
+                  >
+                  <span style="color:${qualityColor(r.quality)}"
+                    >${r.detail}</span
+                  >
+                </div>`,
+            )
+      }
+    </div>`;
+  }
+
   private _renderSelectionPanel() {
     if (this.selectedRoom) {
       const room = this.selectedRoom;
@@ -1014,41 +1083,42 @@ export class CanvasOverlay extends LitElement {
         subtitle: localize("canvas.card.device"),
         onClose: this._clearSelection,
         body: html`<div class="info-group">
-          ${this._fieldRow(
-            "mdi:tag-text",
-            localize("canvas.card.label"),
-            html`<input
-              type="text"
-              class="text-field"
-              placeholder=${pinDisplayLabel(pin.device_id, this.entityLookup.values())}
-              .value=${pin.label_override ?? ""}
-              @change=${(e: Event) =>
-                this._fire("pin-label-change", {
-                  label: (e.target as HTMLInputElement).value,
-                })}
-            />`,
-          )}
-          ${this._actionRow("mdi:shape", localize("canvas.pin.setIcon"), () =>
-            this._fire("pin-set-icon-click"),
-          )}
-          ${this._fieldRow(
-            "mdi:human-male-height",
-            localize("canvas.card.height", {
-              unit: this.unitSystem === "imperial" ? "ft" : "m",
-            }),
-            html`<input
-              type="text"
-              inputmode="decimal"
-              class="text-field short"
-              placeholder=${this.unitSystem === "imperial" ? "6" : "1.8"}
-              .value=${pin.height_m === null ? "" : formatLarge(pin.height_m, this.unitSystem)}
-              @change=${(e: Event) =>
-                this._fire("pin-height-change", {
-                  value: (e.target as HTMLInputElement).value,
-                })}
-            />`,
-          )}
-        </div>`,
+            ${this._fieldRow(
+              "mdi:tag-text",
+              localize("canvas.card.label"),
+              html`<input
+                type="text"
+                class="text-field"
+                placeholder=${pinDisplayLabel(pin.device_id, this.entityLookup.values())}
+                .value=${pin.label_override ?? ""}
+                @change=${(e: Event) =>
+                  this._fire("pin-label-change", {
+                    label: (e.target as HTMLInputElement).value,
+                  })}
+              />`,
+            )}
+            ${this._actionRow("mdi:shape", localize("canvas.pin.setIcon"), () =>
+              this._fire("pin-set-icon-click"),
+            )}
+            ${this._fieldRow(
+              "mdi:human-male-height",
+              localize("canvas.card.height", {
+                unit: this.unitSystem === "imperial" ? "ft" : "m",
+              }),
+              html`<input
+                type="text"
+                inputmode="decimal"
+                class="text-field short"
+                placeholder=${this.unitSystem === "imperial" ? "6" : "1.8"}
+                .value=${pin.height_m === null ? "" : formatLarge(pin.height_m, this.unitSystem)}
+                @change=${(e: Event) =>
+                  this._fire("pin-height-change", {
+                    value: (e.target as HTMLInputElement).value,
+                  })}
+              />`,
+            )}
+          </div>
+          ${this._renderDeviceNetwork(pin)}`,
         footer: this._deleteButton(
           localize("canvas.pin.delete"),
           "pin-delete-click",

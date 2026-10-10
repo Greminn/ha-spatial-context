@@ -3431,14 +3431,11 @@ export class SpatialContextPanel extends LitElement {
                     ${this._networkType === "bluetooth" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                 </div>
-                <div class="menu-divider"></div>
                 ${
                   this._networkType === null
-                    ? html`<span class="hint" style="padding: 4px 16px 8px"
-                        >Pick a network above to show it. Pick it again to turn
-                        it off.</span
-                      >`
+                    ? nothing
                     : html`
+                        <div class="menu-divider"></div>
                         ${
                           this._networkType === "zigbee"
                             ? html`<button
@@ -3783,6 +3780,19 @@ export class SpatialContextPanel extends LitElement {
                     .editingWall=${!!this._editingWallId}
                     .selectedOpening=${this._selectedOpening}
                     .selectedMeshLink=${this._selectedMeshLink}
+                    .meshLinks=${this._meshLinksForCurrentFloor}
+                    .meshStubs=${this._meshStubsForCurrentFloor}
+                    .networkLabel=${
+                      this._networkType === "zigbee"
+                        ? "Zigbee mesh"
+                        : this._networkType === "wifi"
+                          ? "Wi-Fi"
+                          : this._networkType === "matter"
+                            ? "Matter"
+                            : this._networkType === "bluetooth"
+                              ? "Bluetooth"
+                              : null
+                    }
                     .selectedMeshStub=${this._selectedMeshStub}
                     .pinStack=${this._pinStack}
                     .entityLookup=${this._entityLookup}
