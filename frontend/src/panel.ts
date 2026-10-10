@@ -3664,6 +3664,7 @@ export class SpatialContextPanel extends LitElement {
                   @drop=${this._onCanvasDrop}
                 >
                   <floorplan-canvas
+                    .dark=${this._hass?.themes?.darkMode ?? false}
                     .rooms=${this._layout.rooms}
                     .pins=${this._layout.pins}
                     .walls=${this._layout.walls}

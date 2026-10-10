@@ -174,6 +174,23 @@ export class FloorplanCanvas extends LitElement {
         display: block;
         background: white;
       }
+      /* Dark HA theme: the canvas takes the theme's own background and the
+       * (usually white) plan image is inverted into light lines on dark —
+       * hue-rotate(180deg) keeps any colour in the plan close to its
+       * original hue. The Background menu's opacity still applies. */
+      :host([dark]) {
+        background: var(--sc-bg);
+      }
+      :host([dark]) .bg-overlay img {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      /* Door/window jambs were drawn dark-on-white. */
+      :host([dark]) .opening-jamb-case {
+        stroke: var(--sc-bg);
+      }
+      :host([dark]) .opening-jamb {
+        stroke: var(--sc-fg);
+      }
       .mesh-link {
         stroke-width: 2;
         opacity: 0.85;
@@ -363,6 +380,8 @@ export class FloorplanCanvas extends LitElement {
     `,
   ];
 
+  /** HA is in a dark theme: draw the canvas, plan image and walls for it. */
+  @property({ type: Boolean, reflect: true }) dark = false;
   @property({ attribute: false }) rooms: Room[] = [];
   @property({ attribute: false }) pins: Pin[] = [];
   @property({ attribute: false }) walls: Wall[] = [];
@@ -2271,7 +2290,13 @@ export class FloorplanCanvas extends LitElement {
     const drawPoints = isClosed ? points.slice(0, -1) : points;
     const pointsAttr = drawPoints.map(([x, y]) => `${x},${y}`).join(" ");
     const wallClass = `wall-line ${selected || isEditing ? "selected" : ""}`;
-    const wallStyle = `stroke:${material.color}; stroke-width:${strokeWidth}`;
+    // The material colours are dark (made for a white canvas); on the dark
+    // canvas lighten each toward white so walls still read and still differ
+    // by material.
+    const wallColor = this.dark
+      ? `color-mix(in srgb, ${material.color} 30%, #e0e0e0)`
+      : material.color;
+    const wallStyle = `stroke:${wallColor}; stroke-width:${strokeWidth}`;
     return svg`
       ${
         isClosed
