@@ -319,19 +319,12 @@ export const toolRowStyles = css`
     -webkit-appearance: none;
     margin: 0;
   }
-  .tool-row .scale-badge {
-    position: static;
+  /* Whatever the row's last items are (Background, undo/redo/save) sit at
+   * the right. */
+  .tool-row ::slotted([slot="row-end"]) {
     margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: var(--sc-h-control);
-    padding-block: 0;
-    background: var(--sc-panel-bg);
-    box-shadow: none;
-    white-space: nowrap;
   }
-  /* Every field and button in the row is the same 40px as the scale chip:
+  /* Every field and button in the row is the same 40px:
    * rounded rectangle, surface fill, thin border, HA's dropdown chevron. */
   .tool-row select {
     appearance: none;
@@ -408,5 +401,57 @@ export const sliderStyles = css`
     background: var(--sc-accent);
     border: none;
     cursor: pointer;
+  }
+`;
+
+/** Bottom-left scale: a distance bar on a calibrated floor (like HA's own
+ * map), or a small "not calibrated" chip. */
+export const scaleStyles = css`
+  .scale-corner {
+    position: absolute;
+    left: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+  }
+  @media (pointer: coarse) {
+    .scale-corner {
+      bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+  .scale-bar {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 10px 6px;
+    border-radius: 8px;
+    font-size: var(--sc-fs-caption);
+    color: var(--sc-fg);
+  }
+  .scale-bar-line {
+    height: 6px;
+    border: 2px solid var(--sc-fg);
+    border-top: none;
+  }
+  .scale-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    max-width: min(320px, calc(100vw - 120px));
+    padding: 6px 12px;
+    border-radius: var(--sc-r-control);
+    font-size: var(--sc-fs-small);
+    color: var(--sc-fg-secondary);
+    pointer-events: auto;
+  }
+  button.scale-chip {
+    cursor: pointer;
+  }
+  .scale-chip ha-icon {
+    --mdc-icon-size: 16px;
+    flex: none;
+  }
+  .scale-chip .warn {
+    color: var(--warning-color, #db8b00);
   }
 `;

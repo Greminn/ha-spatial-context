@@ -1078,14 +1078,6 @@ export class SpatialContextPanel extends LitElement {
     });
   }
 
-  private get _scaleReadout(): string | null {
-    const unitsPerMeter = this._unitsPerMeter();
-    if (unitsPerMeter === null) return null;
-    const system = this._settings.unit_system;
-    const unitsPerDisplay = unitsPerDisplayUnit(unitsPerMeter, system);
-    return `Scale: 1 ${largeUnitLabel(system)} ≈ ${unitsPerDisplay.toFixed(1)} units`;
-  }
-
   /** ~0.9m in stored units when calibrated, else a fixed fallback. Always
    * a real 0.9m default regardless of the display unit system — this is
    * an internal initial value, never user-facing text. */
@@ -1985,6 +1977,15 @@ export class SpatialContextPanel extends LitElement {
       this._moreOptionsPopoverOpen = false;
     }
   }
+
+  /** The "Not calibrated" chip on the canvas starts Set Scale. */
+  private _onCalibrateScaleClick = () => {
+    if (this._mode !== "scale") {
+      this._onModeChange(
+        new CustomEvent("mode-change", { detail: { mode: "scale" as const } }),
+      );
+    }
+  };
 
   /** The device picker's close button. */
   private _onPickerClose = () => {
@@ -3822,6 +3823,7 @@ export class SpatialContextPanel extends LitElement {
                   @drop=${this._onCanvasDrop}
                 >
                   <floorplan-canvas
+                    @calibrate-scale-click=${this._onCalibrateScaleClick}
                     .dark=${this._hass?.themes?.darkMode ?? false}
                     .rooms=${this._layout.rooms}
                     .pins=${this._layout.pins}
@@ -3889,7 +3891,6 @@ export class SpatialContextPanel extends LitElement {
                     .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
                     .snapMode=${this._snapMode}
                     .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
-                    .scaleReadout=${this._scaleReadout}
                     .unitSystem=${this._settings.unit_system}
                     .unitsPerMeter=${this._unitsPerMeter()}
                     .selectedRoom=${this._selectedRoom}

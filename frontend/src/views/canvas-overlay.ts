@@ -118,16 +118,6 @@ export class CanvasOverlay extends LitElement {
         gap: 8px;
         pointer-events: auto;
       }
-      .scale-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        border-radius: var(--sc-r-control);
-        padding: 8px 14px;
-        font-size: var(--sc-fs-small);
-        color: var(--sc-fg-secondary);
-        pointer-events: auto;
-      }
       .snap-select {
         padding: 4px;
       }
@@ -232,7 +222,6 @@ export class CanvasOverlay extends LitElement {
   @property({ type: Boolean }) hasPendingWall = false;
   @property({ attribute: false }) snapMode: SnapMode = "all";
   @property({ type: Number }) pendingScaleCount = 0;
-  @property({ attribute: false }) scaleReadout: string | null = null;
 
   @property({ attribute: false }) selectedRoom: Room | null = null;
   @property({ type: Boolean }) editingRoom = false;
@@ -1093,9 +1082,6 @@ export class CanvasOverlay extends LitElement {
     return html`
       <div class="tool-row">
         ${this._renderModeToolbar()} ${this._renderHintBar()}
-        <div class="scale-badge floating-panel">
-          ${this.scaleReadout ?? localize("canvas.notCalibrated")}
-        </div>
         <slot name="row-end"></slot>
         <row-actions
           .dirty=${this.dirty}

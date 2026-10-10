@@ -6,6 +6,7 @@ import { qualityColor } from "../canvas/mesh-colors";
 import {
   selectStyles,
   sharedStyles,
+  scaleStyles,
   sliderStyles,
   toolRowStyles,
 } from "../styles";
@@ -47,6 +48,7 @@ export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,
     selectStyles,
+    scaleStyles,
     sliderStyles,
     infoCardStyles,
     toolRowStyles,
@@ -92,22 +94,6 @@ export class PropertyOverlay extends LitElement {
         font-family: inherit;
         font-size: var(--sc-fs-body);
         padding: 6px 14px;
-      }
-      .scale-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        max-width: 260px;
-        border-radius: var(--sc-r-control);
-        padding: 8px 14px;
-        font-size: var(--sc-fs-small);
-        color: var(--sc-fg-secondary);
-        pointer-events: auto;
-      }
-      .scale-warning {
-        --mdc-icon-size: 16px;
-        vertical-align: text-bottom;
-        color: var(--warning-color, #db8b00);
       }
       .hint {
         font-size: var(--sc-fs-small);
@@ -348,6 +334,29 @@ export class PropertyOverlay extends LitElement {
     });
   }
 
+  /** Bottom-left: only when the Property scale needs attention (no
+   * calibrated building yet, or placed buildings disagree). */
+  private _renderScaleNotice() {
+    const text =
+      this.scaleWarning ??
+      (this.scaleReadout === null ? localize("property.notCalibrated") : null);
+    if (text === null) return nothing;
+    return html`<div class="scale-corner">
+      <div
+        class="scale-chip floating-panel"
+        title=${
+          this.scaleReadout === null ? localize("property.calibrateHint") : text
+        }
+      >
+        <ha-icon
+          class=${this.scaleWarning ? "warn" : ""}
+          icon=${this.scaleWarning ? "mdi:alert" : "mdi:ruler"}
+        ></ha-icon>
+        ${text}
+      </div>
+    </div>`;
+  }
+
   override render() {
     return html`
       <div class="tool-row">
@@ -403,22 +412,6 @@ export class PropertyOverlay extends LitElement {
         </div>
         ${this._renderMapPanel()}
 
-        <div
-          class="scale-badge floating-panel"
-          title=${
-            this.scaleWarning ??
-            (this.scaleReadout
-              ? "Worked out from a placed building's floor scale"
-              : "Set Scale on a floor, then place its building here")
-          }
-        >
-          ${
-            this.scaleWarning
-              ? html`<ha-icon class="scale-warning" icon="mdi:alert"></ha-icon>`
-              : nothing
-          }
-          ${this.scaleReadout ?? localize("property.notCalibrated")}
-        </div>
         <slot name="row-end"></slot>
         <row-actions
           .dirty=${this.dirty}
@@ -428,6 +421,7 @@ export class PropertyOverlay extends LitElement {
         ></row-actions>
       </div>
 
+      ${this._renderScaleNotice()}
       ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}
       ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
       ${this._renderPlacementPanel()}

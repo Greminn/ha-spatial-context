@@ -116,7 +116,8 @@
       "noLinks": "No links to other placed devices",
       "hide": "Hide details",
       "show": "Show details"
-    }
+    },
+    "calibrateHint": "Click to set the scale"
   },
   "mapBackground": {
     "noWebgl": "This browser can't draw the map (WebGL2 is needed).",
@@ -296,7 +297,8 @@
     "deletePlacement": "Delete placement",
     "outdoorDevice": "Outdoor device",
     "building": "Building",
-    "link": "Link"
+    "link": "Link",
+    "calibrateHint": "Set Scale on a floor, then place its building here"
   },
   "canvasControls": {
     "zoomIn": "Zoom in",

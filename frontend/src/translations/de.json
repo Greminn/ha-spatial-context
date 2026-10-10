@@ -116,7 +116,8 @@
       "wallOpening": "In einer Wand",
       "hide": "Details ausblenden",
       "show": "Details anzeigen"
-    }
+    },
+    "calibrateHint": "Klicken, um den Maßstab festzulegen"
   },
   "mapBackground": {
     "noWebgl": "Dieser Browser kann die Karte nicht darstellen (WebGL2 erforderlich).",
@@ -296,7 +297,8 @@
     "deletePlacement": "Platzierung löschen",
     "outdoorDevice": "Außengerät",
     "building": "Gebäude",
-    "link": "Verbindung"
+    "link": "Verbindung",
+    "calibrateHint": "Legen Sie auf einer Etage den Maßstab fest und platzieren Sie dann das Gebäude hier"
   },
   "canvasControls": {
     "zoomIn": "Vergrößern",

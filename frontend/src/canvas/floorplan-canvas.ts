@@ -53,7 +53,7 @@ import { qualityColor } from "./mesh-colors";
 import { GROUP_ICON_PATH } from "./pin-icons";
 import { formatLarge, largeUnitLabel } from "../units";
 import { localize } from "../i18n";
-import { sharedStyles, zoomControlsStyles } from "../styles";
+import { scaleStyles, sharedStyles, zoomControlsStyles } from "../styles";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
  * independent of the uploaded background image's actual pixel resolution. */
@@ -385,6 +385,7 @@ export class FloorplanCanvas extends LitElement {
         cursor: copy;
       }
       ${zoomControlsStyles}
+      ${scaleStyles}
     `,
   ];
 
@@ -2462,6 +2463,50 @@ export class FloorplanCanvas extends LitElement {
     `;
   }
 
+  /** Bottom-left: a distance bar (rescaled with the zoom) on a calibrated
+   * floor, or a chip that starts Set Scale. */
+  private _renderScaleBar() {
+    if (!this.scale) {
+      return html`<div class="scale-corner">
+        <button
+          class="scale-chip floating-panel"
+          title=${localize("canvas.calibrateHint")}
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent("calibrate-scale-click", {
+                bubbles: true,
+                composed: true,
+              }),
+            )}
+        >
+          <ha-icon icon="mdi:ruler"></ha-icon>
+          ${localize("canvas.notCalibrated")}
+        </button>
+      </div>`;
+    }
+    const [[x1, y1], [x2, y2]] = this.scale.points;
+    const unitsPerMeter =
+      (Math.hypot(x2 - x1, y2 - y1) || 1) / this.scale.meters;
+    const imperial = this.unitSystem === "imperial";
+    const pxPerStep =
+      this._svgTransform().scale * unitsPerMeter * (imperial ? 0.3048 : 1);
+    const steps = imperial
+      ? [1, 2, 5, 10, 20, 50, 100, 200, 500]
+      : [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+    let pick = steps[0]!;
+    for (const step of steps) {
+      if (step * pxPerStep <= 130) pick = step;
+      else break;
+    }
+    const width = Math.max(8, Math.round(pick * pxPerStep));
+    return html`<div class="scale-corner">
+      <div class="scale-bar floating-panel">
+        <span>${pick} ${largeUnitLabel(this.unitSystem)}</span>
+        <span class="scale-bar-line" style="width:${width}px"></span>
+      </div>
+    </div>`;
+  }
+
   override render() {
     const vb = this._viewBox;
     return html`
@@ -2496,6 +2541,7 @@ export class FloorplanCanvas extends LitElement {
           ${this._pinGroups().map((group) => this._renderPinGroup(group))}
         </svg>
       `}
+      ${this._renderScaleBar()}
       <div class="controls">
         <button
           @click=${() => this._zoomButton(0.8)}
