@@ -138,7 +138,10 @@ export class FloorplanCanvas extends LitElement {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: white;
+        /* A step off the cards' colour, so the floating panels stand out:
+         * light grey by day (the plan image stays white, like paper on a
+         * desk), a lighter grey than the cards by night (see [dark]). */
+        background: color-mix(in srgb, var(--sc-bg) 94%, black);
         user-select: none;
         -webkit-user-select: none;
       }
