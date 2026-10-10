@@ -39,13 +39,6 @@ export class AppHeader extends LitElement {
         min-width: 0;
         overflow: hidden;
       }
-      .identity .app-icon {
-        width: 38px;
-        height: 38px;
-        flex: none;
-        border-radius: 8px;
-        display: block;
-      }
       .identity .menu-button {
         flex: none;
         width: 40px;
@@ -57,14 +50,6 @@ export class AppHeader extends LitElement {
         font-size: 20px;
         font-weight: 400;
         line-height: 1.2;
-        white-space: nowrap;
-      }
-      .identity .subtitle {
-        font-size: 12px;
-        color: var(--sc-fg-secondary);
-        line-height: 1.2;
-        overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
       floor-tabs {
@@ -113,14 +98,8 @@ export class AppHeader extends LitElement {
         }
       }
       @media (max-width: 480px) {
-        .identity .subtitle {
-          display: none;
-        }
         .identity h1 {
           font-size: 16px;
-        }
-        .identity .app-icon {
-          display: none;
         }
       }
       .actions {
@@ -181,11 +160,7 @@ export class AppHeader extends LitElement {
         >
           <ha-icon icon="mdi:menu"></ha-icon>
         </button>
-        <img class="app-icon" src="/spatial_context/icon.png" alt="" />
-        <div>
-          <h1>Spatial Context</h1>
-          <div class="subtitle">v${__VERSION__}</div>
-        </div>
+        <h1>Spatial Context</h1>
       </div>
       <floor-tabs
         .floors=${this.floors}

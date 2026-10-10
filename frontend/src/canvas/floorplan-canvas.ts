@@ -183,6 +183,11 @@ export class FloorplanCanvas extends LitElement {
         stroke-width: 4;
         opacity: 1;
       }
+      /* With one link selected, the rest recede, like hovering a node in
+       * HA's own network visualisation. */
+      .mesh-link.dim {
+        opacity: 0.2;
+      }
       .mesh-stub-line {
         stroke-width: 2;
         stroke-dasharray: 6 4;
@@ -1891,7 +1896,7 @@ export class FloorplanCanvas extends LitElement {
     const to = this._livePinPosition(link.toPin);
     return svg`
       <line
-        class="mesh-link ${key === this.selectedMeshLinkKey ? "selected" : ""}"
+        class="mesh-link ${key === this.selectedMeshLinkKey ? "selected" : this.selectedMeshLinkKey ? "dim" : ""}"
         x1=${from.x}
         y1=${from.y}
         x2=${to.x}

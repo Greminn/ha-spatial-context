@@ -74,9 +74,21 @@ export class EntityPickerSidebar extends LitElement {
         gap: 8px;
         height: 40px;
         padding: 0 12px;
-        border: 1px solid rgb(94, 94, 94);
-        border-radius: 10px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 22px;
         background: var(--sc-bg);
+      }
+      .search-box:focus-within {
+        border-color: var(--sc-accent);
+      }
+      .search-box .clear {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 50%;
+        color: var(--sc-fg-secondary);
       }
       .search-box ha-icon {
         --mdc-icon-size: 18px;
@@ -101,9 +113,9 @@ export class EntityPickerSidebar extends LitElement {
         flex: 1;
         min-width: 0;
         height: 36px;
-        padding: 0 8px;
-        border: 1px solid rgb(94, 94, 94);
-        border-radius: 10px;
+        padding: 0 12px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 18px;
         background: var(--sc-bg);
         color: var(--sc-fg);
         font-size: 13px;
@@ -126,11 +138,11 @@ export class EntityPickerSidebar extends LitElement {
         background: rgba(255, 255, 255, 0.05);
       }
       .item.armed {
-        background: var(--sc-accent);
-        color: white;
+        background: color-mix(in srgb, var(--sc-accent) 18%, transparent);
+        color: var(--sc-accent);
       }
       .item.armed .meta {
-        color: rgba(255, 255, 255, 0.75);
+        color: var(--sc-fg-secondary);
       }
       .item.placed {
         opacity: 0.55;
@@ -410,6 +422,17 @@ export class EntityPickerSidebar extends LitElement {
             .value=${this._search}
             @input=${(e: Event) => (this._search = (e.target as HTMLInputElement).value)}
           />
+          ${
+            this._search
+              ? html`<button
+                  class="clear"
+                  title="Clear search"
+                  @click=${() => (this._search = "")}
+                >
+                  <ha-icon icon="mdi:close"></ha-icon>
+                </button>`
+              : nothing
+          }
         </div>
         <div class="filters">
           <select @change=${this._onFloorFilterChange}>

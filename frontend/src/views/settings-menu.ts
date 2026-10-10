@@ -18,6 +18,21 @@ export class SettingsMenu extends LitElement {
         width: min(360px, calc(100vw - 32px));
         font-size: 0.875rem;
       }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 12px 4px 8px;
+        font-size: 1.125rem;
+      }
+      .header button {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+      }
       .section {
         padding: 4px 0;
       }
@@ -93,11 +108,11 @@ export class SettingsMenu extends LitElement {
       .segmented {
         display: inline-flex;
         border: 1px solid var(--sc-divider);
-        border-radius: 8px;
+        border-radius: 18px;
         overflow: hidden;
       }
       .segmented button {
-        padding: 5px 10px;
+        padding: 6px 14px;
         border-radius: 0;
         font-size: 0.8rem;
         font-weight: 400;
@@ -111,8 +126,8 @@ export class SettingsMenu extends LitElement {
         border-left: 1px solid var(--sc-divider);
       }
       .segmented button.active {
-        background: var(--sc-accent);
-        color: white;
+        background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
+        color: var(--sc-accent);
       }
 
       select,
@@ -122,8 +137,8 @@ export class SettingsMenu extends LitElement {
         color: var(--sc-fg);
         background: var(--sc-bg);
         border: 1px solid var(--sc-divider);
-        border-radius: 6px;
-        padding: 4px 6px;
+        border-radius: 16px;
+        padding: 6px 12px;
       }
       select {
         max-width: 170px;
@@ -211,6 +226,21 @@ export class SettingsMenu extends LitElement {
       (c) => c.deviceId === coordinator,
     );
     return html`
+      <div class="header">
+        <button
+          title="Close"
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent("settings-close", {
+                bubbles: true,
+                composed: true,
+              }),
+            )}
+        >
+          <ha-icon icon="mdi:close"></ha-icon>
+        </button>
+        <span>Settings</span>
+      </div>
       <div class="section">
         <div class="section-title">Editing</div>
         ${this._row(
@@ -314,6 +344,14 @@ export class SettingsMenu extends LitElement {
             this._change({ debug_logging }),
           ),
           "Writes spatial_context_debug.log in your config folder — ids and counts only",
+        )}
+      </div>
+
+      <div class="section">
+        <div class="section-title">About</div>
+        ${this._row(
+          "Version",
+          html`<span class="description">v${__VERSION__}</span>`,
         )}
       </div>
     `;

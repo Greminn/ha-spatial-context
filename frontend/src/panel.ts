@@ -37,7 +37,6 @@ import {
   bleRssiToQuality,
   dbmToQuality,
   lqiToQuality,
-  qualityColor,
 } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
@@ -166,21 +165,6 @@ export class SpatialContextPanel extends LitElement {
         display: flex;
         flex-direction: column;
         min-width: 220px;
-      }
-      .quality-legend {
-        padding: 8px 16px 4px;
-      }
-      .legend-gradient {
-        display: block;
-        height: 6px;
-        border-radius: 3px;
-      }
-      .legend-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.7rem;
-        color: var(--sc-fg-secondary);
-        margin-top: 2px;
       }
       .hidden-file-input {
         display: none;
@@ -3431,17 +3415,6 @@ export class SpatialContextPanel extends LitElement {
                         >Pick a network above to load it.</span
                       >`
                     : html`
-                        <div class="quality-legend">
-                          <span
-                            class="legend-gradient"
-                            style="background: linear-gradient(to right, ${qualityColor(
-                              "weak",
-                            )}, ${qualityColor("medium")}, ${qualityColor("strong")})"
-                          ></span>
-                          <div class="legend-labels">
-                            <span>Weak</span><span>Strong</span>
-                          </div>
-                        </div>
                         ${
                           this._networkType === "zigbee"
                             ? html`<button
@@ -3520,6 +3493,7 @@ export class SpatialContextPanel extends LitElement {
           slot="end"
           icon="mdi:cog"
           label="Settings"
+          dialog
           .open=${this._settingsPopoverOpen}
           @toggle=${this._onToggleSettingsPopover}
         >
@@ -3527,6 +3501,7 @@ export class SpatialContextPanel extends LitElement {
             .settings=${this._settings}
             .coordinatorChoices=${this._placedDeviceChoices}
             @settings-change=${this._onSettingsChange}
+            @settings-close=${() => (this._settingsPopoverOpen = false)}
           ></settings-menu>
         </icon-popover>
         <icon-popover
@@ -3643,6 +3618,7 @@ export class SpatialContextPanel extends LitElement {
                     @placement-select=${this._onPlacementSelect}
                   ></property-canvas>
                   <property-overlay
+                    .meshLegend=${this._meshPopoverOpen && this._networkType !== null}
                     .mode=${this._propertyMode}
                     .buildings=${this._buildings}
                     .scaleReadout=${this._propertyScaleReadout}
@@ -3750,6 +3726,7 @@ export class SpatialContextPanel extends LitElement {
                   ></floorplan-canvas>
 
                   <canvas-overlay
+                    .meshLegend=${this._meshPopoverOpen && this._networkType !== null}
                     .mode=${this._mode}
                     .armedOpeningType=${this._armedOpeningType}
                     .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}

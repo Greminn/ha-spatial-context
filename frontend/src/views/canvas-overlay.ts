@@ -23,6 +23,7 @@ import {
 import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
+import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import {
   canvasUnitsToDisplayAs,
   defaultSmallSubUnit,
@@ -44,6 +45,7 @@ import { localize } from "../i18n";
 export class CanvasOverlay extends LitElement {
   static override styles = [
     sharedStyles,
+    meshLegendStyles,
     css`
       :host {
         position: absolute;
@@ -215,6 +217,8 @@ export class CanvasOverlay extends LitElement {
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
     new Map();
   @property({ attribute: false }) selectedOpening: Opening | null = null;
+  /** Show the weak → strong key along the bottom (a network layer is on). */
+  @property({ type: Boolean }) meshLegend = false;
   @property({ attribute: false }) selectedMeshLink: ResolvedMeshLink | null =
     null;
   @property({ attribute: false }) selectedMeshStub: ResolvedMeshStub | null =
@@ -863,6 +867,7 @@ export class CanvasOverlay extends LitElement {
       <div class="scale-badge floating-panel">
         ${this.scaleReadout ?? localize("canvas.notCalibrated")}
       </div>
+      ${this.meshLegend ? renderMeshLegend() : nothing}
       ${this.pinStack ? this._renderPinStack() : this._renderSelectionPanel()}
     `;
   }

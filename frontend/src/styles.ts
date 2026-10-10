@@ -90,12 +90,14 @@ export const sharedStyles = css`
     color: var(--sc-fg-secondary);
     flex-shrink: 0;
   }
+  /* Selected row: the primary colour at low strength (like HA's selected
+   * list items) instead of a solid bar. */
   .menu-item.active {
-    background: var(--sc-accent);
-    color: white;
+    background: color-mix(in srgb, var(--sc-accent) 16%, transparent);
+    color: var(--sc-accent);
   }
   .menu-item.active ha-icon {
-    color: white;
+    color: var(--sc-accent);
   }
   .menu-item.danger ha-icon {
     color: var(--sc-danger);

@@ -235,6 +235,9 @@ export class PropertyCanvas extends LitElement {
         stroke-width: 4;
         opacity: 1;
       }
+      .mesh-link.dim {
+        opacity: 0.2;
+      }
       .indoor-end {
         fill: var(--sc-fg-secondary);
         stroke: white;
@@ -1072,7 +1075,11 @@ export class PropertyCanvas extends LitElement {
     return svg`
       <line
         class="mesh-link ${indoor ? "indoor" : ""} ${
-          link.key === this.selectedMeshLinkKey ? "selected" : ""
+          link.key === this.selectedMeshLinkKey
+            ? "selected"
+            : this.selectedMeshLinkKey
+              ? "dim"
+              : ""
         }"
         x1=${link.from.x}
         y1=${link.from.y}

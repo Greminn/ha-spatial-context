@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
 import { sharedStyles } from "../styles";
+import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import { localize } from "../i18n";
 
 /** One "building" the Property tab can place a footprint for — floors
@@ -31,6 +32,7 @@ export interface PropertyBuilding {
 export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,
+    meshLegendStyles,
     css`
       :host {
         position: absolute;
@@ -107,6 +109,8 @@ export class PropertyOverlay extends LitElement {
   @property({ attribute: false }) mapRotation = 0;
   /** Display name of the selected outdoor device pin, or null. */
   @property({ attribute: false }) selectedPinLabel: string | null = null;
+  /** Show the weak → strong key along the bottom (a network layer is on). */
+  @property({ type: Boolean }) meshLegend = false;
   @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
     null;
   @property({ attribute: false }) buildings: PropertyBuilding[] = [];
@@ -315,6 +319,7 @@ export class PropertyOverlay extends LitElement {
         }
       </div>
 
+      ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}
       ${this._renderMapPanel()} ${this._renderPinPanel()}
       ${this._renderMeshLinkPanel()}
       ${

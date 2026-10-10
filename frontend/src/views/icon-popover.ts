@@ -30,6 +30,13 @@ export class IconPopover extends LitElement {
       .icon-button.active {
         background: rgba(0, 0, 0, 0.06);
       }
+      /* Settings: HA's dialog look — large radius, no inner padding (the
+       * content brings its own header and sections). */
+      .popover.dialog {
+        padding: 0;
+        border-radius: 28px;
+        overflow: hidden;
+      }
       .popover {
         position: absolute;
         top: 100%;
@@ -48,6 +55,7 @@ export class IconPopover extends LitElement {
   @property() icon = "";
   @property() label = "";
   @property({ type: Boolean }) open = false;
+  @property({ type: Boolean }) dialog = false;
 
   override render() {
     return html`
@@ -61,7 +69,15 @@ export class IconPopover extends LitElement {
       >
         <ha-icon icon=${this.icon}></ha-icon>
       </button>
-      ${this.open ? html`<div class="popover floating-panel"><slot></slot></div>` : nothing}
+      ${
+        this.open
+          ? html`<div
+              class="popover floating-panel ${this.dialog ? "dialog" : ""}"
+            >
+              <slot></slot>
+            </div>`
+          : nothing
+      }
     `;
   }
 }
