@@ -1,8 +1,7 @@
-import { LitElement, html, css, nothing } from "lit";
+import { LitElement, html, css } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { FloorMeta } from "../types";
-import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 import "./floor-tabs";
 
@@ -124,25 +123,12 @@ export class AppHeader extends LitElement {
       .icon-button.active {
         background: rgba(0, 0, 0, 0.06);
       }
-      .dirty-dot {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--sc-danger);
-      }
     `,
   ];
 
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) selectedFloorId: string | null = null;
   @property({ type: Boolean }) propertySelected = false;
-  @property({ type: Boolean }) dirty = false;
-  @property({ type: Boolean }) saving = false;
-  @property({ type: Boolean }) canUndo = false;
-  @property({ type: Boolean }) canRedo = false;
 
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
@@ -169,35 +155,6 @@ export class AppHeader extends LitElement {
       ></floor-tabs>
       <div class="actions">
         <slot></slot>
-        <button
-          class="icon-button"
-          title="Undo (Ctrl/Cmd+Z)"
-          ?disabled=${!this.canUndo}
-          @click=${() => this._fire("undo-click")}
-        >
-          <ha-icon icon="mdi:undo"></ha-icon>
-        </button>
-        <button
-          class="icon-button"
-          title="Redo (Ctrl/Cmd+Shift+Z)"
-          ?disabled=${!this.canRedo}
-          @click=${() => this._fire("redo-click")}
-        >
-          <ha-icon icon="mdi:redo"></ha-icon>
-        </button>
-        <button
-          class="icon-button"
-          title=${
-            this.saving
-              ? localize("appHeader.saving")
-              : localize("appHeader.save")
-          }
-          ?disabled=${this.saving}
-          @click=${() => this._fire("save-click")}
-        >
-          <ha-icon icon="mdi:content-save"></ha-icon>
-          ${this.dirty ? html`<span class="dirty-dot"></span>` : nothing}
-        </button>
         <slot name="end"></slot>
       </div>
     `;

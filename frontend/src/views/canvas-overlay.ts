@@ -23,6 +23,7 @@ import {
 import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
+import "./row-actions";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import {
   canvasUnitsToDisplayAs,
@@ -215,6 +216,10 @@ export class CanvasOverlay extends LitElement {
     new Map();
   @property({ attribute: false }) selectedOpening: Opening | null = null;
   /** Show the weak → strong key along the bottom (a network layer is on). */
+  @property({ type: Boolean }) dirty = false;
+  @property({ type: Boolean }) saving = false;
+  @property({ type: Boolean }) canUndo = false;
+  @property({ type: Boolean }) canRedo = false;
   @property({ type: Boolean }) meshLegend = false;
   @property({ attribute: false }) selectedMeshLink: ResolvedMeshLink | null =
     null;
@@ -865,6 +870,12 @@ export class CanvasOverlay extends LitElement {
         <div class="scale-badge floating-panel">
           ${this.scaleReadout ?? localize("canvas.notCalibrated")}
         </div>
+        <row-actions
+          .dirty=${this.dirty}
+          .saving=${this.saving}
+          .canUndo=${this.canUndo}
+          .canRedo=${this.canRedo}
+        ></row-actions>
       </div>
       ${this.meshLegend ? renderMeshLegend() : nothing}
       ${this.pinStack ? this._renderPinStack() : this._renderSelectionPanel()}

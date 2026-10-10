@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
 import { selectStyles, sharedStyles, toolRowStyles } from "../styles";
+import "./row-actions";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import { localize } from "../i18n";
 
@@ -118,6 +119,10 @@ export class PropertyOverlay extends LitElement {
   /** Display name of the selected outdoor device pin, or null. */
   @property({ attribute: false }) selectedPinLabel: string | null = null;
   /** Show the weak → strong key along the bottom (a network layer is on). */
+  @property({ type: Boolean }) dirty = false;
+  @property({ type: Boolean }) saving = false;
+  @property({ type: Boolean }) canUndo = false;
+  @property({ type: Boolean }) canRedo = false;
   @property({ type: Boolean }) meshLegend = false;
   @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
     null;
@@ -331,6 +336,12 @@ export class PropertyOverlay extends LitElement {
           }
           ${this.scaleReadout ?? "Not calibrated"}
         </div>
+        <row-actions
+          .dirty=${this.dirty}
+          .saving=${this.saving}
+          .canUndo=${this.canUndo}
+          .canRedo=${this.canRedo}
+        ></row-actions>
       </div>
 
       ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}

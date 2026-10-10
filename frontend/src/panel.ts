@@ -80,6 +80,7 @@ import type { PropertyCanvas } from "./canvas/property-canvas";
 import "./views/app-header";
 import "./views/canvas-overlay";
 import "./views/icon-popover";
+import "./views/row-actions";
 import "./views/entity-picker-sidebar";
 import "./views/property-overlay";
 import "./views/icon-picker-dialog";
@@ -3266,15 +3267,8 @@ export class SpatialContextPanel extends LitElement {
         .floors=${this._orderedFloors}
         .selectedFloorId=${this._currentFloorId}
         .propertySelected=${this._view === "property"}
-        .dirty=${this._view === "property" ? this._propertyDirty : this._dirty}
-        .saving=${this._view === "property" ? this._propertySaving : this._saving}
-        .canUndo=${this._canUndo}
-        .canRedo=${this._canRedo}
-        @undo-click=${this._onUndo}
-        @redo-click=${this._onRedo}
         @floor-selected=${this._onFloorSelected}
         @property-selected=${this._onPropertySelected}
-        @save-click=${this._onSaveClick}
       >
         <icon-popover
           icon="mdi:image"
@@ -3627,6 +3621,13 @@ export class SpatialContextPanel extends LitElement {
                     @placement-select=${this._onPlacementSelect}
                   ></property-canvas>
                   <property-overlay
+                    .dirty=${this._propertyDirty}
+                    .saving=${this._propertySaving}
+                    .canUndo=${this._canUndo}
+                    .canRedo=${this._canRedo}
+                    @undo-click=${this._onUndo}
+                    @redo-click=${this._onRedo}
+                    @save-click=${this._onSaveClick}
                     .meshLegend=${this._networkType !== null}
                     .mode=${this._propertyMode}
                     .buildings=${this._buildings}
@@ -3736,6 +3737,13 @@ export class SpatialContextPanel extends LitElement {
                   ></floorplan-canvas>
 
                   <canvas-overlay
+                    .dirty=${this._dirty}
+                    .saving=${this._saving}
+                    .canUndo=${this._canUndo}
+                    .canRedo=${this._canRedo}
+                    @undo-click=${this._onUndo}
+                    @redo-click=${this._onRedo}
+                    @save-click=${this._onSaveClick}
                     .meshLegend=${this._networkType !== null}
                     .mode=${this._mode}
                     .armedOpeningType=${this._armedOpeningType}

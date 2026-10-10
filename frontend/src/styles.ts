@@ -223,7 +223,8 @@ export const toolRowStyles = css`
     align-items: center;
     gap: 12px;
     padding: 0 12px;
-    background: var(--sc-header-bg);
+    /* HA's second bar is a step darker than the app bar above it. */
+    background: var(--primary-background-color, var(--sc-bg));
     border-bottom: 1px solid var(--sc-divider);
     pointer-events: auto;
     overflow-x: auto;
