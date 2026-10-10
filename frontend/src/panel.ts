@@ -3377,7 +3377,7 @@ export class SpatialContextPanel extends LitElement {
         ${
           this._view === "floor" || this._view === "property"
             ? html`<icon-popover
-                icon="mdi:layers"
+                icon="mdi:graph-outline"
                 label="Connectivity Map"
                 .open=${this._meshPopoverOpen}
                 @toggle=${this._onToggleMeshPopover}
