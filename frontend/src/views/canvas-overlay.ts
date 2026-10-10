@@ -24,6 +24,7 @@ import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
 import "./row-actions";
+import { HA_COLORS, resolveColorHex } from "./color-palette";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import {
   canvasUnitsToDisplayAs,
@@ -283,6 +284,66 @@ export class CanvasOverlay extends LitElement {
       .wall-thickness {
         width: 72px;
       }
+      .color-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 8px 0 10px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
+        background: var(--sc-panel-bg);
+        font-size: 0.875rem;
+      }
+      .swatch {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid color-mix(in srgb, var(--sc-fg) 25%, transparent);
+      }
+      .custom-swatch {
+        background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+      }
+      .color-list {
+        max-height: 260px;
+        overflow-y: auto;
+        margin: 0 8px 4px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 16px;
+        background: var(--sc-panel-bg);
+      }
+      .color-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 44px;
+        padding: 6px 14px;
+        border-radius: 0;
+        font-size: 0.9375rem;
+        text-align: left;
+        justify-content: flex-start;
+        cursor: pointer;
+      }
+      .color-item:hover {
+        background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+      }
+      .color-item.selected {
+        color: var(--sc-accent);
+      }
+      .color-item .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .color-item ha-icon {
+        --mdc-icon-size: 20px;
+        color: var(--sc-accent);
+      }
+      .color-item .room-fill-color {
+        width: 36px;
+        height: 24px;
+      }
       .text-field {
         width: 170px;
         min-width: 0;
@@ -375,6 +436,7 @@ export class CanvasOverlay extends LitElement {
     new Map();
   @property({ attribute: false }) selectedOpening: Opening | null = null;
   /** Show the weak → strong key along the bottom (a network layer is on). */
+  @state() private _colorOpen = false;
   @property({ type: Boolean }) dirty = false;
   @property({ type: Boolean }) saving = false;
   @property({ type: Boolean }) canUndo = false;
@@ -400,6 +462,12 @@ export class CanvasOverlay extends LitElement {
   @state() private _openingWidthUnit: SmallSubUnit | null = null;
 
   override willUpdate(changed: PropertyValues<this>) {
+    if (
+      changed.has("selectedRoom") &&
+      changed.get("selectedRoom")?.id !== this.selectedRoom?.id
+    ) {
+      this._colorOpen = false;
+    }
     if (
       changed.has("selectedWall") &&
       changed.get("selectedWall")?.id !== this.selectedWall?.id
@@ -761,6 +829,79 @@ export class CanvasOverlay extends LitElement {
 
   private _clearSelection = () => this._fire("selection-clear");
 
+  /** Colour choice from HA's standard palette (see color-palette.ts), as a
+   * dropdown that expands inline; "Custom" keeps the native picker for any
+   * other colour. Stores the resolved #rrggbb. */
+  private _renderColourPicker(room: Room) {
+    const palette = HA_COLORS.map((c) => ({
+      ...c,
+      hex: resolveColorHex(this, c),
+    }));
+    const current = (room.fill_color ?? "").toLowerCase();
+    const match = palette.find((c) => c.hex.toLowerCase() === current);
+    const swatchHex = room.fill_color ?? DEFAULT_ROOM_FILL_COLOR;
+    const name = !room.fill_color
+      ? localize("canvas.card.colourDefault")
+      : (match?.label ?? localize("canvas.card.colourCustom"));
+    const pick = (color: string) => {
+      this._colorOpen = false;
+      this._fire("room-fill-color-change", { color });
+    };
+    return html`
+      <div class="info-row">
+        <ha-icon icon="mdi:palette"></ha-icon>
+        <span class="grow">${localize("canvas.card.colour")}</span>
+        <button
+          class="color-field"
+          aria-expanded=${this._colorOpen ? "true" : "false"}
+          @click=${() => (this._colorOpen = !this._colorOpen)}
+        >
+          <span class="swatch" style="background:${swatchHex}"></span>
+          <span class="color-name">${name}</span>
+          <ha-icon
+            icon=${this._colorOpen ? "mdi:menu-up" : "mdi:menu-down"}
+          ></ha-icon>
+        </button>
+      </div>
+      ${
+        this._colorOpen
+          ? html`<div class="color-list">
+              ${palette.map(
+                (c) =>
+                  html`<button
+                    class="color-item ${c.hex.toLowerCase() === current ? "selected" : ""}"
+                    @click=${() => pick(c.hex)}
+                  >
+                    <span class="swatch" style="background:${c.hex}"></span>
+                    <span class="grow">${c.label}</span>
+                    ${
+                      c.hex.toLowerCase() === current
+                        ? html`<ha-icon icon="mdi:check"></ha-icon>`
+                        : nothing
+                    }
+                  </button>`,
+              )}
+              <label class="color-item custom">
+                <span class="swatch custom-swatch"></span>
+                <span class="grow"
+                  >${localize("canvas.card.colourCustom")}</span
+                >
+                <input
+                  type="color"
+                  class="room-fill-color"
+                  .value=${swatchHex}
+                  @input=${(e: Event) =>
+                    this._fire("room-fill-color-change", {
+                      color: (e.target as HTMLInputElement).value,
+                    })}
+                />
+              </label>
+            </div>`
+          : nothing
+      }
+    `;
+  }
+
   private _renderSelectionPanel() {
     if (this.selectedRoom) {
       const room = this.selectedRoom;
@@ -850,19 +991,7 @@ export class CanvasOverlay extends LitElement {
           </div>
           <div class="info-group">
             <div class="info-group-title">${localize("canvas.card.style")}</div>
-            ${this._fieldRow(
-              "mdi:palette",
-              localize("canvas.room.color"),
-              html`<input
-                type="color"
-                class="room-fill-color"
-                .value=${room.fill_color ?? DEFAULT_ROOM_FILL_COLOR}
-                @input=${(e: Event) =>
-                  this._fire("room-fill-color-change", {
-                    color: (e.target as HTMLInputElement).value,
-                  })}
-              />`,
-            )}
+            ${this._renderColourPicker(room)}
             ${this._fieldRow(
               "mdi:opacity",
               localize("canvas.room.fillOpacity"),

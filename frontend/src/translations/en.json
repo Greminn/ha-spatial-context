@@ -107,7 +107,10 @@
       "visible": "Visible",
       "name": "Name",
       "label": "Label",
-      "height": "Height ({unit})"
+      "height": "Height ({unit})",
+      "colour": "Colour",
+      "colourDefault": "Default",
+      "colourCustom": "Custom"
     }
   },
   "mapBackground": {
