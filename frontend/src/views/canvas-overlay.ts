@@ -33,7 +33,7 @@ import {
   smallSubUnitsFor,
   type SmallSubUnit,
 } from "../units";
-import { sharedStyles } from "../styles";
+import { sharedStyles, toolRowStyles } from "../styles";
 import { localize } from "../i18n";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -45,6 +45,7 @@ import { localize } from "../i18n";
 export class CanvasOverlay extends LitElement {
   static override styles = [
     sharedStyles,
+    toolRowStyles,
     meshLegendStyles,
     css`
       :host {
@@ -53,15 +54,7 @@ export class CanvasOverlay extends LitElement {
         pointer-events: none;
       }
       .mode-toolbar {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        display: flex;
-        gap: 2px;
-        align-items: center;
         pointer-events: auto;
-        border-radius: 24px;
-        padding: 4px 6px;
       }
       .mode-toolbar button {
         display: flex;
@@ -335,7 +328,7 @@ export class CanvasOverlay extends LitElement {
 
   private _renderModeToolbar() {
     return html`
-      <div class="mode-toolbar floating-panel">
+      <div class="mode-toolbar">
         ${this._modeButton("select", "mdi:cursor-default-click", localize("canvas.mode.select"))}
         ${this._modeButton("pan", "mdi:hand-back-right-outline", localize("canvas.mode.pan"))}
         <span class="tool-divider"></span>
@@ -867,9 +860,11 @@ export class CanvasOverlay extends LitElement {
 
   override render() {
     return html`
-      ${this._renderModeToolbar()} ${this._renderHintBar()}
-      <div class="scale-badge floating-panel">
-        ${this.scaleReadout ?? localize("canvas.notCalibrated")}
+      <div class="tool-row">
+        ${this._renderModeToolbar()} ${this._renderHintBar()}
+        <div class="scale-badge floating-panel">
+          ${this.scaleReadout ?? localize("canvas.notCalibrated")}
+        </div>
       </div>
       ${this.meshLegend ? renderMeshLegend() : nothing}
       ${this.pinStack ? this._renderPinStack() : this._renderSelectionPanel()}

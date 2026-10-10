@@ -123,7 +123,7 @@ export class SpatialContextPanel extends LitElement {
       }
       .save-error {
         position: absolute;
-        top: 12px;
+        top: 68px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 5;
@@ -143,6 +143,8 @@ export class SpatialContextPanel extends LitElement {
         flex: 1;
         min-width: 0;
         position: relative;
+        /* Room for the controls row the overlay draws across the top. */
+        padding-top: 56px;
       }
       .canvas-area.drag-over {
         outline: 2px dashed var(--sc-accent);

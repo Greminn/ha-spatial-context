@@ -3,7 +3,7 @@ import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
-import { selectStyles, sharedStyles } from "../styles";
+import { selectStyles, sharedStyles, toolRowStyles } from "../styles";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import { localize } from "../i18n";
 
@@ -33,6 +33,7 @@ export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,
     selectStyles,
+    toolRowStyles,
     meshLegendStyles,
     css`
       :host {
@@ -41,15 +42,7 @@ export class PropertyOverlay extends LitElement {
         pointer-events: none;
       }
       .mode-toolbar {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        display: flex;
-        gap: 2px;
-        align-items: center;
         pointer-events: auto;
-        border-radius: 24px;
-        padding: 4px 6px;
       }
       .mode-toolbar button {
         display: flex;
@@ -96,7 +89,8 @@ export class PropertyOverlay extends LitElement {
         pointer-events: auto;
       }
       .scale-warning {
-        margin-top: 2px;
+        --mdc-icon-size: 16px;
+        vertical-align: text-bottom;
         color: var(--warning-color, #db8b00);
       }
       .selection-panel {
@@ -269,71 +263,74 @@ export class PropertyOverlay extends LitElement {
 
   override render() {
     return html`
-      <div class="mode-toolbar floating-panel">
-        <button
-          class=${this.mode === "select" ? "active" : ""}
-          title="Select"
-          @click=${() => this._fire("property-mode-change", { mode: "select" })}
-        >
-          <ha-icon icon="mdi:cursor-default-click"></ha-icon>
-        </button>
-        <button
-          class=${this.mode === "place-pin" ? "active" : ""}
-          title="Place an outdoor device"
-          @click=${() =>
-            this._fire("property-mode-change", {
-              mode: this.mode === "place-pin" ? "select" : "place-pin",
-            })}
-        >
-          <ha-icon icon="mdi:map-marker-plus"></ha-icon>
-        </button>
-        ${
-          this.mapActive
-            ? html`<button
-                class=${this.mode === "map" ? "active" : ""}
-                title=${localize("mapBackground.adjust")}
-                @click=${() =>
-                  this._fire("property-mode-change", {
-                    mode: this.mode === "map" ? "select" : "map",
-                  })}
-              >
-                <ha-icon icon="mdi:map-search"></ha-icon>
-              </button>`
-            : nothing
-        }
-        <span class="tool-divider"></span>
-        <span class="select-wrap"
-          ><select
-            class="place-picker"
-            title="Place a building's footprint"
-            .value=${this.armedBuildingKey ?? ""}
-            @change=${(e: Event) => {
-              const key = (e.target as HTMLSelectElement).value;
-              if (key) this._fire("placement-arm", { key });
-            }}
+      <div class="tool-row">
+        <div class="mode-toolbar">
+          <button
+            class=${this.mode === "select" ? "active" : ""}
+            title="Select"
+            @click=${() => this._fire("property-mode-change", { mode: "select" })}
           >
-            <option value="">Place building…</option>
-            ${this.buildings.map(
-              (b) => html`<option value=${b.key}>${b.name}</option>`,
-            )}</select
-          ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
-        ></span>
-      </div>
+            <ha-icon icon="mdi:cursor-default-click"></ha-icon>
+          </button>
+          <button
+            class=${this.mode === "place-pin" ? "active" : ""}
+            title="Place an outdoor device"
+            @click=${() =>
+              this._fire("property-mode-change", {
+                mode: this.mode === "place-pin" ? "select" : "place-pin",
+              })}
+          >
+            <ha-icon icon="mdi:map-marker-plus"></ha-icon>
+          </button>
+          ${
+            this.mapActive
+              ? html`<button
+                  class=${this.mode === "map" ? "active" : ""}
+                  title=${localize("mapBackground.adjust")}
+                  @click=${() =>
+                    this._fire("property-mode-change", {
+                      mode: this.mode === "map" ? "select" : "map",
+                    })}
+                >
+                  <ha-icon icon="mdi:map-search"></ha-icon>
+                </button>`
+              : nothing
+          }
+          <span class="tool-divider"></span>
+          <span class="select-wrap"
+            ><select
+              class="place-picker"
+              title="Place a building's footprint"
+              .value=${this.armedBuildingKey ?? ""}
+              @change=${(e: Event) => {
+                const key = (e.target as HTMLSelectElement).value;
+                if (key) this._fire("placement-arm", { key });
+              }}
+            >
+              <option value="">Place building…</option>
+              ${this.buildings.map(
+                (b) => html`<option value=${b.key}>${b.name}</option>`,
+              )}</select
+            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+          ></span>
+        </div>
 
-      <div
-        class="scale-badge floating-panel"
-        title=${
-          this.scaleReadout
-            ? "Worked out from a placed building's floor scale"
-            : "Set Scale on a floor, then place its building here"
-        }
-      >
-        ${this.scaleReadout ?? "Not calibrated"}
-        ${
-          this.scaleWarning
-            ? html`<div class="scale-warning">${this.scaleWarning}</div>`
-            : nothing
-        }
+        <div
+          class="scale-badge floating-panel"
+          title=${
+            this.scaleWarning ??
+            (this.scaleReadout
+              ? "Worked out from a placed building's floor scale"
+              : "Set Scale on a floor, then place its building here")
+          }
+        >
+          ${
+            this.scaleWarning
+              ? html`<ha-icon class="scale-warning" icon="mdi:alert"></ha-icon>`
+              : nothing
+          }
+          ${this.scaleReadout ?? "Not calibrated"}
+        </div>
       </div>
 
       ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}

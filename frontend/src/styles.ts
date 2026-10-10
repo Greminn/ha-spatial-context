@@ -206,3 +206,55 @@ export const switchStyles = css`
     outline-offset: 2px;
   }
 `;
+
+/** The in-page controls row under the header (HA's filter-bar pattern):
+ * tools on the left, the mode hint in the middle, the scale chip on the
+ * right. It overlays the top 56px of the canvas area, which the panel
+ * reserves with padding so the canvas itself starts below it. Scrolls
+ * sideways on narrow screens. */
+export const toolRowStyles = css`
+  .tool-row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    background: var(--sc-header-bg);
+    border-bottom: 1px solid var(--sc-divider);
+    pointer-events: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tool-row::-webkit-scrollbar {
+    display: none;
+  }
+  .tool-row > * {
+    flex: none;
+  }
+  .tool-row .mode-toolbar {
+    position: static;
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+  .tool-row .hint-bar {
+    position: static;
+    transform: none;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    flex: 1 0 auto;
+  }
+  .tool-row .scale-badge {
+    position: static;
+    margin-left: auto;
+    background: transparent;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+`;
