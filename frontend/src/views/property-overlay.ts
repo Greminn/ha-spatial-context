@@ -3,8 +3,21 @@ import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
-import { selectStyles, sharedStyles, toolRowStyles } from "../styles";
+import {
+  selectStyles,
+  sharedStyles,
+  sliderStyles,
+  toolRowStyles,
+} from "../styles";
 import "./row-actions";
+import {
+  actionRow,
+  deleteButton,
+  fieldRow,
+  infoCardStyles,
+  networkGroup,
+  renderCard,
+} from "./info-card";
 import { meshLegendStyles, renderMeshLegend } from "./mesh-legend";
 import { localize } from "../i18n";
 
@@ -34,6 +47,8 @@ export class PropertyOverlay extends LitElement {
   static override styles = [
     sharedStyles,
     selectStyles,
+    sliderStyles,
+    infoCardStyles,
     toolRowStyles,
     meshLegendStyles,
     css`
@@ -94,16 +109,6 @@ export class PropertyOverlay extends LitElement {
         vertical-align: text-bottom;
         color: var(--warning-color, #db8b00);
       }
-      .selection-panel {
-        position: absolute;
-        bottom: 12px;
-        left: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        pointer-events: auto;
-      }
       .hint {
         font-size: var(--sc-fs-small);
         color: var(--sc-fg-secondary);
@@ -118,6 +123,13 @@ export class PropertyOverlay extends LitElement {
   @property({ attribute: false }) mapRotation = 0;
   /** Display name of the selected outdoor device pin, or null. */
   @property({ attribute: false }) selectedPinLabel: string | null = null;
+  /** The selected outdoor device's own name, its label override (if any),
+   * and its device id — for the label field and its network links. */
+  @property({ attribute: false }) selectedPinDefaultLabel: string | null = null;
+  @property({ attribute: false }) selectedPinOverride: string | null = null;
+  @property({ attribute: false }) selectedPinDeviceId: string | null = null;
+  @property({ attribute: false }) meshLinks: PropertyMeshLink[] = [];
+  @property({ attribute: false }) networkLabel: string | null = null;
   /** Show the weak → strong key along the bottom (a network layer is on). */
   @property({ type: Boolean }) dirty = false;
   @property({ type: Boolean }) saving = false;
@@ -151,42 +163,65 @@ export class PropertyOverlay extends LitElement {
 
   private _renderPinPanel() {
     if (this.selectedPinLabel === null) return nothing;
-    return html`
-      <div class="selection-panel floating-panel">
-        <ha-icon icon="mdi:map-marker"></ha-icon>
-        <span class="hint">${this.selectedPinLabel}</span>
-        <button
-          title=${localize("property.rename")}
-          @click=${() => this._fire("outdoor-pin-rename-click")}
-        >
-          <ha-icon icon="mdi:pencil"></ha-icon>
-        </button>
-        <button
-          title=${localize("property.setIcon")}
-          @click=${() => this._fire("outdoor-pin-icon-click")}
-        >
-          <ha-icon icon="mdi:shape"></ha-icon>
-        </button>
-        <button
-          class="danger"
-          title=${localize("property.removeFromProperty")}
-          @click=${() => this._fire("outdoor-pin-delete-click")}
-        >
-          <ha-icon icon="mdi:delete"></ha-icon>
-        </button>
-      </div>
-    `;
+    return renderCard({
+      title: this.selectedPinLabel,
+      subtitle: localize("property.outdoorDevice"),
+      onClose: () => this._fire("selection-clear"),
+      body: html`<div class="info-group">
+          ${fieldRow(
+            "mdi:tag-text",
+            localize("canvas.card.label"),
+            html`<input
+              type="text"
+              class="text-field"
+              placeholder=${this.selectedPinDefaultLabel ?? ""}
+              .value=${this.selectedPinOverride ?? ""}
+              @change=${(e: Event) =>
+                this._fire("outdoor-pin-label-change", {
+                  label: (e.target as HTMLInputElement).value,
+                })}
+            />`,
+          )}
+          ${actionRow("mdi:shape", localize("property.setIcon"), () =>
+            this._fire("outdoor-pin-icon-click"),
+          )}
+        </div>
+        ${this._renderDeviceNetwork()}`,
+      footer: deleteButton(localize("property.removeFromProperty"), () =>
+        this._fire("outdoor-pin-delete-click"),
+      ),
+    });
   }
 
-  /** Controls for lining the map up with the buildings: the map itself is
-   * dragged on the canvas (Ctrl+scroll or pinch to zoom). */
+  /** The selected outdoor device's connections in the active network layer. */
+  private _renderDeviceNetwork() {
+    const id = this.selectedPinDeviceId;
+    if (!this.networkLabel || !id) return nothing;
+    const rows = this.meshLinks
+      .filter((l) => l.from.deviceId === id || l.to.deviceId === id)
+      .map((l) => {
+        const other = l.from.deviceId === id ? l.to : l.from;
+        return {
+          name: other.label,
+          where: other.floorId
+            ? (this.floorNameById.get(other.floorId) ?? "")
+            : "",
+          quality: l.quality,
+          detail: l.detail ?? l.quality,
+        };
+      });
+    return networkGroup(this.networkLabel, rows);
+  }
+
+  /** Controls for lining the map up with the buildings, in the controls row
+   * (the map itself is dragged on the canvas; Ctrl+scroll or pinch zooms). */
   private _renderMapPanel() {
     if (this.mode !== "map") return nothing;
     const rotation = Math.round(this.mapRotation * 10) / 10;
     const setRotation = (deg: number) =>
       this._fire("map-rotation-set", { deg });
     return html`
-      <div class="selection-panel floating-panel">
+      <div class="hint-bar">
         <span class="hint">${localize("mapBackground.adjustHint")}</span>
         <button
           title=${localize("mapBackground.zoomOut")}
@@ -206,13 +241,13 @@ export class PropertyOverlay extends LitElement {
           min="-180"
           max="180"
           step="0.5"
+          style="--pct:${((rotation + 180) / 360) * 100}%"
           .value=${String(rotation)}
           @input=${(e: Event) =>
             setRotation(Number((e.target as HTMLInputElement).value))}
         />
         <input
           type="number"
-          style="width: 4.5em"
           min="-180"
           max="180"
           step="0.5"
@@ -242,28 +277,65 @@ export class PropertyOverlay extends LitElement {
     const link = this.selectedMeshLink;
     if (!link) return nothing;
     const indoorEnd = [link.from, link.to].find((end) => end.floorId !== null);
-    return html`
-      <div class="selection-panel floating-panel">
-        <ha-icon icon="mdi:transit-connection-variant"></ha-icon>
-        <span class="hint">${link.from.label} → ${link.to.label}</span>
-        <span class="hint" style="color:${qualityColor(link.quality)}"
-          >${link.detail ?? link.quality}</span
-        >
+    return renderCard({
+      title: `${link.from.label} → ${link.to.label}`,
+      subtitle: localize("property.link"),
+      onClose: () => this._fire("selection-clear"),
+      body: html`<div class="info-group">
+        ${fieldRow(
+          "mdi:signal",
+          localize("canvas.card.quality"),
+          html`<span style="color:${qualityColor(link.quality)}"
+            >${link.detail ?? link.quality}</span
+          >`,
+        )}
         ${
           indoorEnd
-            ? html`<button
-                title=${localize("property.goToFloorOf", { name: indoorEnd.label })}
-                @click=${() =>
+            ? actionRow(
+                "mdi:arrow-right-circle",
+                localize("property.goToFloorOf", { name: indoorEnd.label }),
+                () =>
                   this._fire("property-mesh-goto-floor-click", {
                     floorId: indoorEnd.floorId,
-                  })}
-              >
-                <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
-              </button>`
+                  }),
+              )
             : nothing
         }
-      </div>
-    `;
+      </div>`,
+    });
+  }
+
+  private _renderPlacementPanel() {
+    const placement = this.selectedPlacement;
+    if (!placement) return nothing;
+    return renderCard({
+      title: this._selectedLabel(),
+      subtitle: localize("property.building"),
+      onClose: () => this._fire("selection-clear"),
+      body: html`<div class="info-group">
+        ${fieldRow(
+          "mdi:tag-text",
+          localize("canvas.card.name"),
+          html`<input
+            type="text"
+            class="text-field"
+            .value=${this._selectedLabel()}
+            @change=${(e: Event) =>
+              this._fire("placement-label-change", {
+                label: (e.target as HTMLInputElement).value,
+              })}
+          />`,
+        )}
+        ${actionRow(
+          "mdi:arrow-right-circle",
+          localize("property.goToFloor"),
+          () => this._fire("placement-goto-floor-click"),
+        )}
+      </div>`,
+      footer: deleteButton(localize("property.deletePlacement"), () =>
+        this._fire("placement-delete-click"),
+      ),
+    });
   }
 
   override render() {
@@ -319,6 +391,7 @@ export class PropertyOverlay extends LitElement {
             ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
           ></span>
         </div>
+        ${this._renderMapPanel()}
 
         <div
           class="scale-badge floating-panel"
@@ -346,36 +419,8 @@ export class PropertyOverlay extends LitElement {
       </div>
 
       ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}
-      ${this._renderMapPanel()} ${this._renderPinPanel()}
-      ${this._renderMeshLinkPanel()}
-      ${
-        this.selectedPlacement
-          ? html`
-              <div class="selection-panel floating-panel">
-                <span class="hint">${this._selectedLabel()}</span>
-                <button
-                  title=${localize("property.goToFloor")}
-                  @click=${() => this._fire("placement-goto-floor-click")}
-                >
-                  <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
-                </button>
-                <button
-                  title=${localize("property.rename")}
-                  @click=${() => this._fire("placement-rename-click")}
-                >
-                  <ha-icon icon="mdi:pencil"></ha-icon>
-                </button>
-                <button
-                  class="danger"
-                  title=${localize("property.deletePlacement")}
-                  @click=${() => this._fire("placement-delete-click")}
-                >
-                  <ha-icon icon="mdi:delete"></ha-icon>
-                </button>
-              </div>
-            `
-          : nothing
-      }
+      ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
+      ${this._renderPlacementPanel()}
     `;
   }
 }

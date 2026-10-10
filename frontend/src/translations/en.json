@@ -131,7 +131,9 @@
     "done": "Done",
     "style": "Map type",
     "street": "Street map",
-    "aerial": "Aerial photo (Esri)"
+    "aerial": "Aerial photo (Esri)",
+    "zoom": "Zoom",
+    "angle": "Angle"
   },
   "settings": {
     "title": "Settings",
@@ -287,7 +289,10 @@
     "placeBuilding": "Place building…",
     "notCalibrated": "Not calibrated",
     "goToFloor": "Go to floor",
-    "deletePlacement": "Delete placement"
+    "deletePlacement": "Delete placement",
+    "outdoorDevice": "Outdoor device",
+    "building": "Building",
+    "link": "Link"
   },
   "canvasControls": {
     "zoomIn": "Zoom in",

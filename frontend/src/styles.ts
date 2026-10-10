@@ -278,11 +278,34 @@ export const toolRowStyles = css`
   .tool-row .hint-bar {
     position: static;
     transform: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background: none;
     border: none;
     box-shadow: none;
     padding: 0;
     flex: 1 0 auto;
+  }
+  .tool-row .hint-bar input[type="range"] {
+    width: 130px;
+  }
+  .tool-row input[type="number"] {
+    width: 76px;
+    height: var(--sc-h-control);
+    padding: 0 12px;
+    border: 1px solid var(--sc-divider);
+    border-radius: var(--sc-r-control);
+    background: var(--sc-panel-bg);
+    color: var(--sc-fg);
+    font: inherit;
+    font-size: var(--sc-fs-body);
+    -moz-appearance: textfield;
+  }
+  .tool-row input[type="number"]::-webkit-inner-spin-button,
+  .tool-row input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .tool-row .scale-badge {
     position: static;

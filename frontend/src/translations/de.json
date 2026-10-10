@@ -131,7 +131,9 @@
     "done": "Fertig",
     "style": "Kartentyp",
     "street": "Straßenkarte",
-    "aerial": "Luftbild (Esri)"
+    "aerial": "Luftbild (Esri)",
+    "zoom": "Zoom",
+    "angle": "Winkel"
   },
   "settings": {
     "title": "Einstellungen",
@@ -287,7 +289,10 @@
     "placeBuilding": "Gebäude platzieren…",
     "notCalibrated": "Nicht kalibriert",
     "goToFloor": "Zur Etage",
-    "deletePlacement": "Platzierung löschen"
+    "deletePlacement": "Platzierung löschen",
+    "outdoorDevice": "Außengerät",
+    "building": "Gebäude",
+    "link": "Verbindung"
   },
   "canvasControls": {
     "zoomIn": "Vergrößern",

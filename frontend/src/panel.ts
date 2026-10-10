@@ -1629,12 +1629,19 @@ export class SpatialContextPanel extends LitElement {
     }
   };
 
-  private _onOutdoorPinRename = () => {
+  private _onOutdoorPinLabelChange = (e: CustomEvent<{ label: string }>) => {
     const pin = this._selectedOutdoorPin;
     if (!pin) return;
-    const name = window.prompt(localize("prompt.label"), this._pinLabel(pin));
-    if (name === null) return;
-    this._patchOutdoorPin(pin.id, { label_override: name || null });
+    this._patchOutdoorPin(pin.id, {
+      label_override: e.detail.label.trim() || null,
+    });
+  };
+
+  /** The Property info cards' close button. */
+  private _onPropertySelectionClear = () => {
+    this._selectedPlacementId = null;
+    this._selectedOutdoorPinId = null;
+    this._selectedPropertyMeshLinkKey = null;
   };
 
   private _onOutdoorPinIcon = () => {
@@ -1772,14 +1779,12 @@ export class SpatialContextPanel extends LitElement {
     }
   };
 
-  private _onPlacementRenameClick = () => {
+  private _onPlacementLabelChange = (e: CustomEvent<{ label: string }>) => {
     const p = this._selectedPlacement;
     if (!p) return;
-    const current =
-      p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
-    const name = window.prompt(localize("prompt.label"), current);
-    if (name === null) return;
-    this._patchPlacement(p.id, { label_override: name || null });
+    this._patchPlacement(p.id, {
+      label_override: e.detail.label.trim() || null,
+    });
   };
 
   private _onPlacementDeleteClick = () => {
@@ -3382,6 +3387,22 @@ export class SpatialContextPanel extends LitElement {
     `;
   }
 
+  /** The active network layer's display name, or null with none on. */
+  private get _networkLabel(): string | null {
+    switch (this._networkType) {
+      case "zigbee":
+        return localize("network.zigbeeShort");
+      case "wifi":
+        return localize("network.wifiShort");
+      case "matter":
+        return localize("network.matterShort");
+      case "bluetooth":
+        return localize("network.bluetooth");
+      default:
+        return null;
+    }
+  }
+
   override render() {
     if (this._loading) {
       return html`<div class="loading">${localize("panel.loading")}</div>`;
@@ -3685,8 +3706,21 @@ export class SpatialContextPanel extends LitElement {
                         : null
                     }
                     .selectedMeshLink=${this._selectedPropertyMeshLink}
+                    .selectedPinDefaultLabel=${
+                      this._selectedOutdoorPin
+                        ? pinDisplayLabel(
+                            this._selectedOutdoorPin.device_id,
+                            this._entityLookup.values(),
+                          )
+                        : null
+                    }
+                    .selectedPinOverride=${this._selectedOutdoorPin?.label_override ?? null}
+                    .selectedPinDeviceId=${this._selectedOutdoorPin?.device_id ?? null}
+                    .meshLinks=${this._propertyMeshLinks}
+                    .networkLabel=${this._networkLabel}
                     .floorNameById=${this._floorNameById}
-                    @outdoor-pin-rename-click=${this._onOutdoorPinRename}
+                    @outdoor-pin-label-change=${this._onOutdoorPinLabelChange}
+                    @selection-clear=${this._onPropertySelectionClear}
                     @outdoor-pin-icon-click=${this._onOutdoorPinIcon}
                     @outdoor-pin-delete-click=${this._onOutdoorPinDelete}
                     @property-mesh-goto-floor-click=${this._onPropertyMeshGotoFloor}
@@ -3696,7 +3730,7 @@ export class SpatialContextPanel extends LitElement {
                     .mapActive=${!!this._propertyLayout.map_background}
                     .mapRotation=${this._propertyLayout.map_background?.rotation_deg ?? 0}
                     @placement-arm=${this._onPlacementArm}
-                    @placement-rename-click=${this._onPlacementRenameClick}
+                    @placement-label-change=${this._onPlacementLabelChange}
                     @placement-delete-click=${this._onPlacementDeleteClick}
                     @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
                     >${this._renderBackgroundPopover()}</property-overlay
@@ -3805,17 +3839,7 @@ export class SpatialContextPanel extends LitElement {
                     .selectedMeshLink=${this._selectedMeshLink}
                     .meshLinks=${this._meshLinksForCurrentFloor}
                     .meshStubs=${this._meshStubsForCurrentFloor}
-                    .networkLabel=${
-                      this._networkType === "zigbee"
-                        ? localize("network.zigbeeShort")
-                        : this._networkType === "wifi"
-                          ? localize("network.wifiShort")
-                          : this._networkType === "matter"
-                            ? localize("network.matterShort")
-                            : this._networkType === "bluetooth"
-                              ? localize("network.bluetooth")
-                              : null
-                    }
+                    .networkLabel=${this._networkLabel}
                     .selectedMeshStub=${this._selectedMeshStub}
                     .pinStack=${this._pinStack}
                     .entityLookup=${this._entityLookup}
