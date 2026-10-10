@@ -6,7 +6,7 @@
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context on the Bottom Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and a device card listing that device's links](docs/screenshot-main.jpeg)
+![Spatial Context on the Top Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and the Zigbee2MQTT Bridge's card listing all 36 of its links](docs/screenshot-main.jpeg)
 
 ## What you get
 
