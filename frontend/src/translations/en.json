@@ -4,7 +4,8 @@
   },
   "appHeader": {
     "saving": "Saving…",
-    "save": "Save"
+    "save": "Save",
+    "menu": "Menu"
   },
   "canvas": {
     "mode": {
@@ -131,5 +132,148 @@
     "style": "Map type",
     "street": "Street map",
     "aerial": "Aerial photo (Esri)"
+  },
+  "settings": {
+    "title": "Settings",
+    "close": "Close",
+    "done": "Done",
+    "editing": "Editing",
+    "autoSave": "Auto-save changes",
+    "autoSaveHint": "Saves a few seconds after each change",
+    "units": "Units",
+    "metric": "Metric",
+    "imperial": "Imperial",
+    "floorOrder": "Floor tab order",
+    "topFirst": "Top first",
+    "groundFirst": "Ground first",
+    "zigbeeMesh": "Zigbee mesh",
+    "coordinator": "Coordinator",
+    "coordinatorAria": "Zigbee coordinator device",
+    "bridge": "Zigbee2MQTT Bridge",
+    "notPlaced": "(device not placed)",
+    "coordinatorHint": "The device placed for your radio, if it isn't the Bridge",
+    "scanTimeout": "Scan timeout",
+    "scanTimeoutAria": "Zigbee scan timeout in seconds",
+    "scanTimeoutHint": "Raise it if Load Mesh times out on a large mesh",
+    "troubleshooting": "Troubleshooting",
+    "debugLogging": "Debug logging",
+    "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",
+    "about": "About",
+    "version": "Version"
+  },
+  "picker": {
+    "search": "Search devices…",
+    "clearSearch": "Clear search",
+    "more": "More",
+    "allFloors": "All Floors",
+    "outdoor": "Outdoor / no floor",
+    "allAreas": "All Areas",
+    "clearAll": "Clear all placed devices",
+    "noMatches": "No matching devices.",
+    "alreadyPlaced": "Already placed on {floor} — remove it there first",
+    "placedOn": "Placed on {floor}",
+    "placed": "✓ placed"
+  },
+  "iconPicker": {
+    "title": "Choose an icon",
+    "search": "Search icons — e.g. lamp, motion, gate",
+    "loadError": "Couldn't load the icon list ({error}).",
+    "loading": "Loading icons…",
+    "noMatch": "No icons match.",
+    "typeToSearch": "Type to search all icons.",
+    "useDefault": "Use default icon",
+    "cancel": "Cancel"
+  },
+  "legend": {
+    "weak": "Weak",
+    "strong": "Strong"
+  },
+  "rowActions": {
+    "undo": "Undo (Ctrl/Cmd+Z)",
+    "redo": "Redo (Ctrl/Cmd+Shift+Z)"
+  },
+  "panel": {
+    "loading": "Loading Spatial Context…",
+    "noFloors": "No floors found. Add floors under Settings → Areas → Floors, then reopen this panel.",
+    "dismiss": "Dismiss",
+    "versionRestart": "Spatial Context was updated — restart Home Assistant to finish. Until then, some changes may not save.",
+    "versionReload": "This page is running an older Spatial Context panel than the one installed. Reload the page (in Safari: Option+Cmd+R).",
+    "scaleDisagree": "Placed buildings give different scales. Check their sizes against the photo.",
+    "scaleFromBuilding": "Scale (from {building}): 1 {unit} ≈ {value} units"
+  },
+  "menu": {
+    "background": "Background",
+    "connectivity": "Connectivity Map",
+    "settings": "Settings",
+    "more": "More options",
+    "uploadBackground": "Upload background",
+    "replaceBackground": "Replace background",
+    "removeBackground": "Remove background",
+    "opacity": "Opacity",
+    "exportJson": "Export JSON",
+    "debugReport": "Download debug report",
+    "debugReportHint": "Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue",
+    "resetFloor": "Reset floor",
+    "resetProperty": "Reset property"
+  },
+  "network": {
+    "zigbee": "Zigbee Mesh",
+    "wifi": "Wi-Fi Network",
+    "matter": "Matter Network",
+    "bluetooth": "Bluetooth",
+    "zigbeeShort": "Zigbee mesh",
+    "wifiShort": "Wi-Fi",
+    "matterShort": "Matter",
+    "refresh": "Refresh Mesh",
+    "load": "Load Mesh",
+    "loadingZigbee": "Loading… {seconds}s (usually 1-2 min)",
+    "showAll": "Show all links",
+    "live": "● Live",
+    "loading": "Loading…",
+    "refreshedSeconds": "refreshed {n}s ago",
+    "refreshedMinutes": "refreshed {n}m ago"
+  },
+  "errors": {
+    "restartHa": "Restart Home Assistant to finish updating Spatial Context.",
+    "needsAdmin": "This map needs a Home Assistant admin account.",
+    "bluetoothVersion": "The Bluetooth map needs Home Assistant 2025.2 or newer.",
+    "zigbeeFailed": "Zigbee mesh request failed",
+    "wifiFailed": "Wi-Fi mesh request failed",
+    "matterFailed": "Matter topology subscription failed",
+    "bluetoothFailed": "Bluetooth subscription failed",
+    "floorSave": "Couldn't save this floor — staying here so nothing is lost.",
+    "propertySave": "Couldn't save the property view — reopen the Property tab to try again.",
+    "bgType": "Background image must be a PNG, JPEG, or GIF file.",
+    "bgUpload": "Background image upload failed: {error}"
+  },
+  "confirm": {
+    "discardFloor": "Discard unsaved changes to this floor?",
+    "discardProperty": "Discard unsaved changes to the property view?",
+    "removeOutdoorOne": "Remove all {count} outdoor device from the property?",
+    "removeOutdoorMany": "Remove all {count} outdoor devices from the property?",
+    "removeFloorOne": "Remove all {count} placed device from this floor?",
+    "removeFloorMany": "Remove all {count} placed devices from this floor?",
+    "deletePlacement": "Delete the \"{label}\" placement?",
+    "resetProperty": "Reset the property view? This clears every building placement, every outdoor device and the background photo. Nothing is permanent until you hit Save afterward.",
+    "resetFloor": "Reset \"{floor}\"? This clears every room, wall, opening, placed device, and the background image on this floor. Nothing is permanent until you hit Save afterward.",
+    "applyAlignment": "Apply this alignment to \"{floor}\"? This rewrites every room, wall, door/window, and placed device position on that floor — plus its background image's placement and, if this floor has one set, its scale calibration too — to match this floor's coordinate system. This saves immediately and cannot be undone.",
+    "deleteWall": "Delete this wall? Any doors/windows on it will be removed too.",
+    "deleteRoom": "Delete room \"{name}\"?",
+    "deletePin": "Delete pin for {name}?",
+    "deleteDoor": "Delete this door?",
+    "deleteWindow": "Delete this window?",
+    "removeFromSpot": "Remove {name} from this spot?"
+  },
+  "prompt": {
+    "label": "Label (blank to clear override):",
+    "distance": "Real-world distance between these two points, in {unit}:"
+  },
+  "units": {
+    "feet": "feet",
+    "metres": "metres"
+  },
+  "floor": {
+    "thisFloor": "this floor",
+    "thatFloor": "that floor"
   }
 }

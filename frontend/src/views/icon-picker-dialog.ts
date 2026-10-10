@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { property, query, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
+import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 
 /** Searchable icon picker (#17), replacing the old "type an mdi: name"
@@ -229,14 +230,14 @@ export class IconPickerDialog extends LitElement {
       <div
         class="dialog floating-panel"
         role="dialog"
-        aria-label="Choose an icon"
+        aria-label=${localize("iconPicker.title")}
         @click=${(e: Event) => e.stopPropagation()}
         @keydown=${this._onKeyDown}
       >
-        <div class="title">Choose an icon</div>
+        <div class="title">${localize("iconPicker.title")}</div>
         <input
           type="search"
-          placeholder="Search icons — e.g. lamp, motion, gate"
+          placeholder=${localize("iconPicker.search")}
           .value=${this._query}
           @input=${(e: Event) =>
             (this._query = (e.target as HTMLInputElement).value)}
@@ -244,16 +245,18 @@ export class IconPickerDialog extends LitElement {
         ${
           this._error
             ? html`<span class="hint"
-                >Couldn't load the icon list (${this._error}).</span
+                >${localize("iconPicker.loadError", { error: this._error })}</span
               >`
             : !this._index
-              ? html`<span class="hint">Loading icons…</span>`
+              ? html`<span class="hint"
+                  >${localize("iconPicker.loading")}</span
+                >`
               : results.length === 0
                 ? html`<span class="hint"
                     >${
                       this._query.trim()
-                        ? "No icons match."
-                        : "Type to search all icons."
+                        ? localize("iconPicker.noMatch")
+                        : localize("iconPicker.typeToSearch")
                     }</span
                   >`
                 : nothing
@@ -276,10 +279,10 @@ export class IconPickerDialog extends LitElement {
             ?disabled=${!this.value}
             @click=${() => this._fire("icon-picked", { icon: null })}
           >
-            Use default icon
+            ${localize("iconPicker.useDefault")}
           </button>
           <button @click=${() => this._fire("icon-picker-cancel")}>
-            Cancel
+            ${localize("iconPicker.cancel")}
           </button>
         </div>
       </div>

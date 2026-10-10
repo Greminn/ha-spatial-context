@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import { PROPERTY_LOCATION_ID } from "../types";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
+import { localize } from "../i18n";
 import { selectStyles, sharedStyles } from "../styles";
 
 /** Fallback row icon when a device's integration has no brand logo on
@@ -427,7 +428,7 @@ export class EntityPickerSidebar extends LitElement {
           <ha-icon icon="mdi:magnify"></ha-icon>
           <input
             type="search"
-            placeholder="Search devices…"
+            placeholder=${localize("picker.search")}
             .value=${this._search}
             @input=${(e: Event) => (this._search = (e.target as HTMLInputElement).value)}
           />
@@ -435,7 +436,7 @@ export class EntityPickerSidebar extends LitElement {
             this._search
               ? html`<button
                   class="clear"
-                  title="Clear search"
+                  title=${localize("picker.clearSearch")}
                   @click=${() => (this._search = "")}
                 >
                   <ha-icon icon="mdi:close"></ha-icon>
@@ -447,13 +448,13 @@ export class EntityPickerSidebar extends LitElement {
           <span class="select-wrap"
             ><select @change=${this._onFloorFilterChange}>
               <option value="all" ?selected=${this._floorFilter === "all"}>
-                All Floors
+                ${localize("picker.allFloors")}
               </option>
               <option
                 value=${PROPERTY_LOCATION_ID}
                 ?selected=${this._effectiveFloorFilter === PROPERTY_LOCATION_ID}
               >
-                Outdoor / no floor
+                ${localize("picker.outdoor")}
               </option>
               ${this.floors.map(
                 (f) =>
@@ -472,7 +473,9 @@ export class EntityPickerSidebar extends LitElement {
                 (this._areaFilter =
                   (e.target as HTMLSelectElement).value || null)}
             >
-              <option value="" ?selected=${!this._areaFilter}>All Areas</option>
+              <option value="" ?selected=${!this._areaFilter}>
+                ${localize("picker.allAreas")}
+              </option>
               ${this._areasForFilter.map(
                 (a) =>
                   html`<option
@@ -488,7 +491,7 @@ export class EntityPickerSidebar extends LitElement {
             this.placedDeviceIds.size > 0
               ? html`<button
                   class="more-button"
-                  title="More"
+                  title=${localize("picker.more")}
                   @click=${() => (this._menuOpen = !this._menuOpen)}
                 >
                   <ha-icon icon="mdi:dots-vertical"></ha-icon>
@@ -511,8 +514,8 @@ export class EntityPickerSidebar extends LitElement {
                     );
                   }}
                 >
-                  <ha-icon icon="mdi:playlist-remove"></ha-icon> Clear all
-                  placed devices
+                  <ha-icon icon="mdi:playlist-remove"></ha-icon>
+                  ${localize("picker.clearAll")}
                 </button>
               </div>`
             : nothing
@@ -521,7 +524,7 @@ export class EntityPickerSidebar extends LitElement {
       <div class="list">
         ${
           filtered.length === 0
-            ? html`<div class="empty">No matching devices.</div>`
+            ? html`<div class="empty">${localize("picker.noMatches")}</div>`
             : filtered.map((device) => {
                 const placed = this.placedDeviceIds.has(device.deviceId);
                 const blockedFloorName = this._blockedFloorName(device);
@@ -536,7 +539,9 @@ export class EntityPickerSidebar extends LitElement {
                     }"
                     title=${
                       blockedFloorName
-                        ? `Already placed on ${blockedFloorName} — remove it there first`
+                        ? localize("picker.alreadyPlaced", {
+                            floor: blockedFloorName,
+                          })
                         : [device.deviceName, subtitle]
                             .filter((part): part is string => !!part)
                             .join(" · ")
@@ -578,13 +583,13 @@ export class EntityPickerSidebar extends LitElement {
                       ${
                         blockedFloorName
                           ? html`<span class="meta"
-                              >Placed on ${blockedFloorName}</span
+                              >${localize("picker.placedOn", { floor: blockedFloorName })}</span
                             >`
                           : subtitle
                             ? html`<span class="meta">${subtitle}</span>`
                             : nothing
                       }
-                      ${placed ? html`<span class="meta">✓ placed</span>` : nothing}
+                      ${placed ? html`<span class="meta">${localize("picker.placed")}</span>` : nothing}
                     </span>
                   </div>
                 `;

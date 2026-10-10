@@ -4,7 +4,8 @@
   },
   "appHeader": {
     "saving": "Speichert…",
-    "save": "Speichern"
+    "save": "Speichern",
+    "menu": "Menü"
   },
   "canvas": {
     "mode": {
@@ -94,7 +95,26 @@
     "meshStub": {
       "goToFloor": "Zur Etage"
     },
-    "notCalibrated": "Nicht kalibriert"
+    "notCalibrated": "Nicht kalibriert",
+    "card": {
+      "area": "Bereich",
+      "colour": "Farbe",
+      "colourCustom": "Benutzerdefiniert",
+      "colourDefault": "Standard",
+      "device": "Gerät",
+      "height": "Höhe ({unit})",
+      "label": "Bezeichnung",
+      "link": "Verbindung",
+      "links": "{count} Verbindungen",
+      "name": "Name",
+      "noLinks": "Keine Verbindungen zu anderen platzierten Geräten",
+      "quality": "Signal",
+      "room": "Raum",
+      "style": "Darstellung",
+      "visible": "Sichtbar",
+      "wall": "Wand",
+      "wallOpening": "In einer Wand"
+    }
   },
   "mapBackground": {
     "noWebgl": "Dieser Browser kann die Karte nicht darstellen (WebGL2 erforderlich).",
@@ -112,5 +132,148 @@
     "style": "Kartentyp",
     "street": "Straßenkarte",
     "aerial": "Luftbild (Esri)"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "close": "Schließen",
+    "done": "Fertig",
+    "editing": "Bearbeiten",
+    "autoSave": "Änderungen automatisch speichern",
+    "autoSaveHint": "Speichert einige Sekunden nach jeder Änderung",
+    "units": "Einheiten",
+    "metric": "Metrisch",
+    "imperial": "Imperial",
+    "floorOrder": "Reihenfolge der Etagen-Tabs",
+    "topFirst": "Oberste zuerst",
+    "groundFirst": "Erdgeschoss zuerst",
+    "zigbeeMesh": "Zigbee-Mesh",
+    "coordinator": "Koordinator",
+    "coordinatorAria": "Zigbee-Koordinator-Gerät",
+    "bridge": "Zigbee2MQTT-Bridge",
+    "notPlaced": "(Gerät nicht platziert)",
+    "coordinatorHint": "Das für Ihren Funk-Stick platzierte Gerät, falls es nicht die Bridge ist",
+    "scanTimeout": "Zeitlimit für den Scan",
+    "scanTimeoutAria": "Zeitlimit für den Zigbee-Scan in Sekunden",
+    "scanTimeoutHint": "Erhöhen, wenn „Mesh laden“ bei einem großen Mesh abbricht",
+    "troubleshooting": "Fehlerbehebung",
+    "debugLogging": "Debug-Protokollierung",
+    "debugLoggingHint": "Schreibt spatial_context_debug.log in Ihren Konfigurationsordner – nur IDs und Anzahlen",
+    "about": "Info",
+    "version": "Version"
+  },
+  "picker": {
+    "search": "Geräte suchen…",
+    "clearSearch": "Suche löschen",
+    "more": "Mehr",
+    "allFloors": "Alle Etagen",
+    "outdoor": "Außen / keine Etage",
+    "allAreas": "Alle Bereiche",
+    "clearAll": "Alle platzierten Geräte entfernen",
+    "noMatches": "Keine passenden Geräte.",
+    "alreadyPlaced": "Bereits auf {floor} platziert – dort zuerst entfernen",
+    "placedOn": "Platziert auf {floor}",
+    "placed": "✓ platziert"
+  },
+  "iconPicker": {
+    "title": "Symbol auswählen",
+    "search": "Symbole suchen – z. B. Lampe, Bewegung, Tor",
+    "loadError": "Die Symbolliste konnte nicht geladen werden ({error}).",
+    "loading": "Symbole werden geladen…",
+    "noMatch": "Keine passenden Symbole.",
+    "typeToSearch": "Tippen, um alle Symbole zu durchsuchen.",
+    "useDefault": "Standardsymbol verwenden",
+    "cancel": "Abbrechen"
+  },
+  "legend": {
+    "weak": "Schwach",
+    "strong": "Stark"
+  },
+  "rowActions": {
+    "undo": "Rückgängig (Strg/Cmd+Z)",
+    "redo": "Wiederholen (Strg/Cmd+Umschalt+Z)"
+  },
+  "panel": {
+    "loading": "Spatial Context wird geladen…",
+    "noFloors": "Keine Etagen gefunden. Fügen Sie Etagen unter Einstellungen → Bereiche → Etagen hinzu und öffnen Sie dieses Panel erneut.",
+    "dismiss": "Schließen",
+    "versionRestart": "Spatial Context wurde aktualisiert – starten Sie Home Assistant neu, um den Vorgang abzuschließen. Bis dahin werden manche Änderungen möglicherweise nicht gespeichert.",
+    "versionReload": "Diese Seite verwendet ein älteres Spatial-Context-Panel als das installierte. Laden Sie die Seite neu (in Safari: Option+Cmd+R).",
+    "scaleDisagree": "Die platzierten Gebäude ergeben unterschiedliche Maßstäbe. Prüfen Sie ihre Größen anhand des Fotos.",
+    "scaleFromBuilding": "Maßstab (von {building}): 1 {unit} ≈ {value} Einheiten"
+  },
+  "menu": {
+    "background": "Hintergrund",
+    "connectivity": "Verbindungskarte",
+    "settings": "Einstellungen",
+    "more": "Weitere Optionen",
+    "uploadBackground": "Hintergrund hochladen",
+    "replaceBackground": "Hintergrund ersetzen",
+    "removeBackground": "Hintergrund entfernen",
+    "opacity": "Deckkraft",
+    "exportJson": "JSON exportieren",
+    "debugReport": "Debug-Bericht herunterladen",
+    "debugReportHint": "Versionen, Einstellungen, Layout-Anzahlen und das aktuelle Debug-Protokoll – sicher an ein GitHub-Issue anzuhängen",
+    "resetFloor": "Etage zurücksetzen",
+    "resetProperty": "Anwesen zurücksetzen"
+  },
+  "network": {
+    "zigbee": "Zigbee-Mesh",
+    "wifi": "WLAN-Netzwerk",
+    "matter": "Matter-Netzwerk",
+    "bluetooth": "Bluetooth",
+    "zigbeeShort": "Zigbee-Mesh",
+    "wifiShort": "WLAN",
+    "matterShort": "Matter",
+    "refresh": "Mesh aktualisieren",
+    "load": "Mesh laden",
+    "loadingZigbee": "Wird geladen… {seconds} s (dauert meist 1–2 Min.)",
+    "showAll": "Alle Verbindungen anzeigen",
+    "live": "● Live",
+    "loading": "Wird geladen…",
+    "refreshedSeconds": "vor {n} s aktualisiert",
+    "refreshedMinutes": "vor {n} Min. aktualisiert"
+  },
+  "errors": {
+    "restartHa": "Starten Sie Home Assistant neu, um die Aktualisierung von Spatial Context abzuschließen.",
+    "needsAdmin": "Diese Karte benötigt ein Home-Assistant-Administratorkonto.",
+    "bluetoothVersion": "Die Bluetooth-Karte benötigt Home Assistant 2025.2 oder neuer.",
+    "zigbeeFailed": "Zigbee-Mesh-Anfrage fehlgeschlagen",
+    "wifiFailed": "WLAN-Mesh-Anfrage fehlgeschlagen",
+    "matterFailed": "Matter-Topologie-Abonnement fehlgeschlagen",
+    "bluetoothFailed": "Bluetooth-Abonnement fehlgeschlagen",
+    "floorSave": "Diese Etage konnte nicht gespeichert werden – Sie bleiben hier, damit nichts verloren geht.",
+    "propertySave": "Die Anwesen-Ansicht konnte nicht gespeichert werden – öffnen Sie den Tab „Anwesen“ erneut.",
+    "bgType": "Das Hintergrundbild muss eine PNG-, JPEG- oder GIF-Datei sein.",
+    "bgUpload": "Hochladen des Hintergrundbilds fehlgeschlagen: {error}"
+  },
+  "confirm": {
+    "discardFloor": "Nicht gespeicherte Änderungen an dieser Etage verwerfen?",
+    "discardProperty": "Nicht gespeicherte Änderungen an der Anwesen-Ansicht verwerfen?",
+    "removeOutdoorOne": "Das {count} Außengerät vom Anwesen entfernen?",
+    "removeOutdoorMany": "Alle {count} Außengeräte vom Anwesen entfernen?",
+    "removeFloorOne": "Das {count} platzierte Gerät von dieser Etage entfernen?",
+    "removeFloorMany": "Alle {count} platzierten Geräte von dieser Etage entfernen?",
+    "deletePlacement": "Die Platzierung „{label}“ löschen?",
+    "resetProperty": "Anwesen-Ansicht zurücksetzen? Dadurch werden alle Gebäudeplatzierungen, alle Außengeräte und das Hintergrundfoto entfernt. Nichts ist endgültig, bis Sie anschließend auf Speichern klicken.",
+    "resetFloor": "„{floor}“ zurücksetzen? Dadurch werden alle Räume, Wände, Öffnungen, platzierten Geräte und das Hintergrundbild dieser Etage entfernt. Nichts ist endgültig, bis Sie anschließend auf Speichern klicken.",
+    "applyAlignment": "Diese Ausrichtung auf „{floor}“ anwenden? Dadurch werden alle Räume, Wände, Türen/Fenster und Gerätepositionen dieser Etage – sowie die Platzierung ihres Hintergrundbilds und, falls gesetzt, ihre Maßstabskalibrierung – an das Koordinatensystem dieser Etage angepasst. Dies wird sofort gespeichert und kann nicht rückgängig gemacht werden.",
+    "deleteWall": "Diese Wand löschen? Türen/Fenster darin werden ebenfalls entfernt.",
+    "deleteRoom": "Raum „{name}“ löschen?",
+    "deletePin": "Markierung für {name} löschen?",
+    "deleteDoor": "Diese Tür löschen?",
+    "deleteWindow": "Dieses Fenster löschen?",
+    "removeFromSpot": "{name} von dieser Stelle entfernen?"
+  },
+  "prompt": {
+    "label": "Bezeichnung (leer lassen, um zurückzusetzen):",
+    "distance": "Tatsächlicher Abstand zwischen diesen beiden Punkten in {unit}:"
+  },
+  "units": {
+    "feet": "Fuß",
+    "metres": "Metern"
+  },
+  "floor": {
+    "thisFloor": "diese Etage",
+    "thatFloor": "jene Etage"
   }
 }

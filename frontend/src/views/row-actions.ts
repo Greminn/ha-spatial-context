@@ -60,14 +60,14 @@ export class RowActions extends LitElement {
   override render() {
     return html`
       <button
-        title="Undo (Ctrl/Cmd+Z)"
+        title=${localize("rowActions.undo")}
         ?disabled=${!this.canUndo}
         @click=${() => this._fire("undo-click")}
       >
         <ha-icon icon="mdi:undo"></ha-icon>
       </button>
       <button
-        title="Redo (Ctrl/Cmd+Shift+Z)"
+        title=${localize("rowActions.redo")}
         ?disabled=${!this.canRedo}
         @click=${() => this._fire("redo-click")}
       >

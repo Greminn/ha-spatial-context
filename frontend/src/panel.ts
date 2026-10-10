@@ -1060,7 +1060,11 @@ export class SpatialContextPanel extends LitElement {
       1 / scale.metersPerUnit,
       system,
     );
-    return `Scale (from ${scale.buildingName}): 1 ${largeUnitLabel(system)} ≈ ${unitsPerDisplay.toFixed(1)} units`;
+    return localize("panel.scaleFromBuilding", {
+      building: scale.buildingName,
+      unit: largeUnitLabel(system),
+      value: unitsPerDisplay.toFixed(1),
+    });
   }
 
   private get _scaleReadout(): string | null {
@@ -1119,12 +1123,10 @@ export class SpatialContextPanel extends LitElement {
     if (!opts.skipDirtyCheck && this._dirty) {
       if (this._autoSaveActive) {
         if (!(await this._flushAutoSave())) {
-          window.alert(
-            "Couldn't save this floor — staying here so nothing is lost.",
-          );
+          window.alert(localize("errors.floorSave"));
           return;
         }
-      } else if (!window.confirm("Discard unsaved changes to this floor?")) {
+      } else if (!window.confirm(localize("confirm.discardFloor"))) {
         return;
       }
     }
@@ -1294,14 +1296,10 @@ export class SpatialContextPanel extends LitElement {
     if (this._propertyDirty) {
       if (this._autoSaveActive) {
         if (!(await this._flushAutoSave())) {
-          window.alert(
-            "Couldn't save the property view — reopen the Property tab to try again.",
-          );
+          window.alert(localize("errors.propertySave"));
           return;
         }
-      } else if (
-        !window.confirm("Discard unsaved changes to the property view?")
-      ) {
+      } else if (!window.confirm(localize("confirm.discardProperty"))) {
         return;
       }
     }
@@ -1634,10 +1632,7 @@ export class SpatialContextPanel extends LitElement {
   private _onOutdoorPinRename = () => {
     const pin = this._selectedOutdoorPin;
     if (!pin) return;
-    const name = window.prompt(
-      "Label (blank to clear override):",
-      this._pinLabel(pin),
-    );
+    const name = window.prompt(localize("prompt.label"), this._pinLabel(pin));
     if (name === null) return;
     this._patchOutdoorPin(pin.id, { label_override: name || null });
   };
@@ -1674,7 +1669,12 @@ export class SpatialContextPanel extends LitElement {
     if (count === 0) return;
     if (
       !window.confirm(
-        `Remove all ${count} outdoor device${count === 1 ? "" : "s"} from the property?`,
+        localize(
+          count === 1
+            ? "confirm.removeOutdoorOne"
+            : "confirm.removeOutdoorMany",
+          { count },
+        ),
       )
     ) {
       return;
@@ -1777,7 +1777,7 @@ export class SpatialContextPanel extends LitElement {
     if (!p) return;
     const current =
       p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
-    const name = window.prompt("Label (blank to clear override):", current);
+    const name = window.prompt(localize("prompt.label"), current);
     if (name === null) return;
     this._patchPlacement(p.id, { label_override: name || null });
   };
@@ -1787,7 +1787,7 @@ export class SpatialContextPanel extends LitElement {
     if (!p) return;
     const label =
       p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
-    if (!window.confirm(`Delete the "${label}" placement?`)) return;
+    if (!window.confirm(localize("confirm.deletePlacement", { label }))) return;
     this._updatePropertyLayout({
       placements: this._propertyLayout.placements.filter(
         (pl) => pl.id !== p.id,
@@ -2016,13 +2016,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _onResetClick = () => {
     if (this._view === "property") {
-      if (
-        !window.confirm(
-          "Reset the property view? This clears every building placement, " +
-            "every outdoor device and the background photo. Nothing is " +
-            "permanent until you hit Save afterward.",
-        )
-      ) {
+      if (!window.confirm(localize("confirm.resetProperty"))) {
         return;
       }
       this._autoSaveHeld = true;
@@ -2036,13 +2030,8 @@ export class SpatialContextPanel extends LitElement {
     }
     const floorName =
       this._floors.find((f) => f.floor_id === this._currentFloorId)?.name ??
-      "this floor";
-    if (
-      !window.confirm(
-        `Reset "${floorName}"? This clears every room, wall, opening, placed device, and the ` +
-          `background image on this floor. Nothing is permanent until you hit Save afterward.`,
-      )
-    ) {
+      localize("floor.thisFloor");
+    if (!window.confirm(localize("confirm.resetFloor", { floor: floorName }))) {
       return;
     }
     this._autoSaveHeld = true;
@@ -2190,7 +2179,10 @@ export class SpatialContextPanel extends LitElement {
         ? this._zigbeeMesh.fetched_at * 1000
         : Date.now();
     } catch (err) {
-      const message = this._meshErrorMessage(err, "Zigbee mesh request failed");
+      const message = this._meshErrorMessage(
+        err,
+        localize("errors.zigbeeFailed"),
+      );
       this._zigbeeMeshError = message;
       debugLog.log("mesh_error", { network: "zigbee", error: message });
     } finally {
@@ -2212,7 +2204,10 @@ export class SpatialContextPanel extends LitElement {
         links: this._wifiMesh.links.length,
       });
     } catch (err) {
-      const message = this._meshErrorMessage(err, "Wi-Fi mesh request failed");
+      const message = this._meshErrorMessage(
+        err,
+        localize("errors.wifiFailed"),
+      );
       this._wifiMeshError = message;
       debugLog.log("mesh_error", { network: "wifi", error: message });
     } finally {
@@ -2232,7 +2227,7 @@ export class SpatialContextPanel extends LitElement {
     } catch (err) {
       this._matterError = this._meshErrorMessage(
         err,
-        "Matter topology subscription failed",
+        localize("errors.matterFailed"),
       );
     }
   }
@@ -2251,10 +2246,10 @@ export class SpatialContextPanel extends LitElement {
       message?: string;
     };
     if (code === "unknown_command") {
-      return "Restart Home Assistant to finish updating Spatial Context.";
+      return localize("errors.restartHa");
     }
     if (code === "unauthorized") {
-      return "This map needs a Home Assistant admin account.";
+      return localize("errors.needsAdmin");
     }
     return message || fallback;
   }
@@ -2303,8 +2298,8 @@ export class SpatialContextPanel extends LitElement {
       // HA allows the advertisement stream for admins only.
       this._bluetoothError =
         coreStream && (err as { code?: string })?.code === "unknown_command"
-          ? "The Bluetooth map needs Home Assistant 2025.2 or newer."
-          : this._meshErrorMessage(err, "Bluetooth subscription failed");
+          ? localize("errors.bluetoothVersion")
+          : this._meshErrorMessage(err, localize("errors.bluetoothFailed"));
       debugLog.log("mesh_error", {
         network: "bluetooth",
         error: this._bluetoothError,
@@ -2477,7 +2472,7 @@ export class SpatialContextPanel extends LitElement {
    * to live here rather than only on the input element. */
   private async _handleBackgroundFile(file: File): Promise<void> {
     if (!SpatialContextPanel._ACCEPTED_BACKGROUND_TYPES.has(file.type)) {
-      window.alert("Background image must be a PNG, JPEG, or GIF file.");
+      window.alert(localize("errors.bgType"));
       return;
     }
     try {
@@ -2486,7 +2481,9 @@ export class SpatialContextPanel extends LitElement {
       if (this._view === "property") this._updatePropertyLayout(patch);
       else this._updateLayout(patch);
     } catch (err) {
-      window.alert(`Background image upload failed: ${(err as Error).message}`);
+      window.alert(
+        localize("errors.bgUpload", { error: (err as Error).message }),
+      );
     }
   }
 
@@ -2582,14 +2579,9 @@ export class SpatialContextPanel extends LitElement {
     const targetFloorId = this._alignTargetFloorId;
     const targetName =
       this._floors.find((f) => f.floor_id === targetFloorId)?.name ??
-      "that floor";
+      localize("floor.thatFloor");
     if (
-      !window.confirm(
-        `Apply this alignment to "${targetName}"? This rewrites every room, wall, door/window, ` +
-          `and placed device position on that floor — plus its background image's placement and, ` +
-          `if this floor has one set, its scale calibration too — to match this floor's coordinate ` +
-          `system. This saves immediately and cannot be undone.`,
-      )
+      !window.confirm(localize("confirm.applyAlignment", { floor: targetName }))
     ) {
       return;
     }
@@ -2782,7 +2774,11 @@ export class SpatialContextPanel extends LitElement {
 
   private _onRoomDelete = () => {
     const room = this._selectedRoom;
-    if (!room || !window.confirm(`Delete room "${room.name}"?`)) return;
+    if (
+      !room ||
+      !window.confirm(localize("confirm.deleteRoom", { name: room.name }))
+    )
+      return;
     const rooms = this._layout.rooms.filter((r) => r.id !== room.id);
     this._updateLayout({
       rooms,
@@ -2838,7 +2834,12 @@ export class SpatialContextPanel extends LitElement {
 
   private _onPinDelete = () => {
     const pin = this._selectedPin;
-    if (!pin || !window.confirm(`Delete pin for ${this._pinLabel(pin)}?`))
+    if (
+      !pin ||
+      !window.confirm(
+        localize("confirm.deletePin", { name: this._pinLabel(pin) }),
+      )
+    )
       return;
     this._updateLayout({
       pins: this._layout.pins.filter((p) => p.id !== pin.id),
@@ -2888,12 +2889,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _onWallDelete = () => {
     const wall = this._selectedWall;
-    if (
-      !wall ||
-      !window.confirm(
-        "Delete this wall? Any doors/windows on it will be removed too.",
-      )
-    ) {
+    if (!wall || !window.confirm(localize("confirm.deleteWall"))) {
       return;
     }
     this._updateLayout({
@@ -2920,7 +2916,17 @@ export class SpatialContextPanel extends LitElement {
 
   private _onOpeningDelete = () => {
     const opening = this._selectedOpening;
-    if (!opening || !window.confirm(`Delete this ${opening.type}?`)) return;
+    if (
+      !opening ||
+      !window.confirm(
+        localize(
+          opening.type === "door"
+            ? "confirm.deleteDoor"
+            : "confirm.deleteWindow",
+        ),
+      )
+    )
+      return;
     this._updateLayout({
       openings: this._layout.openings.filter((o) => o.id !== opening.id),
     });
@@ -2939,7 +2945,10 @@ export class SpatialContextPanel extends LitElement {
     if (count === 0) return;
     if (
       !window.confirm(
-        `Remove all ${count} placed device${count === 1 ? "" : "s"} from this floor?`,
+        localize(
+          count === 1 ? "confirm.removeFloorOne" : "confirm.removeFloorMany",
+          { count },
+        ),
       )
     ) {
       return;
@@ -3202,7 +3211,11 @@ export class SpatialContextPanel extends LitElement {
   private _onPinStackRemove = (e: CustomEvent<{ pinId: string }>) => {
     const pin = this._layout.pins.find((p) => p.id === e.detail.pinId);
     if (!pin) return;
-    if (!window.confirm(`Remove ${this._pinLabel(pin)} from this spot?`))
+    if (
+      !window.confirm(
+        localize("confirm.removeFromSpot", { name: this._pinLabel(pin) }),
+      )
+    )
       return;
     this._updateLayout({
       pins: this._layout.pins.filter((p) => p.id !== e.detail.pinId),
@@ -3225,9 +3238,11 @@ export class SpatialContextPanel extends LitElement {
     e: CustomEvent<{ points: [number, number][] }>,
   ) => {
     const system = this._settings.unit_system;
-    const unitWord = system === "imperial" ? "feet" : "metres";
+    const unitWord = localize(
+      system === "imperial" ? "units.feet" : "units.metres",
+    );
     const input = window.prompt(
-      `Real-world distance between these two points, in ${unitWord}:`,
+      localize("prompt.distance", { unit: unitWord }),
     );
     const meters = input ? parseLarge(input, system) : null;
     if (meters === null || !Number.isFinite(meters) || meters <= 0) return;
@@ -3251,8 +3266,11 @@ export class SpatialContextPanel extends LitElement {
 
   private _meshAgeLabel(fetchedAt: number): string {
     const seconds = Math.round((Date.now() - fetchedAt) / 1000);
-    if (seconds < 60) return `refreshed ${seconds}s ago`;
-    return `refreshed ${Math.round(seconds / 60)}m ago`;
+    if (seconds < 60)
+      return localize("network.refreshedSeconds", { n: seconds });
+    return localize("network.refreshedMinutes", {
+      n: Math.round(seconds / 60),
+    });
   }
 
   /** The Background menu — per floor (or Property tab), so it lives in the
@@ -3263,7 +3281,7 @@ export class SpatialContextPanel extends LitElement {
         slot="row-end"
         compact
         icon="mdi:image"
-        label="Background"
+        label=${localize("menu.background")}
         .open=${this._backgroundPopoverOpen}
         @toggle=${this._onToggleBackgroundPopover}
       >
@@ -3276,7 +3294,7 @@ export class SpatialContextPanel extends LitElement {
         />
         <button class="menu-item" @click=${() => this._fileInput?.click()}>
           <ha-icon icon="mdi:image-plus"></ha-icon>
-          ${this._activeBackground.imageId ? "Replace background" : "Upload background"}
+          ${this._activeBackground.imageId ? localize("menu.replaceBackground") : localize("menu.uploadBackground")}
         </button>
         ${
           this._view === "property" &&
@@ -3339,14 +3357,15 @@ export class SpatialContextPanel extends LitElement {
                 class="menu-item"
                 @click=${this._onRemoveBackgroundClick}
               >
-                <ha-icon icon="mdi:image-remove"></ha-icon> Remove background
+                <ha-icon icon="mdi:image-remove"></ha-icon>
+                ${localize("menu.removeBackground")}
               </button>`
             : nothing
         }
         ${
           this._activeBackground.imageId
             ? html`<label class="popover-row"
-                >Opacity
+                >${localize("menu.opacity")}
                 <input
                   type="range"
                   min="0.1"
@@ -3365,13 +3384,10 @@ export class SpatialContextPanel extends LitElement {
 
   override render() {
     if (this._loading) {
-      return html`<div class="loading">Loading Spatial Context…</div>`;
+      return html`<div class="loading">${localize("panel.loading")}</div>`;
     }
     if (this._floors.length === 0) {
-      return html`<div class="no-floors">
-        No floors found. Add floors under Settings → Areas → Floors, then reopen
-        this panel.
-      </div>`;
+      return html`<div class="no-floors">${localize("panel.noFloors")}</div>`;
     }
 
     const meshError =
@@ -3395,7 +3411,7 @@ export class SpatialContextPanel extends LitElement {
           this._view === "floor" || this._view === "property"
             ? html`<icon-popover
                 icon="mdi:lan"
-                label="Connectivity Map"
+                label=${localize("menu.connectivity")}
                 .open=${this._meshPopoverOpen}
                 ?highlight=${this._networkType !== null}
                 @toggle=${this._onToggleMeshPopover}
@@ -3405,29 +3421,32 @@ export class SpatialContextPanel extends LitElement {
                     class="menu-item ${this._networkType === "zigbee" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("zigbee")}
                   >
-                    <ha-icon icon="mdi:zigbee"></ha-icon> Zigbee Mesh
+                    <ha-icon icon="mdi:zigbee"></ha-icon>
+                    ${localize("network.zigbee")}
                     ${this._networkType === "zigbee" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("wifi")}
                   >
-                    <ha-icon icon="mdi:wifi"></ha-icon> Wi-Fi Network
+                    <ha-icon icon="mdi:wifi"></ha-icon>
+                    ${localize("network.wifi")}
                     ${this._networkType === "wifi" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "matter" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("matter")}
                   >
-                    <ha-icon icon="mdi:router-wireless"></ha-icon> Matter
-                    Network
+                    <ha-icon icon="mdi:router-wireless"></ha-icon>
+                    ${localize("network.matter")}
                     ${this._networkType === "matter" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
                     class="menu-item ${this._networkType === "bluetooth" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("bluetooth")}
                   >
-                    <ha-icon icon="mdi:bluetooth"></ha-icon> Bluetooth
+                    <ha-icon icon="mdi:bluetooth"></ha-icon>
+                    ${localize("network.bluetooth")}
                     ${this._networkType === "bluetooth" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                 </div>
@@ -3446,14 +3465,17 @@ export class SpatialContextPanel extends LitElement {
                                   <ha-icon icon="mdi:refresh"></ha-icon>
                                   ${
                                     this._zigbeeMeshLoading
-                                      ? `Loading… ${this._zigbeeMeshElapsedSeconds}s (usually 1-2 min)`
+                                      ? localize("network.loadingZigbee", {
+                                          seconds:
+                                            this._zigbeeMeshElapsedSeconds,
+                                        })
                                       : this._zigbeeMeshFetchedAt
-                                        ? "Refresh Mesh"
-                                        : "Load Mesh"
+                                        ? localize("network.refresh")
+                                        : localize("network.load")
                                   }
                                 </button>
                                 <label class="popover-row">
-                                  Show all links
+                                  ${localize("network.showAll")}
                                   <input
                                     type="checkbox"
                                     class="switch"
@@ -3475,14 +3497,14 @@ export class SpatialContextPanel extends LitElement {
                               ? html`<span
                                   class="hint"
                                   style="padding: 4px 16px 8px"
-                                  >● Live</span
+                                  >${localize("network.live")}</span
                                 >`
                               : this._networkType === "wifi" &&
                                   this._wifiMeshLoading
                                 ? html`<span
                                     class="hint"
                                     style="padding: 4px 16px 8px"
-                                    >Loading…</span
+                                    >${localize("network.loading")}</span
                                   >`
                                 : nothing
                         }
@@ -3527,7 +3549,7 @@ export class SpatialContextPanel extends LitElement {
         <icon-popover
           slot="end"
           icon="mdi:dots-vertical"
-          label="More options"
+          label=${localize("menu.more")}
           .open=${this._moreOptionsPopoverOpen}
           @toggle=${this._onToggleMoreOptionsPopover}
         >
@@ -3538,17 +3560,18 @@ export class SpatialContextPanel extends LitElement {
               this._onExportClick();
             }}
           >
-            <ha-icon icon="mdi:download"></ha-icon> Export JSON
+            <ha-icon icon="mdi:download"></ha-icon>
+            ${localize("menu.exportJson")}
           </button>
           <button
             class="menu-item"
-            title="Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue"
+            title=${localize("menu.debugReportHint")}
             @click=${() => {
               this._moreOptionsPopoverOpen = false;
               void this._downloadDebugReport();
             }}
           >
-            <ha-icon icon="mdi:bug"></ha-icon> Download debug report
+            <ha-icon icon="mdi:bug"></ha-icon> ${localize("menu.debugReport")}
           </button>
           <button
             class="menu-item danger"
@@ -3558,7 +3581,7 @@ export class SpatialContextPanel extends LitElement {
             }}
           >
             <ha-icon icon="mdi:delete-sweep"></ha-icon>
-            ${this._view === "property" ? "Reset property" : "Reset floor"}
+            ${this._view === "property" ? localize("menu.resetProperty") : localize("menu.resetFloor")}
           </button>
         </icon-popover>
       </app-header>
@@ -3571,12 +3594,12 @@ export class SpatialContextPanel extends LitElement {
                 <span
                   >${
                     this._versionNotice === "restart"
-                      ? "Spatial Context was updated — restart Home Assistant to finish. Until then, some changes may not save."
-                      : "This page is running an older Spatial Context panel than the one installed. Reload the page (in Safari: Option+Cmd+R)."
+                      ? localize("panel.versionRestart")
+                      : localize("panel.versionReload")
                   }</span
                 >
                 <button @click=${() => (this._versionNotice = null)}>
-                  Dismiss
+                  ${localize("panel.dismiss")}
                 </button>
               </div>`
             : nothing
@@ -3651,7 +3674,7 @@ export class SpatialContextPanel extends LitElement {
                     .scaleReadout=${this._propertyScaleReadout}
                     .scaleWarning=${
                       this._propertyScale?.disagree
-                        ? "Placed buildings give different scales. Check their sizes against the photo."
+                        ? localize("panel.scaleDisagree")
                         : null
                     }
                     .armedBuildingKey=${this._armedBuildingKey}
@@ -3784,13 +3807,13 @@ export class SpatialContextPanel extends LitElement {
                     .meshStubs=${this._meshStubsForCurrentFloor}
                     .networkLabel=${
                       this._networkType === "zigbee"
-                        ? "Zigbee mesh"
+                        ? localize("network.zigbeeShort")
                         : this._networkType === "wifi"
-                          ? "Wi-Fi"
+                          ? localize("network.wifiShort")
                           : this._networkType === "matter"
-                            ? "Matter"
+                            ? localize("network.matterShort")
                             : this._networkType === "bluetooth"
-                              ? "Bluetooth"
+                              ? localize("network.bluetooth")
                               : null
                     }
                     .selectedMeshStub=${this._selectedMeshStub}

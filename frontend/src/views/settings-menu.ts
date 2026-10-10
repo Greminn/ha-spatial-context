@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { Settings } from "../types";
+import { localize } from "../i18n";
 import { selectStyles, sharedStyles, switchStyles } from "../styles";
 
 /** The Settings menu's content: grouped rows, label (and an optional
@@ -225,7 +226,7 @@ export class SettingsMenu extends LitElement {
     return html`
       <div class="header">
         <button
-          title="Close"
+          title=${localize("settings.close")}
           @click=${() =>
             this.dispatchEvent(
               new CustomEvent("settings-close", {
@@ -236,36 +237,38 @@ export class SettingsMenu extends LitElement {
         >
           <ha-icon icon="mdi:close"></ha-icon>
         </button>
-        <span>Settings</span>
+        <span>${localize("settings.title")}</span>
       </div>
       <div class="body">
         <div class="section">
-          <div class="section-title">Editing</div>
+          <div class="section-title">${localize("settings.editing")}</div>
           ${this._row(
-            "Auto-save changes",
-            this._switch(s.auto_save, "Auto-save changes", (auto_save) =>
-              this._change({ auto_save }),
+            localize("settings.autoSave"),
+            this._switch(
+              s.auto_save,
+              localize("settings.autoSave"),
+              (auto_save) => this._change({ auto_save }),
             ),
-            "Saves a few seconds after each change",
+            localize("settings.autoSaveHint"),
           )}
           ${this._row(
-            "Units",
+            localize("settings.units"),
             this._segmented(
               s.unit_system,
               [
-                ["metric", "Metric"],
-                ["imperial", "Imperial"],
+                ["metric", localize("settings.metric")],
+                ["imperial", localize("settings.imperial")],
               ],
               (unit_system) => this._change({ unit_system }),
             ),
           )}
           ${this._row(
-            "Floor tab order",
+            localize("settings.floorOrder"),
             this._segmented(
               s.floor_order,
               [
-                ["top_down", "Top first"],
-                ["ground_up", "Ground first"],
+                ["top_down", localize("settings.topFirst")],
+                ["ground_up", localize("settings.groundFirst")],
               ],
               (floor_order) => this._change({ floor_order }),
             ),
@@ -273,12 +276,12 @@ export class SettingsMenu extends LitElement {
         </div>
 
         <div class="section">
-          <div class="section-title">Zigbee mesh</div>
+          <div class="section-title">${localize("settings.zigbeeMesh")}</div>
           ${this._row(
-            "Coordinator",
+            localize("settings.coordinator"),
             html`<span class="select-wrap"
               ><select
-                aria-label="Zigbee coordinator device"
+                aria-label=${localize("settings.coordinatorAria")}
                 @change=${(e: Event) =>
                   this._change({
                     zigbee_coordinator_device_id:
@@ -286,14 +289,14 @@ export class SettingsMenu extends LitElement {
                   })}
               >
                 <option value="" ?selected=${!coordinator}>
-                  Zigbee2MQTT Bridge
+                  ${localize("settings.bridge")}
                 </option>
                 ${
                   // Keep a saved choice visible even once its pin is removed,
                   // rather than the select silently showing the default.
                   coordinator && !coordinatorPlaced
                     ? html`<option value=${coordinator} selected>
-                        (device not placed)
+                        ${localize("settings.notPlaced")}
                       </option>`
                     : nothing
                 }
@@ -308,17 +311,17 @@ export class SettingsMenu extends LitElement {
                 )}</select
               ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
             ></span>`,
-            "The device placed for your radio, if it isn't the Bridge",
+            localize("settings.coordinatorHint"),
           )}
           ${this._row(
-            "Scan timeout",
+            localize("settings.scanTimeout"),
             html`<span class="number"
               ><input
                 type="number"
                 min="30"
                 max="600"
                 step="10"
-                aria-label="Zigbee scan timeout in seconds"
+                aria-label=${localize("settings.scanTimeoutAria")}
                 .value=${String(s.zigbee_timeout_seconds)}
                 @change=${(e: Event) => {
                   const raw = Number((e.target as HTMLInputElement).value);
@@ -332,25 +335,29 @@ export class SettingsMenu extends LitElement {
                 }}
               />s</span
             >`,
-            "Raise it if Load Mesh times out on a large mesh",
+            localize("settings.scanTimeoutHint"),
           )}
         </div>
 
         <div class="section">
-          <div class="section-title">Troubleshooting</div>
+          <div class="section-title">
+            ${localize("settings.troubleshooting")}
+          </div>
           ${this._row(
-            "Debug logging",
-            this._switch(s.debug_logging, "Debug logging", (debug_logging) =>
-              this._change({ debug_logging }),
+            localize("settings.debugLogging"),
+            this._switch(
+              s.debug_logging,
+              localize("settings.debugLogging"),
+              (debug_logging) => this._change({ debug_logging }),
             ),
-            "Writes spatial_context_debug.log in your config folder — ids and counts only",
+            localize("settings.debugLoggingHint"),
           )}
         </div>
 
         <div class="section">
-          <div class="section-title">About</div>
+          <div class="section-title">${localize("settings.about")}</div>
           ${this._row(
-            "Version",
+            localize("settings.version"),
             html`<span class="description">v${__VERSION__}</span>`,
           )}
         </div>
@@ -366,7 +373,7 @@ export class SettingsMenu extends LitElement {
               }),
             )}
         >
-          Done
+          ${localize("settings.done")}
         </button>
       </div>
     `;

@@ -1,4 +1,5 @@
 import { css, html } from "lit";
+import { localize } from "../i18n";
 import { qualityColor } from "../canvas/mesh-colors";
 
 /** The weak → strong colour key for the Connectivity Map, drawn as a pill
@@ -31,8 +32,8 @@ export const meshLegendStyles = css`
 export function renderMeshLegend() {
   const gradient = `linear-gradient(to right, ${qualityColor("weak")}, ${qualityColor("medium")}, ${qualityColor("strong")})`;
   return html`<div class="mesh-legend floating-panel">
-    <span>Weak</span>
+    <span>${localize("legend.weak")}</span>
     <span class="gradient" style="background:${gradient}"></span>
-    <span>Strong</span>
+    <span>${localize("legend.strong")}</span>
   </div>`;
 }

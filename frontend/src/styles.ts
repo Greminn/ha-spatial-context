@@ -170,17 +170,23 @@ export const selectStyles = css`
 /** On/off switch — a styled checkbox, so it stays keyboard and
  * screen-reader accessible. */
 export const switchStyles = css`
+  /* HA's (Material 3) switch: a 52x32 pill. Off is an outlined track with
+   * a grey knob; on is a primary track with a large white knob. */
   .switch {
     appearance: none;
     -webkit-appearance: none;
     position: relative;
-    width: 36px;
-    height: 20px;
+    box-sizing: border-box;
+    width: 52px;
+    height: 32px;
     margin: 0;
-    border-radius: 10px;
-    background: var(--sc-divider);
+    border: 2px solid color-mix(in srgb, var(--sc-fg) 45%, transparent);
+    border-radius: 16px;
+    background: transparent;
     cursor: pointer;
-    transition: background 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
     flex: none;
   }
   .switch::before {
@@ -188,18 +194,21 @@ export const switchStyles = css`
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: white;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    transition: transform 0.15s;
+    background: var(--sc-fg-secondary);
+    transition:
+      transform 0.15s,
+      background 0.15s;
   }
   .switch:checked {
+    border-color: var(--sc-accent);
     background: var(--sc-accent);
   }
   .switch:checked::before {
-    transform: translateX(16px);
+    background: white;
+    transform: translateX(20px);
   }
   .switch:focus-visible {
     outline: 2px solid var(--sc-accent);

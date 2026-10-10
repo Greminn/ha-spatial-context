@@ -2,6 +2,7 @@ import { LitElement, html, css } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { FloorMeta } from "../types";
+import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 import "./floor-tabs";
 
@@ -141,7 +142,7 @@ export class AppHeader extends LitElement {
       <div class="identity">
         <button
           class="icon-button menu-button"
-          title="Menu"
+          title=${localize("appHeader.menu")}
           @click=${() => this._fire("hass-toggle-menu")}
         >
           <ha-icon icon="mdi:menu"></ha-icon>
