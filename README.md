@@ -6,7 +6,7 @@
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context showing a live Zigbee mesh over the Top Floor: rooms, walls, placed devices, and every link coloured by signal quality](docs/screenshot-main.jpeg)
+![Spatial Context on the Bottom Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and a device card listing that device's links](docs/screenshot-main.jpeg)
 
 ## What you get
 
@@ -183,7 +183,7 @@ The cog in the header opens **Settings**. They're shared by everyone who uses th
 
 The **network** button in the header opens the layers. Pick one to draw that network's links between your placed devices, coloured weak to strong, with a key along the bottom of the canvas. The layer **stays on** after you close the menu (the button turns blue while one is showing); pick it again to turn it off. Select a device and its card lists every link it has, strongest first, with the signal detail. Click a line for that link's details.
 
-![Zigbee mesh layer on the Bottom Floor, with the layer menu open and a device card listing its links](docs/screenshot-zigbee-mesh.jpeg)
+![Zigbee mesh layer on the Top Floor, with a link selected and its signal shown in the card](docs/screenshot-zigbee-mesh.jpeg)
 
 - **Zigbee** comes from Zigbee2MQTT's network scan. A scan takes a minute or two, so results are cached: picking the layer shows the last scan, and **Refresh Mesh** runs a new one. By default it draws each device's strongest link on its own floor and to other floors, every parent and child route, and the coordinator's direct links (LQI 50+). **Show all links** draws the full neighbour table, like Z2M's own map. LQI isn't comparable between chipsets (some Hue bulbs report near 255 for everything, TI coordinators read low), so each device's readings are corrected for its own scale, worked out from how it and its neighbours rate the same links, and a link is graded on its weaker side. The link details show the corrected and the raw values.
 - **Wi-Fi** links each client to its access point, with signal strength where available. It works with UniFi Network (including clients whose tracker entity is disabled), TP-Link Omada and the custom TP-Link Deco integration.
