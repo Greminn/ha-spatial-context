@@ -43,6 +43,38 @@ export class EntityPickerSidebar extends LitElement {
         height: 100%;
         overflow: hidden;
       }
+      .picker-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 8px 0 16px;
+      }
+      .picker-title {
+        font-size: var(--sc-fs-title);
+      }
+      .picker-close {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+      }
+      /* Phones: a sheet under the canvas, not a column beside it. */
+      @media (max-width: 700px) {
+        :host {
+          flex: 0 0 45%;
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+          height: auto;
+          border-left: none;
+          border-top: 1px solid var(--sc-divider);
+        }
+        .resize-handle {
+          display: none;
+        }
+      }
       .resize-handle {
         position: absolute;
         top: 0;
@@ -423,6 +455,22 @@ export class EntityPickerSidebar extends LitElement {
         class="resize-handle"
         @pointerdown=${this._onResizeHandlePointerDown}
       ></div>
+      <div class="picker-head">
+        <span class="picker-title">${localize("picker.title")}</span>
+        <button
+          class="picker-close"
+          title=${localize("canvas.button.close")}
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent("picker-close", {
+                bubbles: true,
+                composed: true,
+              }),
+            )}
+        >
+          <ha-icon icon="mdi:close"></ha-icon>
+        </button>
+      </div>
       <div class="search">
         <div class="search-box">
           <ha-icon icon="mdi:magnify"></ha-icon>

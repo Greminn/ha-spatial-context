@@ -174,7 +174,8 @@
     "noMatches": "Keine passenden Geräte.",
     "alreadyPlaced": "Bereits auf {floor} platziert – dort zuerst entfernen",
     "placedOn": "Platziert auf {floor}",
-    "placed": "✓ platziert"
+    "placed": "✓ platziert",
+    "title": "Gerät platzieren"
   },
   "iconPicker": {
     "title": "Symbol auswählen",

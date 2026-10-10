@@ -116,6 +116,8 @@ export class SpatialContextPanel extends LitElement {
         display: flex;
         flex-direction: column;
         height: 100vh;
+        /* iOS Safari: 100vh is taller than the visible area. */
+        height: 100dvh;
         background: var(--sc-bg);
       }
       .main {
@@ -141,6 +143,15 @@ export class SpatialContextPanel extends LitElement {
       .save-error ha-icon {
         color: var(--sc-danger);
         flex: none;
+      }
+      /* Phones: the device picker becomes a sheet under the canvas. */
+      @media (max-width: 700px) {
+        .main {
+          flex-direction: column;
+        }
+        .canvas-area {
+          min-height: 0;
+        }
       }
       .canvas-area {
         flex: 1;
@@ -1948,6 +1959,40 @@ export class SpatialContextPanel extends LitElement {
     return this._settings.auto_save && !this._autoSaveHeld;
   }
 
+  /** Picking something on the canvas puts the header menus away (a layer
+   * that's switched on stays on; only its menu closes). */
+  override willUpdate(changed: Map<string, unknown>): void {
+    const selectionKeys = [
+      "_selectedRoomId",
+      "_selectedPinId",
+      "_selectedWallId",
+      "_selectedOpeningId",
+      "_selectedMeshLink",
+      "_selectedMeshStub",
+      "_pinStackIds",
+      "_selectedPlacementId",
+      "_selectedOutdoorPinId",
+      "_selectedPropertyMeshLinkKey",
+    ] as const;
+    const picked = selectionKeys.some(
+      (key) =>
+        changed.has(key) &&
+        (this as unknown as Record<string, unknown>)[key] != null,
+    );
+    if (picked) {
+      this._meshPopoverOpen = false;
+      this._backgroundPopoverOpen = false;
+      this._moreOptionsPopoverOpen = false;
+    }
+  }
+
+  /** The device picker's close button. */
+  private _onPickerClose = () => {
+    this._mode = "select";
+    this._propertyMode = "select";
+    this._armedEntityId = null;
+  };
+
   override updated(changed: Map<string, unknown>): void {
     super.updated(changed);
     // Every edit replaces _layout/_propertyLayout with a new object, so
@@ -3739,6 +3784,7 @@ export class SpatialContextPanel extends LitElement {
                 ${
                   this._propertyMode === "place-pin"
                     ? html`<entity-picker-sidebar
+                        @picker-close=${this._onPickerClose}
                         .entities=${this._entities}
                         .placedDeviceIds=${this._placedDeviceIds}
                         .armedEntityId=${this._armedEntityId}
@@ -3890,6 +3936,7 @@ export class SpatialContextPanel extends LitElement {
                 ${
                   this._mode === "place"
                     ? html`<entity-picker-sidebar
+                        @picker-close=${this._onPickerClose}
                         .entities=${this._entities}
                         .placedDeviceIds=${this._placedDeviceIds}
                         .armedEntityId=${this._armedEntityId}

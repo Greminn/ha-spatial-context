@@ -130,7 +130,7 @@ export const zoomControlsStyles = css`
   .controls {
     position: absolute;
     right: 12px;
-    bottom: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     background: var(--sc-panel-bg);

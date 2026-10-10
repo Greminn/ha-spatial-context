@@ -174,7 +174,8 @@
     "noMatches": "No matching devices.",
     "alreadyPlaced": "Already placed on {floor} — remove it there first",
     "placedOn": "Placed on {floor}",
-    "placed": "✓ placed"
+    "placed": "✓ placed",
+    "title": "Place device"
   },
   "iconPicker": {
     "title": "Choose an icon",
