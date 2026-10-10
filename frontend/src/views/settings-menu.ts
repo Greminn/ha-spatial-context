@@ -16,16 +16,38 @@ export class SettingsMenu extends LitElement {
     switchStyles,
     css`
       :host {
-        display: block;
-        width: min(360px, calc(100vw - 32px));
-        font-size: 0.875rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: calc(100vh - 32px);
+        font-size: 0.9375rem;
       }
       .header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 12px 4px 8px;
+        gap: 16px;
+        padding: 16px 24px 8px 16px;
         font-size: 1.375rem;
+        font-weight: 500;
+      }
+      .body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding-bottom: 8px;
+      }
+      .footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 12px 24px 20px;
+      }
+      .done {
+        height: 48px;
+        padding: 0 28px;
+        border-radius: 24px;
+        background: var(--sc-accent);
+        color: var(--text-primary-color, #fff);
+        font-size: 0.9375rem;
         font-weight: 500;
       }
       .header button {
@@ -43,7 +65,7 @@ export class SettingsMenu extends LitElement {
         margin-top: 4px;
       }
       .section-title {
-        padding: 12px 12px 4px;
+        padding: 16px 24px 4px;
         font-size: 0.75rem;
         font-weight: 400;
         letter-spacing: 0.08em;
@@ -55,8 +77,8 @@ export class SettingsMenu extends LitElement {
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 16px;
-        padding: 8px 12px;
-        min-height: 36px;
+        padding: 8px 24px;
+        min-height: 44px;
       }
       .label {
         color: var(--sc-fg);
@@ -216,120 +238,136 @@ export class SettingsMenu extends LitElement {
         </button>
         <span>Settings</span>
       </div>
-      <div class="section">
-        <div class="section-title">Editing</div>
-        ${this._row(
-          "Auto-save changes",
-          this._switch(s.auto_save, "Auto-save changes", (auto_save) =>
-            this._change({ auto_save }),
-          ),
-          "Saves a few seconds after each change",
-        )}
-        ${this._row(
-          "Units",
-          this._segmented(
-            s.unit_system,
-            [
-              ["metric", "Metric"],
-              ["imperial", "Imperial"],
-            ],
-            (unit_system) => this._change({ unit_system }),
-          ),
-        )}
-        ${this._row(
-          "Floor tab order",
-          this._segmented(
-            s.floor_order,
-            [
-              ["top_down", "Top first"],
-              ["ground_up", "Ground first"],
-            ],
-            (floor_order) => this._change({ floor_order }),
-          ),
-        )}
-      </div>
+      <div class="body">
+        <div class="section">
+          <div class="section-title">Editing</div>
+          ${this._row(
+            "Auto-save changes",
+            this._switch(s.auto_save, "Auto-save changes", (auto_save) =>
+              this._change({ auto_save }),
+            ),
+            "Saves a few seconds after each change",
+          )}
+          ${this._row(
+            "Units",
+            this._segmented(
+              s.unit_system,
+              [
+                ["metric", "Metric"],
+                ["imperial", "Imperial"],
+              ],
+              (unit_system) => this._change({ unit_system }),
+            ),
+          )}
+          ${this._row(
+            "Floor tab order",
+            this._segmented(
+              s.floor_order,
+              [
+                ["top_down", "Top first"],
+                ["ground_up", "Ground first"],
+              ],
+              (floor_order) => this._change({ floor_order }),
+            ),
+          )}
+        </div>
 
-      <div class="section">
-        <div class="section-title">Zigbee mesh</div>
-        ${this._row(
-          "Coordinator",
-          html`<span class="select-wrap"
-            ><select
-              aria-label="Zigbee coordinator device"
-              @change=${(e: Event) =>
-                this._change({
-                  zigbee_coordinator_device_id:
-                    (e.target as HTMLSelectElement).value || null,
-                })}
-            >
-              <option value="" ?selected=${!coordinator}>
-                Zigbee2MQTT Bridge
-              </option>
-              ${
-                // Keep a saved choice visible even once its pin is removed,
-                // rather than the select silently showing the default.
-                coordinator && !coordinatorPlaced
-                  ? html`<option value=${coordinator} selected>
-                      (device not placed)
-                    </option>`
-                  : nothing
-              }
-              ${this.coordinatorChoices.map(
-                ({ deviceId, label }) =>
-                  html`<option
-                    value=${deviceId}
-                    ?selected=${deviceId === coordinator}
-                  >
-                    ${label}
-                  </option>`,
-              )}</select
-            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
-          ></span>`,
-          "The device placed for your radio, if it isn't the Bridge",
-        )}
-        ${this._row(
-          "Scan timeout",
-          html`<span class="number"
-            ><input
-              type="number"
-              min="30"
-              max="600"
-              step="10"
-              aria-label="Zigbee scan timeout in seconds"
-              .value=${String(s.zigbee_timeout_seconds)}
-              @change=${(e: Event) => {
-                const raw = Number((e.target as HTMLInputElement).value);
-                if (!Number.isFinite(raw)) return;
-                this._change({
-                  zigbee_timeout_seconds: Math.min(
-                    600,
-                    Math.max(30, Math.round(raw)),
-                  ),
-                });
-              }}
-            />s</span
-          >`,
-          "Raise it if Load Mesh times out on a large mesh",
-        )}
-      </div>
+        <div class="section">
+          <div class="section-title">Zigbee mesh</div>
+          ${this._row(
+            "Coordinator",
+            html`<span class="select-wrap"
+              ><select
+                aria-label="Zigbee coordinator device"
+                @change=${(e: Event) =>
+                  this._change({
+                    zigbee_coordinator_device_id:
+                      (e.target as HTMLSelectElement).value || null,
+                  })}
+              >
+                <option value="" ?selected=${!coordinator}>
+                  Zigbee2MQTT Bridge
+                </option>
+                ${
+                  // Keep a saved choice visible even once its pin is removed,
+                  // rather than the select silently showing the default.
+                  coordinator && !coordinatorPlaced
+                    ? html`<option value=${coordinator} selected>
+                        (device not placed)
+                      </option>`
+                    : nothing
+                }
+                ${this.coordinatorChoices.map(
+                  ({ deviceId, label }) =>
+                    html`<option
+                      value=${deviceId}
+                      ?selected=${deviceId === coordinator}
+                    >
+                      ${label}
+                    </option>`,
+                )}</select
+              ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+            ></span>`,
+            "The device placed for your radio, if it isn't the Bridge",
+          )}
+          ${this._row(
+            "Scan timeout",
+            html`<span class="number"
+              ><input
+                type="number"
+                min="30"
+                max="600"
+                step="10"
+                aria-label="Zigbee scan timeout in seconds"
+                .value=${String(s.zigbee_timeout_seconds)}
+                @change=${(e: Event) => {
+                  const raw = Number((e.target as HTMLInputElement).value);
+                  if (!Number.isFinite(raw)) return;
+                  this._change({
+                    zigbee_timeout_seconds: Math.min(
+                      600,
+                      Math.max(30, Math.round(raw)),
+                    ),
+                  });
+                }}
+              />s</span
+            >`,
+            "Raise it if Load Mesh times out on a large mesh",
+          )}
+        </div>
 
-      <div class="section">
-        <div class="section-title">Troubleshooting</div>
-        ${this._row(
-          "Debug logging",
-          this._switch(s.debug_logging, "Debug logging", (debug_logging) =>
-            this._change({ debug_logging }),
-          ),
-          "Writes spatial_context_debug.log in your config folder — ids and counts only",
-        )}
-      </div>
+        <div class="section">
+          <div class="section-title">Troubleshooting</div>
+          ${this._row(
+            "Debug logging",
+            this._switch(s.debug_logging, "Debug logging", (debug_logging) =>
+              this._change({ debug_logging }),
+            ),
+            "Writes spatial_context_debug.log in your config folder — ids and counts only",
+          )}
+        </div>
 
-      <div class="section">
-        <div class="section-title">About</div>
-        ${this._row(
-          "Version",
-          html`<span class="description">v${__VERSION__}</span>`,
-        )}
+        <div class="section">
+          <div class="section-title">About</div>
+          ${this._row(
+            "Version",
+            html`<span class="description">v${__VERSION__}</span>`,
+          )}
+        </div>
+      </div>
+      <div class="footer">
+        <button
+          class="done"
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent("settings-close", {
+                bubbles: true,
+                composed: true,
+              }),
+            )}
+        >
+          Done
+        </button>
       </div>
     `;
   }
