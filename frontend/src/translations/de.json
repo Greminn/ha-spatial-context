@@ -113,7 +113,9 @@
       "style": "Darstellung",
       "visible": "Sichtbar",
       "wall": "Wand",
-      "wallOpening": "In einer Wand"
+      "wallOpening": "In einer Wand",
+      "hide": "Details ausblenden",
+      "show": "Details anzeigen"
     }
   },
   "mapBackground": {

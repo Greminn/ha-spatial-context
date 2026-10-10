@@ -113,7 +113,9 @@
       "colourDefault": "Default",
       "colourCustom": "Custom",
       "links": "{count} links",
-      "noLinks": "No links to other placed devices"
+      "noLinks": "No links to other placed devices",
+      "hide": "Hide details",
+      "show": "Show details"
     }
   },
   "mapBackground": {

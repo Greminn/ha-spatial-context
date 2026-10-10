@@ -37,6 +37,29 @@ export const infoCardStyles = css`
   }
   .info-titles {
     min-width: 0;
+    flex: 1;
+  }
+  .info-toggle {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  /* Phones: the card spans the width under the controls row, and its
+   * chevron folds it to just the header so the map stays workable with the
+   * thing still selected. */
+  @media (max-width: 700px) {
+    .info-card {
+      top: 56px;
+      left: 0;
+      right: 0;
+      width: auto;
+      max-height: 60%;
+      border-radius: 0 0 28px 28px;
+    }
   }
   .info-title {
     font-size: var(--sc-fs-title);
@@ -210,6 +233,9 @@ export function renderCard(opts: {
   onClose: () => void;
   body: unknown;
   footer?: unknown;
+  /** Folded to just the header, with a chevron to toggle it. */
+  collapsed?: boolean;
+  onToggle?: () => void;
 }) {
   return html`
     <div class="info-card floating-panel">
@@ -229,9 +255,29 @@ export function renderCard(opts: {
               : nothing
           }
         </div>
+        ${
+          opts.onToggle
+            ? html`<button
+                class="info-toggle"
+                title=${localize(
+                  opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
+                )}
+                aria-expanded=${opts.collapsed ? "false" : "true"}
+                @click=${opts.onToggle}
+              >
+                <ha-icon
+                  icon=${opts.collapsed ? "mdi:chevron-down" : "mdi:chevron-up"}
+                ></ha-icon>
+              </button>`
+            : nothing
+        }
       </div>
-      <div class="info-body">${opts.body}</div>
-      ${opts.footer ? html`<div class="info-foot">${opts.footer}</div>` : nothing}
+      ${
+        opts.collapsed
+          ? nothing
+          : html`<div class="info-body">${opts.body}</div>
+              ${opts.footer ? html`<div class="info-foot">${opts.footer}</div>` : nothing}`
+      }
     </div>
   `;
 }

@@ -571,7 +571,13 @@ export class CanvasOverlay extends LitElement {
     );
   }
 
-  private _card = renderCard;
+  @state() private _cardCollapsed = false;
+  private _card = (opts: Parameters<typeof renderCard>[0]) =>
+    renderCard({
+      ...opts,
+      collapsed: this._cardCollapsed,
+      onToggle: () => (this._cardCollapsed = !this._cardCollapsed),
+    });
   private _actionRow = actionRow;
   private _fieldRow = fieldRow;
   private _selectWrap = selectWrap;

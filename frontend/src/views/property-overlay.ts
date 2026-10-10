@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing } from "lit";
-import { property } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
@@ -149,6 +149,16 @@ export class PropertyOverlay extends LitElement {
   @property({ attribute: false }) floorNameById: Map<string, string> =
     new Map();
 
+  /** Whether the info card is folded to its header (sticky across
+   * selections, so the map stays workable). */
+  @state() private _cardCollapsed = false;
+  private _card = (opts: Parameters<typeof renderCard>[0]) =>
+    renderCard({
+      ...opts,
+      collapsed: this._cardCollapsed,
+      onToggle: () => (this._cardCollapsed = !this._cardCollapsed),
+    });
+
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
       new CustomEvent(name, { detail, bubbles: true, composed: true }),
@@ -163,7 +173,7 @@ export class PropertyOverlay extends LitElement {
 
   private _renderPinPanel() {
     if (this.selectedPinLabel === null) return nothing;
-    return renderCard({
+    return this._card({
       title: this.selectedPinLabel,
       subtitle: localize("property.outdoorDevice"),
       onClose: () => this._fire("selection-clear"),
@@ -277,7 +287,7 @@ export class PropertyOverlay extends LitElement {
     const link = this.selectedMeshLink;
     if (!link) return nothing;
     const indoorEnd = [link.from, link.to].find((end) => end.floorId !== null);
-    return renderCard({
+    return this._card({
       title: `${link.from.label} → ${link.to.label}`,
       subtitle: localize("property.link"),
       onClose: () => this._fire("selection-clear"),
@@ -308,7 +318,7 @@ export class PropertyOverlay extends LitElement {
   private _renderPlacementPanel() {
     const placement = this.selectedPlacement;
     if (!placement) return nothing;
-    return renderCard({
+    return this._card({
       title: this._selectedLabel(),
       subtitle: localize("property.building"),
       onClose: () => this._fire("selection-clear"),
