@@ -176,7 +176,7 @@ export class EntityPickerSidebar extends LitElement {
         border-bottom: 1px solid var(--sc-divider);
       }
       .item:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--sc-hover);
       }
       .item.armed {
         background: color-mix(in srgb, var(--sc-accent) 18%, transparent);

@@ -178,7 +178,7 @@ export class CanvasOverlay extends LitElement {
         cursor: pointer;
       }
       .color-item:hover {
-        background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+        background: var(--sc-hover);
       }
       .color-item.selected {
         color: var(--sc-accent);

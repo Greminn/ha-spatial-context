@@ -25,6 +25,8 @@ export const sharedStyles = css`
     /* Shape: controls are 12px rounded rectangles, 40px tall (36px for
      * fields inside cards and dialogs). */
     --sc-r-control: 12px;
+    /* Hover tint, laid over whatever fill the element already has. */
+    --sc-hover: color-mix(in srgb, var(--sc-fg) 8%, transparent);
     --sc-h-control: 40px;
     --sc-h-field: 36px;
     box-sizing: border-box;
@@ -46,8 +48,11 @@ export const sharedStyles = css`
     background: transparent;
     color: var(--sc-fg);
   }
-  button:hover {
-    background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+  /* Hover adds a tint as a background *image*, so a button that already
+   * has a fill (surface, tonal) keeps it instead of losing it. The extra
+   * :not()s lift the specificity above components' own background rules. */
+  button:hover:not(:disabled):not(.primary) {
+    background-image: linear-gradient(var(--sc-hover), var(--sc-hover));
   }
   button:focus-visible {
     outline: 2px solid var(--sc-accent);
@@ -157,7 +162,7 @@ export const zoomControlsStyles = css`
     border-top: 1px solid var(--sc-divider);
   }
   .controls button:hover {
-    background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+    background: var(--sc-hover);
   }
   .controls ha-icon {
     --mdc-icon-size: 22px;

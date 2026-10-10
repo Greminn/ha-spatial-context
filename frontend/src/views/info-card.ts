@@ -107,7 +107,21 @@ export const infoCardStyles = css`
     border-radius: 0;
   }
   .info-row.action:hover {
-    background: color-mix(in srgb, var(--sc-fg) 8%, transparent);
+    background: var(--sc-hover);
+  }
+  /* A device row in the stack: the whole row is the hover target (the
+   * name and the remove button sit inside it), not each button. */
+  .info-row.stack-row:hover {
+    background: var(--sc-hover);
+  }
+  .info-row.stack-row button:hover:not(:disabled):not(.primary) {
+    background-image: none;
+  }
+  .info-row.stack-row .stack-remove:hover:not(:disabled):not(.primary) {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--sc-danger) 16%, transparent),
+      color-mix(in srgb, var(--sc-danger) 16%, transparent)
+    );
   }
   .info-row.action.active {
     color: var(--sc-accent);
