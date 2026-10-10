@@ -314,3 +314,37 @@ export const toolRowStyles = css`
     color: var(--sc-accent);
   }
 `;
+
+/** Slider: thin track filled up to the value in the primary colour (the
+ * input sets `--pct`), round thumb — like HA's own sliders. */
+export const sliderStyles = css`
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(
+      to right,
+      var(--sc-accent) var(--pct, 50%),
+      var(--sc-divider) var(--pct, 50%)
+    );
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--sc-accent);
+    border: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--sc-accent);
+    border: none;
+    cursor: pointer;
+  }
+`;

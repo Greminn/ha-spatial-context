@@ -63,7 +63,12 @@ import {
   reassignPinRooms,
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
-import { sharedStyles, switchStyles } from "./styles";
+import {
+  selectStyles,
+  sharedStyles,
+  sliderStyles,
+  switchStyles,
+} from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
 import "./canvas/property-canvas";
@@ -103,6 +108,8 @@ function readStoredSnapMode(): SnapMode {
 export class SpatialContextPanel extends LitElement {
   static override styles = [
     sharedStyles,
+    selectStyles,
+    sliderStyles,
     switchStyles,
     css`
       :host {
@@ -154,7 +161,11 @@ export class SpatialContextPanel extends LitElement {
       .popover-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 44px;
+        padding: 6px 16px;
+        font-size: 0.9375rem;
       }
       .menu-divider {
         height: 1px;
@@ -178,7 +189,21 @@ export class SpatialContextPanel extends LitElement {
         display: none;
       }
       input[type="range"] {
-        width: 120px;
+        width: 130px;
+      }
+      .popover-row select {
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
+        background: var(--sc-panel-bg);
+        color: var(--sc-fg);
+        font: inherit;
+        font-size: 0.875rem;
+      }
+      .popover-row select:focus {
+        outline: none;
+        border-color: var(--sc-accent);
       }
       .hint {
         font-size: 0.8rem;
@@ -3270,34 +3295,36 @@ export class SpatialContextPanel extends LitElement {
                 </button>
                 ${
                   this._propertyLayout.map_background
-                    ? html`<label
-                          class="popover-row hint"
-                          style="padding: 8px 16px 4px"
+                    ? html`<label class="popover-row"
                           >${localize("mapBackground.style")}
-                          <select @change=${this._onMapStyleChange}>
-                            <option
-                              value="street"
-                              ?selected=${this._propertyLayout.map_background.style !== "aerial"}
-                            >
-                              ${localize("mapBackground.street")}
-                            </option>
-                            <option
-                              value="aerial"
-                              ?selected=${this._propertyLayout.map_background.style === "aerial"}
-                            >
-                              ${localize("mapBackground.aerial")}
-                            </option>
-                          </select>
+                          <span class="select-wrap"
+                            ><select @change=${this._onMapStyleChange}>
+                              <option
+                                value="street"
+                                ?selected=${this._propertyLayout.map_background.style !== "aerial"}
+                              >
+                                ${localize("mapBackground.street")}
+                              </option>
+                              <option
+                                value="aerial"
+                                ?selected=${this._propertyLayout.map_background.style === "aerial"}
+                              >
+                                ${localize("mapBackground.aerial")}
+                              </option></select
+                            ><ha-icon
+                              class="chev"
+                              icon="mdi:menu-down"
+                            ></ha-icon
+                          ></span>
                         </label>
-                        <label
-                          class="popover-row hint"
-                          style="padding: 8px 16px 4px"
+                        <label class="popover-row"
                           >${localize("mapBackground.opacity")}
                           <input
                             type="range"
                             min="0.1"
                             max="1"
                             step="0.05"
+                            style="--pct:${((this._propertyLayout.map_background.opacity - 0.1) / 0.9) * 100}%"
                             .value=${String(this._propertyLayout.map_background.opacity)}
                             @input=${this._onMapOpacityChange}
                           />
@@ -3318,13 +3345,14 @@ export class SpatialContextPanel extends LitElement {
         }
         ${
           this._activeBackground.imageId
-            ? html`<label class="popover-row hint" style="padding: 8px 16px 4px"
+            ? html`<label class="popover-row"
                 >Opacity
                 <input
                   type="range"
                   min="0.1"
                   max="1"
                   step="0.05"
+                  style="--pct:${((this._activeBackground.opacity - 0.1) / 0.9) * 100}%"
                   .value=${String(this._activeBackground.opacity)}
                   @input=${this._onOpacityChange}
                 />
@@ -3427,10 +3455,8 @@ export class SpatialContextPanel extends LitElement {
                                         : "Load Mesh"
                                   }
                                 </button>
-                                <label
-                                  class="popover-row hint"
-                                  style="padding: 4px 16px 8px"
-                                >
+                                <label class="popover-row">
+                                  Show all links
                                   <input
                                     type="checkbox"
                                     class="switch"
@@ -3444,7 +3470,6 @@ export class SpatialContextPanel extends LitElement {
                                       this._selectedMeshStub = null;
                                     }}
                                   />
-                                  Show all links
                                 </label>`
                             : (this._networkType === "matter" &&
                                   this._matterUnsubscribe) ||

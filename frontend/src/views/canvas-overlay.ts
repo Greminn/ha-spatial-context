@@ -39,6 +39,7 @@ import {
 import {
   selectStyles,
   sharedStyles,
+  sliderStyles,
   switchStyles,
   toolRowStyles,
 } from "../styles";
@@ -54,6 +55,7 @@ export class CanvasOverlay extends LitElement {
   static override styles = [
     sharedStyles,
     selectStyles,
+    sliderStyles,
     switchStyles,
     toolRowStyles,
     meshLegendStyles,
@@ -375,37 +377,8 @@ export class CanvasOverlay extends LitElement {
       .room-fill-color::-moz-color-swatch {
         border: none;
       }
-      /* Slider: thin track filled up to the value (--pct) in the primary
-       * colour, round thumb — like HA's own sliders. */
       .room-opacity {
-        -webkit-appearance: none;
-        appearance: none;
         width: 140px;
-        height: 4px;
-        border-radius: 2px;
-        background: linear-gradient(
-          to right,
-          var(--sc-accent) var(--pct, 50%),
-          var(--sc-divider) var(--pct, 50%)
-        );
-        outline: none;
-      }
-      .room-opacity::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--sc-accent);
-        border: none;
-        cursor: pointer;
-      }
-      .room-opacity::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--sc-accent);
-        border: none;
-        cursor: pointer;
       }
     `,
   ];
