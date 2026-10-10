@@ -3365,7 +3365,7 @@ export class SpatialContextPanel extends LitElement {
         ${
           this._view === "floor" || this._view === "property"
             ? html`<icon-popover
-                icon="mdi:graph-outline"
+                icon="mdi:lan"
                 label="Connectivity Map"
                 .open=${this._meshPopoverOpen}
                 ?highlight=${this._networkType !== null}
