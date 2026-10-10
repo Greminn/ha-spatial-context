@@ -121,7 +121,7 @@ export class CanvasOverlay extends LitElement {
         flex-direction: column;
         gap: 8px;
         padding: 8px;
-        border-radius: 24px;
+        border-radius: 28px;
         pointer-events: auto;
       }
       .info-head {
@@ -160,7 +160,8 @@ export class CanvasOverlay extends LitElement {
       }
       .info-group {
         padding: 4px 0;
-        border-radius: 16px;
+        border-radius: 24px;
+        overflow: hidden;
         background: var(--primary-background-color, var(--sc-bg));
       }
       .info-group-title {
@@ -241,8 +242,9 @@ export class CanvasOverlay extends LitElement {
         align-items: center;
         justify-content: center;
         gap: 8px;
+        min-height: 44px;
         padding: 10px 16px;
-        border-radius: 12px;
+        border-radius: 22px;
         font-size: 0.9375rem;
       }
       .info-foot button.danger {
