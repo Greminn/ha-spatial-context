@@ -30,6 +30,11 @@ export class IconPopover extends LitElement {
       .icon-button.active {
         background: rgba(0, 0, 0, 0.06);
       }
+      /* The popover's feature is switched on (e.g. a network layer is
+       * showing) even while the menu is closed. */
+      .icon-button.highlight {
+        color: var(--sc-accent);
+      }
       /* Settings: HA's dialog look — large radius, no inner padding (the
        * content brings its own header and sections). */
       .popover.dialog {
@@ -56,11 +61,12 @@ export class IconPopover extends LitElement {
   @property() label = "";
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) dialog = false;
+  @property({ type: Boolean }) highlight = false;
 
   override render() {
     return html`
       <button
-        class="icon-button ${this.open ? "active" : ""}"
+        class="icon-button ${this.open ? "active" : ""} ${this.highlight ? "highlight" : ""}"
         title=${this.label}
         @click=${() =>
           this.dispatchEvent(

@@ -558,17 +558,16 @@ export class SpatialContextPanel extends LitElement {
   /** Every network type's raw shape, normalized to one common shape before
    * anything downstream (both `_meshLinksForCurrentFloor` and
    * `_meshStubsForCurrentFloor` build off this) — so "how do we grade
-   * this" lives in one place. The Connectivity Map popover's open/closed
-   * state is this whole feature's master on/off switch — closed means
-   * off, full stop, regardless of what's cached from an earlier session
-   * with it open. */
+   * this" lives in one place. The picked network layer is the master
+   * on/off switch: no layer picked means off, and a picked layer stays
+   * drawn after the menu is closed. */
   private get _normalizedMeshLinks(): {
     sourceDeviceId: string;
     targetDeviceId: string;
     quality: "strong" | "medium" | "weak" | "unknown";
     detail?: string;
   }[] {
-    if (!this._meshPopoverOpen) return [];
+    if (this._networkType === null) return [];
 
     if (this._networkType === "zigbee" && this._zigbeeMesh) {
       const pinByDeviceId = this._pinByDeviceId;
@@ -2028,27 +2027,14 @@ export class SpatialContextPanel extends LitElement {
     this._moreOptionsPopoverOpen = false;
   };
 
-  /** The popover's open/closed state doubles as the Connectivity Map's
-   * master on/off switch (see `_meshLinksForCurrentFloor`) — closing it
-   * (including clicking the header icon again while open) hides whatever
-   * mesh is currently drawn and drops the live Matter subscription, rather
-   * than leaving a stale overlay showing after the menu's put away. */
+  /** Opens/closes the Connectivity Map menu. The picked layer is what
+   * switches the overlay on (see `_normalizedMeshLinks`), so closing the
+   * menu leaves it drawn; tap the selected layer again to turn it off. */
   private _onToggleMeshPopover = () => {
-    const opening = !this._meshPopoverOpen;
-    this._meshPopoverOpen = opening;
+    this._meshPopoverOpen = !this._meshPopoverOpen;
     this._backgroundPopoverOpen = false;
     this._settingsPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
-    if (!opening) {
-      this._unsubscribeMatter();
-      this._unsubscribeBluetooth();
-      // Reset to the neutral "nothing picked" state so the *next* open
-      // (this session or a fresh page load) never shows a layer already
-      // armed — every open should look and behave the same.
-      this._networkType = null;
-      this._selectedMeshLink = null;
-      this._selectedMeshStub = null;
-    }
   };
 
   private _onToggleSettingsPopover = () => {
@@ -2096,7 +2082,9 @@ export class SpatialContextPanel extends LitElement {
   // near-instant, so they load on pick with no button. Zigbee only ever
   // shows the backend's cache on pick (cache_only — never a scan); a real
   // scan (~90s+) still needs an explicit Load/Refresh click (_onLoadMesh).
-  private _onNetworkTypeSelect = (type: NetworkType) => {
+  private _onNetworkTypeSelect = (picked: NetworkType) => {
+    // Tapping the layer that's already on turns the overlay off.
+    const type = this._networkType === picked ? null : picked;
     if (this._networkType === "matter" && type !== "matter") {
       this._unsubscribeMatter();
     }
@@ -3380,6 +3368,7 @@ export class SpatialContextPanel extends LitElement {
                 icon="mdi:graph-outline"
                 label="Connectivity Map"
                 .open=${this._meshPopoverOpen}
+                ?highlight=${this._networkType !== null}
                 @toggle=${this._onToggleMeshPopover}
               >
                 <div class="layer-list">
@@ -3412,7 +3401,8 @@ export class SpatialContextPanel extends LitElement {
                 ${
                   this._networkType === null
                     ? html`<span class="hint" style="padding: 4px 16px 8px"
-                        >Pick a network above to load it.</span
+                        >Pick a network above to show it. Pick it again to turn
+                        it off.</span
                       >`
                     : html`
                         ${
@@ -3618,7 +3608,7 @@ export class SpatialContextPanel extends LitElement {
                     @placement-select=${this._onPlacementSelect}
                   ></property-canvas>
                   <property-overlay
-                    .meshLegend=${this._meshPopoverOpen && this._networkType !== null}
+                    .meshLegend=${this._networkType !== null}
                     .mode=${this._propertyMode}
                     .buildings=${this._buildings}
                     .scaleReadout=${this._propertyScaleReadout}
@@ -3726,7 +3716,7 @@ export class SpatialContextPanel extends LitElement {
                   ></floorplan-canvas>
 
                   <canvas-overlay
-                    .meshLegend=${this._meshPopoverOpen && this._networkType !== null}
+                    .meshLegend=${this._networkType !== null}
                     .mode=${this._mode}
                     .armedOpeningType=${this._armedOpeningType}
                     .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
