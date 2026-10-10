@@ -20,7 +20,11 @@ import {
   DEFAULT_ROOM_FILL_COLOR,
   DEFAULT_ROOM_FILL_OPACITY,
 } from "../canvas/floorplan-canvas";
-import { WALL_MATERIALS, wallThicknessCm } from "../canvas/materials";
+import {
+  WALL_MATERIALS,
+  materialLabel,
+  wallThicknessCm,
+} from "../canvas/materials";
 import { pinDisplayLabel } from "../canvas/device-display";
 import { qualityColor } from "../canvas/mesh-colors";
 import "./row-actions";
@@ -836,6 +840,7 @@ export class CanvasOverlay extends LitElement {
   private _renderColourPicker(room: Room) {
     const palette = HA_COLORS.map((c) => ({
       ...c,
+      label: localize(`colors.${c.key.replace(/-/g, "_")}`),
       hex: resolveColorHex(this, c),
     }));
     const current = (room.fill_color ?? "").toLowerCase();
@@ -1151,7 +1156,10 @@ export class CanvasOverlay extends LitElement {
       const wallAttrs = this._thicknessInputAttrs(wallUnit);
       return this._card({
         title: localize("canvas.card.wall"),
-        subtitle: WALL_MATERIALS.find((m) => m.id === wall.material)?.label,
+        subtitle: (() => {
+          const m = WALL_MATERIALS.find((x) => x.id === wall.material);
+          return m ? materialLabel(m) : undefined;
+        })(),
         onClose: this._clearSelection,
         body: html`<div class="info-group">
           ${this._fieldRow(
@@ -1170,7 +1178,7 @@ export class CanvasOverlay extends LitElement {
                       value=${m.id}
                       ?selected=${m.id === wall.material}
                     >
-                      ${m.label}
+                      ${materialLabel(m)}
                     </option>`,
                 )}
               </select>`,

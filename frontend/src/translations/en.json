@@ -275,5 +275,59 @@
   "floor": {
     "thisFloor": "this floor",
     "thatFloor": "that floor"
+  },
+  "property": {
+    "rename": "Rename",
+    "setIcon": "Set icon",
+    "removeFromProperty": "Remove from the property",
+    "goToFloorOf": "Go to {name}'s floor",
+    "select": "Select",
+    "placeOutdoor": "Place an outdoor device",
+    "placeBuildingTip": "Place a building's footprint",
+    "placeBuilding": "Place building…",
+    "notCalibrated": "Not calibrated",
+    "goToFloor": "Go to floor",
+    "deletePlacement": "Delete placement"
+  },
+  "canvasControls": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen"
+  },
+  "materials": {
+    "timber_frame": "Timber framed (drywall)",
+    "brick_veneer": "Brick veneer",
+    "concrete_block": "Concrete / block",
+    "aerated_concrete_block": "Aerated/foam concrete block (plastered)",
+    "ceramic_poroton_block": "Ceramic / Poroton block",
+    "glass": "Glass",
+    "steel_frame": "Steel frame"
+  },
+  "colors": {
+    "primary": "Primary",
+    "accent": "Accent",
+    "red": "Red",
+    "pink": "Pink",
+    "purple": "Purple",
+    "deep_purple": "Deep purple",
+    "indigo": "Indigo",
+    "blue": "Blue",
+    "light_blue": "Light blue",
+    "cyan": "Cyan",
+    "teal": "Teal",
+    "green": "Green",
+    "light_green": "Light green",
+    "lime": "Lime",
+    "yellow": "Yellow",
+    "amber": "Amber",
+    "orange": "Orange",
+    "deep_orange": "Deep orange",
+    "brown": "Brown",
+    "light_grey": "Light grey",
+    "grey": "Grey",
+    "dark_grey": "Dark grey",
+    "blue_grey": "Blue grey",
+    "black": "Black",
+    "white": "White"
   }
 }

@@ -1,3 +1,5 @@
+import { localize } from "../i18n";
+
 /** Wall material catalog. Deliberately small and residential-construction
  * focused rather than exhaustive. `attenuationDbPerCm` is an approximate
  * 2.4GHz RF signal loss *per centimetre* of that material — rough, but
@@ -71,6 +73,14 @@ export const WALL_MATERIALS: WallMaterial[] = [
     defaultThicknessCm: 10,
   },
 ];
+
+/** The material's name in the current language (the catalog's own `label`
+ * stays English, mirrored in export.py). */
+export function materialLabel(material: { id: string; label: string }): string {
+  const key = `materials.${material.id}`;
+  const text = localize(key);
+  return text === key ? material.label : text;
+}
 
 export const DEFAULT_WALL_MATERIAL = "timber_frame";
 

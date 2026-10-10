@@ -1179,13 +1179,22 @@ export class PropertyCanvas extends LitElement {
           : nothing
       }
       <div class="controls">
-        <button @click=${() => this._zoomButton(0.87)} title="Zoom in">
+        <button
+          @click=${() => this._zoomButton(0.87)}
+          title=${localize("canvasControls.zoomIn")}
+        >
           <ha-icon icon="mdi:plus"></ha-icon>
         </button>
-        <button @click=${() => this._zoomButton(1.15)} title="Zoom out">
+        <button
+          @click=${() => this._zoomButton(1.15)}
+          title=${localize("canvasControls.zoomOut")}
+        >
           <ha-icon icon="mdi:minus"></ha-icon>
         </button>
-        <button @click=${() => this.fitToScreen()} title="Fit to screen">
+        <button
+          @click=${() => this.fitToScreen()}
+          title=${localize("canvasControls.fit")}
+        >
           <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
         </button>
       </div>

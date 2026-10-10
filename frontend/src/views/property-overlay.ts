@@ -156,20 +156,20 @@ export class PropertyOverlay extends LitElement {
         <ha-icon icon="mdi:map-marker"></ha-icon>
         <span class="hint">${this.selectedPinLabel}</span>
         <button
-          title="Rename"
+          title=${localize("property.rename")}
           @click=${() => this._fire("outdoor-pin-rename-click")}
         >
           <ha-icon icon="mdi:pencil"></ha-icon>
         </button>
         <button
-          title="Set icon"
+          title=${localize("property.setIcon")}
           @click=${() => this._fire("outdoor-pin-icon-click")}
         >
           <ha-icon icon="mdi:shape"></ha-icon>
         </button>
         <button
           class="danger"
-          title="Remove from the property"
+          title=${localize("property.removeFromProperty")}
           @click=${() => this._fire("outdoor-pin-delete-click")}
         >
           <ha-icon icon="mdi:delete"></ha-icon>
@@ -252,7 +252,7 @@ export class PropertyOverlay extends LitElement {
         ${
           indoorEnd
             ? html`<button
-                title="Go to ${indoorEnd.label}'s floor"
+                title=${localize("property.goToFloorOf", { name: indoorEnd.label })}
                 @click=${() =>
                   this._fire("property-mesh-goto-floor-click", {
                     floorId: indoorEnd.floorId,
@@ -272,14 +272,14 @@ export class PropertyOverlay extends LitElement {
         <div class="mode-toolbar">
           <button
             class=${this.mode === "select" ? "active" : ""}
-            title="Select"
+            title=${localize("property.select")}
             @click=${() => this._fire("property-mode-change", { mode: "select" })}
           >
             <ha-icon icon="mdi:cursor-default-click"></ha-icon>
           </button>
           <button
             class=${this.mode === "place-pin" ? "active" : ""}
-            title="Place an outdoor device"
+            title=${localize("property.placeOutdoor")}
             @click=${() =>
               this._fire("property-mode-change", {
                 mode: this.mode === "place-pin" ? "select" : "place-pin",
@@ -305,14 +305,14 @@ export class PropertyOverlay extends LitElement {
           <span class="select-wrap"
             ><select
               class="place-picker"
-              title="Place a building's footprint"
+              title=${localize("property.placeBuildingTip")}
               .value=${this.armedBuildingKey ?? ""}
               @change=${(e: Event) => {
                 const key = (e.target as HTMLSelectElement).value;
                 if (key) this._fire("placement-arm", { key });
               }}
             >
-              <option value="">Place building…</option>
+              <option value="">${localize("property.placeBuilding")}</option>
               ${this.buildings.map(
                 (b) => html`<option value=${b.key}>${b.name}</option>`,
               )}</select
@@ -334,7 +334,7 @@ export class PropertyOverlay extends LitElement {
               ? html`<ha-icon class="scale-warning" icon="mdi:alert"></ha-icon>`
               : nothing
           }
-          ${this.scaleReadout ?? "Not calibrated"}
+          ${this.scaleReadout ?? localize("property.notCalibrated")}
         </div>
         <slot name="row-end"></slot>
         <row-actions
@@ -354,20 +354,20 @@ export class PropertyOverlay extends LitElement {
               <div class="selection-panel floating-panel">
                 <span class="hint">${this._selectedLabel()}</span>
                 <button
-                  title="Go to floor"
+                  title=${localize("property.goToFloor")}
                   @click=${() => this._fire("placement-goto-floor-click")}
                 >
                   <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
                 </button>
                 <button
-                  title="Rename"
+                  title=${localize("property.rename")}
                   @click=${() => this._fire("placement-rename-click")}
                 >
                   <ha-icon icon="mdi:pencil"></ha-icon>
                 </button>
                 <button
                   class="danger"
-                  title="Delete placement"
+                  title=${localize("property.deletePlacement")}
                   @click=${() => this._fire("placement-delete-click")}
                 >
                   <ha-icon icon="mdi:delete"></ha-icon>

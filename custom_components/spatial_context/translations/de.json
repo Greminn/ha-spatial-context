@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Spatial Context",
+        "description": "Zeichnen Sie den Grundriss jeder Etage und platzieren Sie Ihre Geräte darauf, damit einem KI-Assistenten echter physischer Kontext zu Ihrem Zuhause zur Verfügung steht."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Spatial Context ist bereits eingerichtet."
+    }
+  },
+  "services": {
+    "get_map": {
+      "name": "Karte abrufen",
+      "description": "Gibt die vollständige räumliche Kontextkarte zurück, einschließlich Etagen, Räumen, Wänden und Geräten."
+    },
+    "refresh_zigbee_mesh": {
+      "name": "Zigbee-Mesh aktualisieren",
+      "description": "Erzwingt einen neuen Zigbee2MQTT-Netzwerkscan und speichert das Ergebnis zwischen, damit „Mesh laden“ im Panel es sofort bereitstellen kann. Gedacht für eine zeitgesteuerte Automation (z. B. über Nacht), nicht für die interaktive Nutzung (ein Scan kann 1–2 Minuten dauern)."
+    }
+  }
+}

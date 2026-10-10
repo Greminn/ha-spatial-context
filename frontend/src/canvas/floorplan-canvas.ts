@@ -43,10 +43,16 @@ import {
 import { addTracePoint, startTrace, type PendingTrace } from "./polygon-tool";
 import { pinDisplayLabel } from "./device-display";
 import { PinIconResolver, pinStyles, type PinIcon } from "./pin-render";
-import { type WallMaterial, wallMaterial, wallThicknessCm } from "./materials";
+import {
+  type WallMaterial,
+  wallMaterial,
+  wallThicknessCm,
+  materialLabel,
+} from "./materials";
 import { qualityColor } from "./mesh-colors";
 import { GROUP_ICON_PATH } from "./pin-icons";
 import { formatLarge, largeUnitLabel } from "../units";
+import { localize } from "../i18n";
 import { sharedStyles, zoomControlsStyles } from "../styles";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
@@ -2302,8 +2308,8 @@ export class FloorplanCanvas extends LitElement {
     return svg`
       ${
         isClosed
-          ? svg`<polygon class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${material.label}</title></polygon>`
-          : svg`<polyline class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${material.label}</title></polyline>`
+          ? svg`<polygon class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${materialLabel(material)}</title></polygon>`
+          : svg`<polyline class=${wallClass} points=${pointsAttr} style=${wallStyle}><title>${materialLabel(material)}</title></polyline>`
       }
       ${isEditing ? this._renderVertexHandles(points, false) : nothing}
     `;
@@ -2491,13 +2497,22 @@ export class FloorplanCanvas extends LitElement {
         </svg>
       `}
       <div class="controls">
-        <button @click=${() => this._zoomButton(0.8)} title="Zoom in">
+        <button
+          @click=${() => this._zoomButton(0.8)}
+          title=${localize("canvasControls.zoomIn")}
+        >
           <ha-icon icon="mdi:plus"></ha-icon>
         </button>
-        <button @click=${() => this._zoomButton(1.25)} title="Zoom out">
+        <button
+          @click=${() => this._zoomButton(1.25)}
+          title=${localize("canvasControls.zoomOut")}
+        >
           <ha-icon icon="mdi:minus"></ha-icon>
         </button>
-        <button @click=${() => this.fitToScreen()} title="Fit to screen">
+        <button
+          @click=${() => this.fitToScreen()}
+          title=${localize("canvasControls.fit")}
+        >
           <ha-icon icon="mdi:fit-to-screen-outline"></ha-icon>
         </button>
       </div>

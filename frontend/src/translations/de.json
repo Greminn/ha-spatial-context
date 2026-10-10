@@ -275,5 +275,59 @@
   "floor": {
     "thisFloor": "diese Etage",
     "thatFloor": "jene Etage"
+  },
+  "property": {
+    "rename": "Umbenennen",
+    "setIcon": "Symbol festlegen",
+    "removeFromProperty": "Vom Anwesen entfernen",
+    "goToFloorOf": "Zur Etage von {name}",
+    "select": "Auswählen",
+    "placeOutdoor": "Außengerät platzieren",
+    "placeBuildingTip": "Grundriss eines Gebäudes platzieren",
+    "placeBuilding": "Gebäude platzieren…",
+    "notCalibrated": "Nicht kalibriert",
+    "goToFloor": "Zur Etage",
+    "deletePlacement": "Platzierung löschen"
+  },
+  "canvasControls": {
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "fit": "An Bildschirm anpassen"
+  },
+  "materials": {
+    "timber_frame": "Holzständerwand (Trockenbau)",
+    "brick_veneer": "Ziegelverblendung",
+    "concrete_block": "Beton / Stein",
+    "aerated_concrete_block": "Porenbeton / Schaumbeton (verputzt)",
+    "ceramic_poroton_block": "Keramik- / Poroton-Stein",
+    "glass": "Glas",
+    "steel_frame": "Stahlrahmen"
+  },
+  "colors": {
+    "primary": "Primär",
+    "accent": "Akzent",
+    "red": "Rot",
+    "pink": "Pink",
+    "purple": "Lila",
+    "deep_purple": "Dunkellila",
+    "indigo": "Indigo",
+    "blue": "Blau",
+    "light_blue": "Hellblau",
+    "cyan": "Cyan",
+    "teal": "Petrol",
+    "green": "Grün",
+    "light_green": "Hellgrün",
+    "lime": "Limette",
+    "yellow": "Gelb",
+    "amber": "Bernstein",
+    "orange": "Orange",
+    "deep_orange": "Dunkelorange",
+    "brown": "Braun",
+    "light_grey": "Hellgrau",
+    "grey": "Grau",
+    "dark_grey": "Dunkelgrau",
+    "blue_grey": "Blaugrau",
+    "black": "Schwarz",
+    "white": "Weiß"
   }
 }
