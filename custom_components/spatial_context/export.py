@@ -100,7 +100,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     exported_floors = []
     for floor_meta in floors_meta:
         layout = await async_get_floor_layout(hass, floor_meta["floor_id"])
-        meters_per_unit = meters_per_unit(layout.get("scale"))
+        floor_mpu = meters_per_unit(layout.get("scale"))
 
         rooms_by_id = {room["id"]: room for room in layout["rooms"]}
         room_devices: dict[str | None, list[dict]] = {
@@ -109,7 +109,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
         room_devices[None] = []
 
         for pin in layout.get("pins", []):
-            device = _export_device(pin, placeable_entities, meters_per_unit)
+            device = _export_device(pin, placeable_entities, floor_mpu)
             room_devices.setdefault(pin.get("room_id"), []).append(device)
 
         exported_rooms = [
@@ -132,9 +132,9 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
                     "x": opening["x"],
                     "y": opening["y"],
                     "width": opening["width"],
-                    "x_m": opening["x"] * meters_per_unit if meters_per_unit else None,
-                    "y_m": opening["y"] * meters_per_unit if meters_per_unit else None,
-                    "width_m": opening["width"] * meters_per_unit if meters_per_unit else None,
+                    "x_m": opening["x"] * floor_mpu if floor_mpu else None,
+                    "y_m": opening["y"] * floor_mpu if floor_mpu else None,
+                    "width_m": opening["width"] * floor_mpu if floor_mpu else None,
                 }
             )
 
@@ -150,8 +150,8 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
                 "attenuation_db": _wall_attenuation_db(wall),
                 "points": wall["points"],
                 "points_m": (
-                    [[px * meters_per_unit, py * meters_per_unit] for px, py in wall["points"]]
-                    if meters_per_unit
+                    [[px * floor_mpu, py * floor_mpu] for px, py in wall["points"]]
+                    if floor_mpu
                     else None
                 ),
                 "openings": openings_by_wall.get(wall["id"], []),
@@ -163,7 +163,7 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
             {
                 "floor_id": floor_meta["floor_id"],
                 "name": floor_meta["name"],
-                "meters_per_unit": meters_per_unit,
+                "meters_per_unit": floor_mpu,
                 "rooms": exported_rooms,
                 "walls": exported_walls,
             }
