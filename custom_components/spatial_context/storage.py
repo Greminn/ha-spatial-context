@@ -107,6 +107,11 @@ def _empty_property() -> dict[str, Any]:
         # pin, but positioned on the property photo. A device lives in one
         # place only, across floors and here (see the save functions).
         "pins": [],
+        # Live street map behind the property canvas (#6): canvas point
+        # (0, 0) sits at lat/lon, one canvas unit = one CSS pixel at map
+        # `zoom`. Null = no map. Independent of the uploaded background
+        # image, which is drawn on top of it.
+        "map_background": None,
     }
 
 

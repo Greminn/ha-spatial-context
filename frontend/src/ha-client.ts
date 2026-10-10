@@ -98,6 +98,12 @@ export class HaClient {
       view_box: layout.view_box,
       placements: layout.placements,
       pins: layout.pins,
+      // Only once the backend has reported the field (it's strict about
+      // unknown keys, and an HA not yet restarted onto it would reject the
+      // whole save).
+      ...(layout.map_background !== undefined
+        ? { map_background: layout.map_background }
+        : {}),
     });
   }
 

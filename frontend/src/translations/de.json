@@ -5,5 +5,112 @@
   "appHeader": {
     "saving": "Speichert…",
     "save": "Speichern"
+  },
+  "canvas": {
+    "mode": {
+      "select": "Auswählen",
+      "pan": "Verschieben",
+      "trace": "Raum zeichnen",
+      "wall": "Wand zeichnen",
+      "door": "Tür hinzufügen",
+      "window": "Fenster hinzufügen",
+      "scale": "Maßstab festlegen",
+      "place": "Gerät platzieren",
+      "align": "Etagen ausrichten"
+    },
+    "snap": {
+      "tooltip": "Woran neue Punkte einrasten (Umschalttaste halten, um einen Punkt frei zu setzen)",
+      "all": "Einrasten: alles",
+      "walls": "Einrasten: nur Wände",
+      "rooms": "Einrasten: nur Räume",
+      "off": "Einrasten: aus"
+    },
+    "hint": {
+      "closeRoom": "Nahe dem Start klicken, um den Raum zu schließen.",
+      "addPoints": "Klicken, um Punkte hinzuzufügen.",
+      "addWallPoints": "Klicken, um Punkte hinzuzufügen.",
+      "addWallPointsFinish": "Klicken, um Punkte hinzuzufügen, dann „Fertig“.",
+      "scaleFirst": "Den ersten Punkt einer bekannten Strecke anklicken.",
+      "scaleSecond": "Den zweiten Punkt anklicken.",
+      "placeOpening": "Auf eine Wand klicken, um {type} zu platzieren.",
+      "alignAgainst": "Ausrichten an:",
+      "noBackground": "Diese Etage hat kein Hintergrundbild zum Ausrichten.",
+      "alignDrag": "Zum Verschieben ziehen, mit +/− die Größe ändern, dann „Anwenden“."
+    },
+    "openingType": {
+      "door": "eine Tür",
+      "window": "ein Fenster",
+      "opening": "eine Öffnung"
+    },
+    "openingLabel": {
+      "door": "Tür",
+      "window": "Fenster"
+    },
+    "button": {
+      "cancel": "Abbrechen",
+      "finishWall": "Wand fertigstellen",
+      "chooseAnother": "Andere wählen",
+      "apply": "Anwenden",
+      "close": "Schließen"
+    },
+    "align": {
+      "choose": "— Etage wählen —",
+      "shrink": "Überlagerung leicht verkleinern",
+      "grow": "Überlagerung leicht vergrößern"
+    },
+    "room": {
+      "custom": "— Benutzerdefiniert —",
+      "outdoor": "Außenbereich / keine Etage",
+      "hide": "Raum ausblenden",
+      "show": "Raum einblenden",
+      "color": "Raumfarbe",
+      "fillOpacity": "Füllungsdeckkraft",
+      "borderOpacity": "Randdeckkraft",
+      "rename": "Umbenennen",
+      "doneEditing": "Bearbeitung beenden",
+      "editVertices": "Eckpunkte bearbeiten",
+      "resetLabel": "Beschriftungsposition zurücksetzen",
+      "delete": "Raum löschen"
+    },
+    "pin": {
+      "setLabel": "Beschriftung festlegen",
+      "setIcon": "Symbol festlegen",
+      "setHeight": "Höhe festlegen",
+      "delete": "Pin löschen",
+      "removeFromSpot": "Von dieser Stelle entfernen",
+      "stackTitle": "{count} Geräte an dieser Stelle"
+    },
+    "wall": {
+      "material": "Wandmaterial",
+      "thickness": "Wandstärke ({unit})",
+      "delete": "Wand löschen"
+    },
+    "opening": {
+      "width": "Breite ({unit})",
+      "storedUnits": "gespeicherte Einheiten",
+      "calibrate": "Maßstab kalibrieren für reale Einheiten",
+      "delete": "Löschen"
+    },
+    "meshStub": {
+      "goToFloor": "Zur Etage"
+    },
+    "notCalibrated": "Nicht kalibriert"
+  },
+  "mapBackground": {
+    "noWebgl": "Dieser Browser kann die Karte nicht darstellen (WebGL2 erforderlich).",
+    "failed": "Karte konnte nicht geladen werden: {error}",
+    "add": "Kartenhintergrund hinzufügen",
+    "remove": "Kartenhintergrund entfernen",
+    "opacity": "Kartendeckkraft",
+    "adjust": "Karte verschieben (ziehen; Strg+Scrollen oder Pinch zum Zoomen)",
+    "adjustHint": "Karte ziehen, um sie an den Gebäuden auszurichten.",
+    "zoomIn": "Karte vergrößern",
+    "zoomOut": "Karte verkleinern",
+    "rotation": "Drehung",
+    "resetRotation": "Norden oben",
+    "done": "Fertig",
+    "style": "Kartentyp",
+    "street": "Straßenkarte",
+    "aerial": "Luftbild (Esri)"
   }
 }

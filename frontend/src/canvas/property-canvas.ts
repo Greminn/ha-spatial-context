@@ -8,6 +8,10 @@ import type {
   PropertyPlacement,
   ViewBox,
 } from "../types";
+import type { HomeAssistant, MapBackground, PlacementGhost } from "../types";
+import { cameraFor } from "../map/map-camera";
+import type { MapGlueModule, MapLayerHandle } from "../map/map-layer-api";
+import { localize } from "../i18n";
 import {
   blurActiveElement,
   clamp,
@@ -30,6 +34,9 @@ import { sharedStyles } from "../styles";
  * risking that big, working component to share it. */
 const DEFAULT_HEIGHT = 750;
 const MIN_VIEWBOX_WIDTH = BASE_WIDTH / 4;
+/** With a map behind, a building is a few dozen units across, so zoom in
+ * much further (the map itself has the detail to show for it). */
+const MIN_VIEWBOX_WIDTH_WITH_MAP = BASE_WIDTH / 64;
 const MAX_VIEWBOX_WIDTH = BASE_WIDTH * 4;
 const CLICK_MOVE_THRESHOLD_PX = 5;
 const HANDLE_RADIUS_PX = 7;
@@ -66,6 +73,14 @@ type DownHit =
 
 type Gesture =
   | { kind: "pan" }
+  /** "Move map" mode: dragging moves the map under the placements. */
+  | { kind: "mapPan" }
+  | {
+      kind: "mapPinch";
+      lastDistance: number;
+      lastAngle: number;
+      lastMid: { x: number; y: number };
+    }
   | { kind: "move"; id: string }
   | { kind: "pinMove"; id: string }
   | {
@@ -113,6 +128,37 @@ export class PropertyCanvas extends LitElement {
       svg.place-mode * {
         cursor: crosshair !important;
       }
+      .map-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .map-attribution {
+        position: absolute;
+        right: 12px;
+        bottom: 60px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        color: #333;
+        background: rgba(255, 255, 255, 0.8);
+      }
+      .map-attribution a {
+        color: inherit;
+      }
+      .map-error {
+        position: absolute;
+        left: 12px;
+        top: 64px;
+        max-width: calc(100% - 16px);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: var(--sc-fg);
+        background: var(--sc-bg);
+        border: 1px solid var(--sc-divider);
+        pointer-events: none;
+      }
       .bg-overlay {
         position: absolute;
         top: 0;
@@ -135,6 +181,22 @@ export class PropertyCanvas extends LitElement {
         stroke: var(--sc-danger);
         stroke-width: 3;
         fill-opacity: 0.35;
+      }
+      .ghost-room {
+        fill: none;
+        stroke: var(--sc-accent);
+        stroke-opacity: 0.7;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+      .ghost-wall {
+        fill: none;
+        stroke: var(--sc-fg);
+        stroke-opacity: 0.8;
+        stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
       }
       .placement-label {
         fill: var(--sc-fg);
@@ -195,6 +257,10 @@ export class PropertyCanvas extends LitElement {
   ];
 
   @property({ attribute: false }) placements: PropertyPlacement[] = [];
+  /** Traced rooms/walls per placement id, drawn faintly inside its
+   * rectangle so the fit against the photo is visible (#6). */
+  @property({ attribute: false }) ghosts: Map<string, PlacementGhost> =
+    new Map();
   @property({ attribute: false }) floorNameById: Map<string, string> =
     new Map();
   @property({ attribute: false }) floorIconById: Map<string, string> =
@@ -205,8 +271,8 @@ export class PropertyCanvas extends LitElement {
   @property({ type: Number }) backgroundOffsetY = 0;
   @property({ type: Number }) backgroundScale = 1;
   /** "place" arms a building footprint; "place-pin" an outdoor device. */
-  @property({ attribute: false }) mode: "select" | "place" | "place-pin" =
-    "select";
+  @property({ attribute: false }) mode:
+    "select" | "place" | "place-pin" | "map" = "select";
   @property({ attribute: false }) selectedPlacementId: string | null = null;
   /** Outdoor device pins, in site-photo coordinates. */
   @property({ attribute: false }) pins: Pin[] = [];
@@ -222,6 +288,14 @@ export class PropertyCanvas extends LitElement {
    * mounted across floor switches), so a plain `firstUpdated()` check is
    * enough; no reactive watch needed. */
   @property({ attribute: false }) initialViewBox: ViewBox | null = null;
+  /** The live street map behind everything (#6), drawn by the lazily
+   * loaded map module — see `_syncMap`. */
+  @property({ attribute: false }) mapBackground: MapBackground | null = null;
+  @property({ attribute: false }) hass?: HomeAssistant;
+  @state() private _mapError: string | null = null;
+  private _map: MapLayerHandle | undefined;
+  private _mapStarting = false;
+  private _mapSize = "";
 
   @state() private _viewBox: ViewBox = {
     x: 0,
@@ -261,9 +335,92 @@ export class PropertyCanvas extends LitElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this._resizeObserver?.disconnect();
+    this._destroyMap();
+  }
+
+  private _destroyMap(): void {
+    this._map?.destroy();
+    this._map = undefined;
+    this._mapSize = "";
+  }
+
+  /** Starts, updates or stops the map layer to match `mapBackground` and
+   * the current pan/zoom. The map module (MapLibre + style builder) is only
+   * fetched the first time a map is wanted. */
+  private _syncMap(): void {
+    const anchor = this.mapBackground;
+    if (!anchor) {
+      this._destroyMap();
+      this._mapError = null;
+      return;
+    }
+    if (this._mapError) return;
+    const container = this.renderRoot.querySelector<HTMLElement>(".map-layer");
+    if (!container || !this._svg) return;
+    const rect = this._svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const { scale, offsetX, offsetY } = this._svgTransform();
+    const vb = this._viewBox;
+    const camera = cameraFor(
+      anchor,
+      vb.x + (rect.width / 2 - offsetX) / scale,
+      vb.y + (rect.height / 2 - offsetY) / scale,
+      scale,
+    );
+    const dark = this.hass?.themes?.darkMode ?? false;
+    if (this._map) {
+      this._map.setDark(dark);
+      this._map.setStyleKind(anchor.style ?? "street");
+      this._map.setOpacity(anchor.opacity);
+      const size = `${rect.width}x${rect.height}`;
+      if (size !== this._mapSize) {
+        this._mapSize = size;
+        this._map.resize();
+      }
+      this._map.setCamera(camera);
+      return;
+    }
+    const connection = this.hass?.connection;
+    if (this._mapStarting || !connection) return;
+    this._mapStarting = true;
+    this._mapError = null;
+    const baseUrl = "/spatial_context/map";
+    void (async () => {
+      try {
+        const glue = (await import(
+          /* @vite-ignore */ `${baseUrl}/spatial-context-map.mjs?v=${__BUILD_ID__}`
+        )) as MapGlueModule;
+        if (!glue.supportsVectorMaps()) {
+          throw new Error(localize("mapBackground.noWebgl"));
+        }
+        const handle = await glue.createMapLayer({
+          container,
+          baseUrl,
+          connection,
+          dark,
+          styleKind: anchor.style ?? "street",
+          language: this.hass?.locale?.language ?? this.hass?.language ?? "en",
+          opacity: anchor.opacity,
+          camera,
+        });
+        if (this.mapBackground && this.isConnected) {
+          this._map = handle;
+          this._mapSize = `${rect.width}x${rect.height}`;
+        } else {
+          handle.destroy();
+        }
+      } catch (err) {
+        this._mapError = (err as { message?: string })?.message ?? String(err);
+      } finally {
+        this._mapStarting = false;
+        this.requestUpdate();
+      }
+    })();
   }
 
   override updated(changed: Map<string, unknown>): void {
+    if (changed.has("mapBackground")) this._mapError = null;
+    this._syncMap();
     if (changed.has("backgroundImageUrl") && this.backgroundImageUrl) {
       const img = new Image();
       img.onload = () => {
@@ -298,6 +455,18 @@ export class PropertyCanvas extends LitElement {
       y: minY - pad,
       w: maxX - minX + pad * 2,
       h: maxY - minY + pad * 2,
+    };
+  }
+
+  /** The canvas point at the middle of the visible area — what the map is
+   * turned and zoomed about when that's done from a button or slider. */
+  getViewCenter(): { x: number; y: number } {
+    const rect = this._svg?.getBoundingClientRect();
+    const { scale, offsetX, offsetY } = this._svgTransform();
+    const vb = this._viewBox;
+    return {
+      x: vb.x + ((rect?.width ?? 0) / 2 - offsetX) / scale,
+      y: vb.y + ((rect?.height ?? 0) / 2 - offsetY) / scale,
     };
   }
 
@@ -479,6 +648,15 @@ export class PropertyCanvas extends LitElement {
         { x: number; y: number },
       ];
       const midClient = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      if (this.mode === "map" && this.mapBackground) {
+        this._gesture = {
+          kind: "mapPinch",
+          lastDistance: distance(a.x, a.y, b.x, b.y) || 1,
+          lastAngle: Math.atan2(b.y - a.y, b.x - a.x),
+          lastMid: this._clientToImage(midClient.x, midClient.y),
+        };
+        return;
+      }
       this._gesture = {
         kind: "pinch",
         startDistance: distance(a.x, a.y, b.x, b.y),
@@ -520,12 +698,37 @@ export class PropertyCanvas extends LitElement {
       return { kind: "move", id: this._downHit.id };
     if (this._downHit?.type === "pin")
       return { kind: "pinMove", id: this._downHit.id };
-    return { kind: "pan" };
+    return this.mode === "map" && this.mapBackground
+      ? { kind: "mapPan" }
+      : { kind: "pan" };
   }
 
   private _onPointerMove = (e: PointerEvent): void => {
     if (!this._pointers.has(e.pointerId)) return;
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (this._gesture?.kind === "mapPinch" && this._pointers.size === 2) {
+      const [a, b] = [...this._pointers.values()] as [
+        { x: number; y: number },
+        { x: number; y: number },
+      ];
+      const g = this._gesture;
+      const dist = distance(a.x, a.y, b.x, b.y) || 1;
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      const mid = this._clientToImage((a.x + b.x) / 2, (a.y + b.y) / 2);
+      this._fire("map-adjust", {
+        op: "pinch",
+        dx: mid.x - g.lastMid.x,
+        dy: mid.y - g.lastMid.y,
+        factor: dist / g.lastDistance,
+        rotateDeg: ((angle - g.lastAngle) * 180) / Math.PI,
+        at: mid,
+      });
+      g.lastDistance = dist;
+      g.lastAngle = angle;
+      g.lastMid = mid;
+      return;
+    }
 
     if (this._gesture?.kind === "pinch" && this._pointers.size === 2) {
       const pts = [...this._pointers.values()];
@@ -538,7 +741,7 @@ export class PropertyCanvas extends LitElement {
       const startVb = this._gesture.startViewBox;
       const newW = clamp(
         startVb.w * scale,
-        MIN_VIEWBOX_WIDTH,
+        this._minViewBoxWidth,
         MAX_VIEWBOX_WIDTH,
       );
       const actualScale = newW / startVb.w;
@@ -566,7 +769,7 @@ export class PropertyCanvas extends LitElement {
       if (movedPx < CLICK_MOVE_THRESHOLD_PX) return;
       this._moved = true;
       this._gesture = this._lockGesture();
-      if (this._gesture?.kind === "pan") {
+      if (this._gesture?.kind === "pan" || this._gesture?.kind === "mapPan") {
         this._svg.style.cursor = "grabbing";
       } else if (this._gesture) {
         // The panel snapshots the layout here, for Esc to restore — these
@@ -578,7 +781,13 @@ export class PropertyCanvas extends LitElement {
     const scale = this._svgTransform().scale || 1;
     const last = this._lastClient ?? { x: e.clientX, y: e.clientY };
 
-    if (this._gesture?.kind === "pan") {
+    if (this._gesture?.kind === "mapPan") {
+      this._fire("map-adjust", {
+        op: "pan",
+        dx: (e.clientX - last.x) / scale,
+        dy: (e.clientY - last.y) / scale,
+      });
+    } else if (this._gesture?.kind === "pan") {
       this._viewBox = {
         ...this._viewBox,
         x: this._viewBox.x - (e.clientX - last.x) / scale,
@@ -689,7 +898,14 @@ export class PropertyCanvas extends LitElement {
    * drag started ("property-gesture-start"). */
   cancelGesture(): boolean {
     const kind = this._gesture?.kind;
-    if (!this._moved || !kind || kind === "pan" || kind === "pinch") {
+    if (
+      !this._moved ||
+      !kind ||
+      kind === "pan" ||
+      kind === "pinch" ||
+      kind === "mapPan" ||
+      kind === "mapPinch"
+    ) {
       return false;
     }
     this._gesture = null;
@@ -730,6 +946,20 @@ export class PropertyCanvas extends LitElement {
 
   private _onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    if (
+      this.mode === "map" &&
+      this.mapBackground &&
+      (e.ctrlKey || e.shiftKey)
+    ) {
+      const at = this._clientToImage(e.clientX, e.clientY);
+      this._fire(
+        "map-adjust",
+        e.ctrlKey
+          ? { op: "zoom", factor: e.deltaY < 0 ? 1.1 : 1 / 1.1, at }
+          : { op: "rotate", deltaDeg: e.deltaY < 0 ? 2 : -2, at },
+      );
+      return;
+    }
     if (e.ctrlKey) {
       const factor = e.deltaY < 0 ? 0.9 : 1.1;
       this._zoomBy(factor, this._clientToImage(e.clientX, e.clientY));
@@ -743,10 +973,14 @@ export class PropertyCanvas extends LitElement {
     };
   };
 
+  private get _minViewBoxWidth(): number {
+    return this.mapBackground ? MIN_VIEWBOX_WIDTH_WITH_MAP : MIN_VIEWBOX_WIDTH;
+  }
+
   private _zoomBy(factor: number, aroundImage: { x: number; y: number }): void {
     const newW = clamp(
       this._viewBox.w * factor,
-      MIN_VIEWBOX_WIDTH,
+      this._minViewBoxWidth,
       MAX_VIEWBOX_WIDTH,
     );
     const scale = newW / this._viewBox.w;
@@ -783,6 +1017,30 @@ export class PropertyCanvas extends LitElement {
     `;
   }
 
+  /** The building's traced rooms/walls, mapped into the placement's local
+   * space the same way as property-mapping.ts's floorToProperty: source
+   * bounds stretched onto the rectangle. */
+  private _renderGhost(p: PropertyPlacement) {
+    const ghost = this.ghosts.get(p.id);
+    const b = p.source_bounds;
+    if (!ghost || !b || b.max_x <= b.min_x || b.max_y <= b.min_y) {
+      return nothing;
+    }
+    const sx = p.width / (b.max_x - b.min_x);
+    const sy = p.height / (b.max_y - b.min_y);
+    const pts = (points: [number, number][]) =>
+      points.map(([x, y]) => `${x},${y}`).join(" ");
+    return svg`
+      <g
+        class="ghost"
+        transform="translate(${-p.width / 2} ${-p.height / 2}) scale(${sx} ${sy}) translate(${-b.min_x} ${-b.min_y})"
+      >
+        ${ghost.rooms.map((r) => svg`<polygon class="ghost-room" points=${pts(r)}></polygon>`)}
+        ${ghost.walls.map((w) => svg`<polyline class="ghost-wall" points=${pts(w)}></polyline>`)}
+      </g>
+    `;
+  }
+
   private _renderPlacement(p: PropertyPlacement) {
     const selected = p.id === this.selectedPlacementId;
     const label =
@@ -798,6 +1056,7 @@ export class PropertyCanvas extends LitElement {
           width=${p.width}
           height=${p.height}
         ></rect>
+        ${this._renderGhost(p)}
         <text class="placement-label" y=${-p.height / 2 - hr}>${label}</text>
         ${
           selected
@@ -874,11 +1133,25 @@ export class PropertyCanvas extends LitElement {
   override render() {
     const vb = this._viewBox;
     return html`
+      ${
+        this.mapBackground
+          ? html`<div class="map-layer"></div>
+              ${
+                this._mapError
+                  ? html`<div class="map-error">
+                      ${localize("mapBackground.failed", {
+                        error: this._mapError,
+                      })}
+                    </div>`
+                  : nothing
+              }`
+          : nothing
+      }
       ${this._renderBackgroundOverlay()}
       ${svg`
         <svg
           viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}"
-          class="${this.mode !== "select" ? "place-mode" : ""}"
+          class="${this.mode === "place" || this.mode === "place-pin" ? "place-mode" : ""}"
           @wheel=${this._onWheel}
           @pointerdown=${this._onPointerDown}
           @pointermove=${this._onPointerMove}
@@ -891,12 +1164,32 @@ export class PropertyCanvas extends LitElement {
           ${this.pins.map((pin) => this._renderPin(pin))}
         </svg>
       `}
+      ${
+        this.mapBackground
+          ? html`<div class="map-attribution">
+              ${
+                this.mapBackground.style === "aerial"
+                  ? "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+                  : html`©
+                      <a
+                        href="https://www.openstreetmap.org/copyright"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >OpenStreetMap</a
+                      >
+                      contributors`
+              }
+            </div>`
+          : nothing
+      }
       <div class="controls">
         <button @click=${() => this.fitToScreen()} title="Fit to screen">
           ⤢ Fit
         </button>
-        <button @click=${() => this._zoomButton(0.8)} title="Zoom in">+</button>
-        <button @click=${() => this._zoomButton(1.25)} title="Zoom out">
+        <button @click=${() => this._zoomButton(0.87)} title="Zoom in">
+          +
+        </button>
+        <button @click=${() => this._zoomButton(1.15)} title="Zoom out">
           −
         </button>
       </div>

@@ -18,6 +18,9 @@ import type {
   PropertyLayout,
   PropertyMeshEnd,
   PropertyMeshLink,
+  MapBackground,
+  MapStyleKind,
+  PlacementGhost,
   PropertyPlacement,
   ResolvedMeshLink,
   ResolvedMeshStub,
@@ -81,6 +84,8 @@ import "./views/icon-popover";
 import "./views/entity-picker-sidebar";
 import "./views/property-overlay";
 import "./views/icon-picker-dialog";
+import { localize } from "./i18n";
+import { panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-menu";
 import type { PropertyBuilding } from "./views/property-overlay";
 
@@ -270,6 +275,7 @@ export class SpatialContextPanel extends LitElement {
 
   // --- Property tab ---------------------------------------------------
   @state() private _view: "floor" | "property" = "floor";
+  @state() private _placementGhosts: Map<string, PlacementGhost> = new Map();
   @state() private _propertyLayout: PropertyLayout = emptyPropertyLayout();
   @state() private _propertyDirty = false;
   /** Why the last save failed, until one succeeds — shown as a banner.
@@ -300,7 +306,8 @@ export class SpatialContextPanel extends LitElement {
   private _propertyDragStart: PropertyLayout | null = null;
   @state() private _propertySaving = false;
   @state() private _selectedPlacementId: string | null = null;
-  @state() private _propertyMode: "select" | "place" | "place-pin" = "select";
+  @state() private _propertyMode: "select" | "place" | "place-pin" | "map" =
+    "select";
   /** Selected outdoor device pin on the Property tab. */
   @state() private _selectedOutdoorPinId: string | null = null;
   /** Selected Connectivity Map line on the Property tab (its key). */
@@ -1302,7 +1309,161 @@ export class SpatialContextPanel extends LitElement {
     this._armedBuildingKey = null;
     this._armedEntityId = null;
     this._view = "property";
+    void this._loadPlacementGhosts();
   }
+
+  /** Traced rooms and walls of each placed building (all its floors share
+   * one coordinate system), for the Property canvas's ghost outline (#6).
+   * Loaded after the tab opens so it never delays it; a floor that fails
+   * to load just contributes nothing. */
+  private async _loadPlacementGhosts(): Promise<void> {
+    const placements = this._livePlacements;
+    const floorIds = new Set<string>();
+    const membersOf = (p: PropertyPlacement): FloorMeta[] =>
+      this._floors.filter((f) =>
+        p.building_id !== null
+          ? f.building_id === p.building_id
+          : f.floor_id === p.floor_id,
+      );
+    for (const p of placements) {
+      for (const f of membersOf(p)) floorIds.add(f.floor_id);
+    }
+    const layouts = new Map<string, FloorLayout>();
+    await Promise.all(
+      [...floorIds].map(async (id) => {
+        try {
+          layouts.set(id, await this._client.getLayout(id));
+        } catch {
+          /* ghost is cosmetic */
+        }
+      }),
+    );
+    const ghosts = new Map<string, PlacementGhost>();
+    for (const p of placements) {
+      const rooms: [number, number][][] = [];
+      const walls: [number, number][][] = [];
+      for (const f of membersOf(p)) {
+        const layout = layouts.get(f.floor_id);
+        if (!layout) continue;
+        for (const r of layout.rooms)
+          if (r.visible !== false) rooms.push(r.points);
+        for (const w of layout.walls) walls.push(w.points);
+      }
+      ghosts.set(p.id, { rooms, walls });
+    }
+    if (this._view === "property") this._placementGhosts = ghosts;
+  }
+
+  /** Whether HA can serve the map: core's map_tiles proxy (2026.10+) and a
+   * home location to centre the map on. */
+  private get _mapTilesAvailable(): boolean {
+    const config = this._hass?.config;
+    return (
+      !!config?.components?.includes("map_tiles") &&
+      typeof config.latitude === "number" &&
+      typeof config.longitude === "number"
+    );
+  }
+
+  /** Adds the map, centred on HA's home location at zoom 18 (a few hundred
+   * metres across the default view), or removes it. */
+  private _onToggleMapBackground = () => {
+    const config = this._hass?.config;
+    if (this._propertyLayout.map_background) {
+      if (this._propertyMode === "map") this._propertyMode = "select";
+      this._updatePropertyLayout({ map_background: null });
+    } else if (
+      config?.latitude !== undefined &&
+      config.longitude !== undefined
+    ) {
+      this._updatePropertyLayout({
+        map_background: {
+          lat: config.latitude,
+          lon: config.longitude,
+          zoom: 18,
+          opacity: 1,
+          style: "street",
+        },
+      });
+    }
+  };
+
+  /** Moves, zooms or turns the map under the (fixed) buildings — see
+   * map/map-camera.ts. Gesture events come from the canvas; the overlay's
+   * slider and buttons act about the middle of the view. */
+  private _adjustMap(change: (map: MapBackground) => MapBackground): void {
+    const map = this._propertyLayout.map_background;
+    if (map) this._updatePropertyLayout({ map_background: change(map) });
+  }
+
+  private _onMapAdjust = (
+    e: CustomEvent<
+      | { op: "pan"; dx: number; dy: number }
+      | { op: "zoom"; factor: number; at: { x: number; y: number } }
+      | { op: "rotate"; deltaDeg: number; at: { x: number; y: number } }
+      | {
+          op: "pinch";
+          dx: number;
+          dy: number;
+          factor: number;
+          rotateDeg: number;
+          at: { x: number; y: number };
+        }
+    >,
+  ) => {
+    const d = e.detail;
+    this._adjustMap((map) => {
+      switch (d.op) {
+        case "pan":
+          return panMap(map, d.dx, d.dy);
+        case "zoom":
+          return zoomMap(map, d.factor, d.at);
+        case "rotate":
+          return rotateMapTo(map, (map.rotation_deg ?? 0) + d.deltaDeg, d.at);
+        case "pinch": {
+          const moved = panMap(map, d.dx, d.dy);
+          const zoomed = zoomMap(moved, d.factor, d.at);
+          return rotateMapTo(
+            zoomed,
+            (zoomed.rotation_deg ?? 0) + d.rotateDeg,
+            d.at,
+          );
+        }
+      }
+    });
+  };
+
+  private _onMapRotationSet = (e: CustomEvent<{ deg: number }>) => {
+    const at = this._propertyCanvas?.getViewCenter() ?? { x: 0, y: 0 };
+    this._adjustMap((map) => rotateMapTo(map, e.detail.deg, at));
+  };
+
+  private _onMapZoomStep = (e: CustomEvent<{ factor: number }>) => {
+    const at = this._propertyCanvas?.getViewCenter() ?? { x: 0, y: 0 };
+    this._adjustMap((map) => zoomMap(map, e.detail.factor, at));
+  };
+
+  private _onMapStyleChange = (e: Event) => {
+    const map = this._propertyLayout.map_background;
+    if (!map) return;
+    this._updatePropertyLayout({
+      map_background: {
+        ...map,
+        style: (e.target as HTMLSelectElement).value as MapStyleKind,
+      },
+    });
+  };
+
+  private _onMapOpacityChange = (e: Event) => {
+    const map = this._propertyLayout.map_background;
+    if (!map) return;
+    this._updatePropertyLayout({
+      map_background: {
+        ...map,
+        opacity: Number((e.target as HTMLInputElement).value),
+      },
+    });
+  };
 
   private _updatePropertyLayout(patch: Partial<PropertyLayout>): void {
     this._propertyHistory.record(this._propertyLayout);
@@ -1398,7 +1559,7 @@ export class SpatialContextPanel extends LitElement {
   }
 
   private _onPropertyModeChange = (
-    e: CustomEvent<{ mode: "select" | "place" | "place-pin" }>,
+    e: CustomEvent<{ mode: "select" | "place" | "place-pin" | "map" }>,
   ) => {
     this._propertyMode = e.detail.mode;
     this._armedBuildingKey = null;
@@ -3149,6 +3310,59 @@ export class SpatialContextPanel extends LitElement {
             ${this._activeBackground.imageId ? "Replace background" : "Upload background"}
           </button>
           ${
+            this._view === "property" &&
+            this._mapTilesAvailable &&
+            this._propertyLayout.map_background !== undefined
+              ? html`<button
+                    class="menu-item"
+                    @click=${this._onToggleMapBackground}
+                  >
+                    <ha-icon icon="mdi:map"></ha-icon>
+                    ${
+                      this._propertyLayout.map_background
+                        ? localize("mapBackground.remove")
+                        : localize("mapBackground.add")
+                    }
+                  </button>
+                  ${
+                    this._propertyLayout.map_background
+                      ? html`<label
+                            class="popover-row hint"
+                            style="padding: 8px 16px 4px"
+                            >${localize("mapBackground.style")}
+                            <select @change=${this._onMapStyleChange}>
+                              <option
+                                value="street"
+                                ?selected=${this._propertyLayout.map_background.style !== "aerial"}
+                              >
+                                ${localize("mapBackground.street")}
+                              </option>
+                              <option
+                                value="aerial"
+                                ?selected=${this._propertyLayout.map_background.style === "aerial"}
+                              >
+                                ${localize("mapBackground.aerial")}
+                              </option>
+                            </select>
+                          </label>
+                          <label
+                            class="popover-row hint"
+                            style="padding: 8px 16px 4px"
+                            >${localize("mapBackground.opacity")}
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="1"
+                              step="0.05"
+                              .value=${String(this._propertyLayout.map_background.opacity)}
+                              @input=${this._onMapOpacityChange}
+                            />
+                          </label>`
+                      : nothing
+                  }`
+              : nothing
+          }
+          ${
             this._activeBackground.imageId
               ? html`<button
                   class="menu-item"
@@ -3395,6 +3609,10 @@ export class SpatialContextPanel extends LitElement {
                 >
                   <property-canvas
                     .placements=${this._livePlacements}
+                    .ghosts=${this._placementGhosts}
+                    .hass=${this._hass}
+                    .mapBackground=${this._propertyLayout.map_background ?? null}
+                    @map-adjust=${this._onMapAdjust}
                     .floorNameById=${this._floorNameById}
                     .floorIconById=${this._floorIconById}
                     .backgroundImageUrl=${backgroundImageUrl(
@@ -3447,6 +3665,10 @@ export class SpatialContextPanel extends LitElement {
                     @outdoor-pin-delete-click=${this._onOutdoorPinDelete}
                     @property-mesh-goto-floor-click=${this._onPropertyMeshGotoFloor}
                     @property-mode-change=${this._onPropertyModeChange}
+                    @map-rotation-set=${this._onMapRotationSet}
+                    @map-zoom-step=${this._onMapZoomStep}
+                    .mapActive=${!!this._propertyLayout.map_background}
+                    .mapRotation=${this._propertyLayout.map_background?.rotation_deg ?? 0}
                     @placement-arm=${this._onPlacementArm}
                     @placement-rename-click=${this._onPlacementRenameClick}
                     @placement-delete-click=${this._onPlacementDeleteClick}

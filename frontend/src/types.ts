@@ -215,6 +215,22 @@ export interface PropertyPlacement {
   source_bounds: ContentBounds | null;
 }
 
+/** Live street map behind the Property canvas (#6) — see
+ * map/map-camera.ts for how the anchor maps canvas units to the map. */
+export interface MapBackground {
+  lat: number;
+  lon: number;
+  zoom: number;
+  opacity: number;
+  /** Degrees clockwise the map is turned about the anchor; absent = 0. */
+  rotation_deg?: number;
+  /** Street map (HA's map_tiles proxy) or aerial imagery (Esri World
+   * Imagery, loaded directly by the browser); absent = street. */
+  style?: MapStyleKind;
+}
+
+export type MapStyleKind = "street" | "aerial";
+
 export interface PropertyLayout {
   background_image_id: string | null;
   background_opacity: number;
@@ -228,6 +244,8 @@ export interface PropertyLayout {
    * a device lives in one place only, across floors and here. `room_id`
    * and `height_m` are unused outdoors. */
   pins: Pin[];
+  /** Null/absent = no map; absent on layouts saved before it existed. */
+  map_background?: MapBackground | null;
 }
 
 export interface AreaMeta {
@@ -482,10 +500,19 @@ export interface HomeAssistant {
     ): Promise<() => void>;
   };
   fetchWithAuth(path: string, init?: RequestInit): Promise<Response>;
+  config?: { latitude?: number; longitude?: number; components?: string[] };
+  themes?: { darkMode?: boolean };
   states: Record<string, { attributes: Record<string, unknown> } | undefined>;
   /** For i18n (see i18n.ts's setLanguage) — the real HA-supplied object
    * always carries at least one of these; both optional here since this
    * is a hand-narrowed local type, not runtime-enforced. */
   locale?: { language: string };
   language?: string;
+}
+
+/** A placed building's traced geometry (floor-plan units), for the Property
+ * canvas's ghost outline — see property-canvas.ts's `_renderGhost`. */
+export interface PlacementGhost {
+  rooms: [number, number][][];
+  walls: [number, number][][];
 }

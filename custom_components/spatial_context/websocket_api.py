@@ -120,6 +120,20 @@ _SCALE_SCHEMA = vol.Any(
     None,
 )
 
+_MAP_BACKGROUND_SCHEMA = vol.Any(
+    {
+        vol.Required("lat"): vol.All(vol.Coerce(float), vol.Range(min=-90, max=90)),
+        vol.Required("lon"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
+        vol.Required("zoom"): vol.All(vol.Coerce(float), vol.Range(min=0, max=24)),
+        vol.Required("opacity"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+        vol.Optional("style", default="street"): vol.In(["street", "aerial"]),
+        vol.Optional("rotation_deg", default=0.0): vol.All(
+            vol.Coerce(float), vol.Range(min=-360, max=360)
+        ),
+    },
+    None,
+)
+
 _VIEW_BOX_SCHEMA = vol.Any(
     {
         vol.Required("x"): vol.Coerce(float),
@@ -255,6 +269,8 @@ async def ws_get_property_layout(
         # Outdoor device pins — Optional so an older panel bundle's save
         # (which never sends them) still validates.
         vol.Optional("pins"): [_PIN_SCHEMA],
+        # Likewise Optional: an older bundle never sends the map.
+        vol.Optional("map_background"): _MAP_BACKGROUND_SCHEMA,
     }
 )
 @websocket_api.async_response
@@ -285,6 +301,11 @@ async def ws_save_property_layout(
         "view_box": msg["view_box"],
         "placements": msg["placements"],
         "pins": pins,
+        "map_background": (
+            msg["map_background"]
+            if "map_background" in msg
+            else stored.get("map_background")
+        ),
     }
     await async_save_property_layout(hass, layout)
     connection.send_result(msg["id"], {"success": True})

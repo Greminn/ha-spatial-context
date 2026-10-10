@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import type { PropertyMeshLink, PropertyPlacement } from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
 import { sharedStyles } from "../styles";
+import { localize } from "../i18n";
 
 /** One "building" the Property tab can place a footprint for — floors
  * sharing a building_id collapse to one entry here (see panel.ts's
@@ -99,8 +100,11 @@ export class PropertyOverlay extends LitElement {
     `,
   ];
 
-  @property({ attribute: false }) mode: "select" | "place" | "place-pin" =
-    "select";
+  @property({ attribute: false }) mode:
+    "select" | "place" | "place-pin" | "map" = "select";
+  /** Whether a street map is on, which is what "Move map" adjusts. */
+  @property({ attribute: false }) mapActive = false;
+  @property({ attribute: false }) mapRotation = 0;
   /** Display name of the selected outdoor device pin, or null. */
   @property({ attribute: false }) selectedPinLabel: string | null = null;
   @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
@@ -157,6 +161,66 @@ export class PropertyOverlay extends LitElement {
     `;
   }
 
+  /** Controls for lining the map up with the buildings: the map itself is
+   * dragged on the canvas (Ctrl+scroll or pinch to zoom). */
+  private _renderMapPanel() {
+    if (this.mode !== "map") return nothing;
+    const rotation = Math.round(this.mapRotation * 10) / 10;
+    const setRotation = (deg: number) =>
+      this._fire("map-rotation-set", { deg });
+    return html`
+      <div class="selection-panel floating-panel">
+        <span class="hint">${localize("mapBackground.adjustHint")}</span>
+        <button
+          title=${localize("mapBackground.zoomOut")}
+          @click=${() => this._fire("map-zoom-step", { factor: 1 / 1.1 })}
+        >
+          <ha-icon icon="mdi:magnify-minus-outline"></ha-icon>
+        </button>
+        <button
+          title=${localize("mapBackground.zoomIn")}
+          @click=${() => this._fire("map-zoom-step", { factor: 1.1 })}
+        >
+          <ha-icon icon="mdi:magnify-plus-outline"></ha-icon>
+        </button>
+        <span class="hint">${localize("mapBackground.rotation")}</span>
+        <input
+          type="range"
+          min="-180"
+          max="180"
+          step="0.5"
+          .value=${String(rotation)}
+          @input=${(e: Event) =>
+            setRotation(Number((e.target as HTMLInputElement).value))}
+        />
+        <input
+          type="number"
+          style="width: 4.5em"
+          min="-180"
+          max="180"
+          step="0.5"
+          .value=${String(rotation)}
+          @change=${(e: Event) => {
+            const deg = Number((e.target as HTMLInputElement).value);
+            if (Number.isFinite(deg)) setRotation(deg);
+          }}
+        />°
+        <button
+          title=${localize("mapBackground.resetRotation")}
+          @click=${() => setRotation(0)}
+        >
+          <ha-icon icon="mdi:compass-outline"></ha-icon>
+        </button>
+        <button
+          class="primary"
+          @click=${() => this._fire("property-mode-change", { mode: "select" })}
+        >
+          ${localize("mapBackground.done")}
+        </button>
+      </div>
+    `;
+  }
+
   private _renderMeshLinkPanel() {
     const link = this.selectedMeshLink;
     if (!link) return nothing;
@@ -205,6 +269,20 @@ export class PropertyOverlay extends LitElement {
         >
           <ha-icon icon="mdi:map-marker-plus"></ha-icon>
         </button>
+        ${
+          this.mapActive
+            ? html`<button
+                class=${this.mode === "map" ? "active" : ""}
+                title=${localize("mapBackground.adjust")}
+                @click=${() =>
+                  this._fire("property-mode-change", {
+                    mode: this.mode === "map" ? "select" : "map",
+                  })}
+              >
+                <ha-icon icon="mdi:map-search"></ha-icon>
+              </button>`
+            : nothing
+        }
         <select
           class="place-picker"
           title="Place a building's footprint"
@@ -237,7 +315,8 @@ export class PropertyOverlay extends LitElement {
         }
       </div>
 
-      ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
+      ${this._renderMapPanel()} ${this._renderPinPanel()}
+      ${this._renderMeshLinkPanel()}
       ${
         this.selectedPlacement
           ? html`

@@ -5,5 +5,112 @@
   "appHeader": {
     "saving": "Saving…",
     "save": "Save"
+  },
+  "canvas": {
+    "mode": {
+      "select": "Select",
+      "pan": "Pan",
+      "trace": "Trace Room",
+      "wall": "Trace Wall",
+      "door": "Add Door",
+      "window": "Add Window",
+      "scale": "Set Scale",
+      "place": "Place Device",
+      "align": "Align Floors"
+    },
+    "snap": {
+      "tooltip": "What new points snap onto (hold Shift to place one point freely)",
+      "all": "Snap: all",
+      "walls": "Snap: walls only",
+      "rooms": "Snap: rooms only",
+      "off": "Snap: off"
+    },
+    "hint": {
+      "closeRoom": "Click near the start to close the room.",
+      "addPoints": "Click to add points.",
+      "addWallPoints": "Click to add points.",
+      "addWallPointsFinish": "Click to add points, then Finish.",
+      "scaleFirst": "Click the first point of a known distance.",
+      "scaleSecond": "Click the second point.",
+      "placeOpening": "Click on a wall to place a {type}.",
+      "alignAgainst": "Align against:",
+      "noBackground": "That floor has no background image to align against.",
+      "alignDrag": "Drag to move, use +/− to resize, then Apply."
+    },
+    "openingType": {
+      "door": "door",
+      "window": "window",
+      "opening": "opening"
+    },
+    "openingLabel": {
+      "door": "door",
+      "window": "window"
+    },
+    "button": {
+      "cancel": "Cancel",
+      "finishWall": "Finish Wall",
+      "chooseAnother": "Choose another",
+      "apply": "Apply",
+      "close": "Close"
+    },
+    "align": {
+      "choose": "— Choose a floor —",
+      "shrink": "Shrink overlay slightly",
+      "grow": "Grow overlay slightly"
+    },
+    "room": {
+      "custom": "— Custom —",
+      "outdoor": "Outdoor / no floor",
+      "hide": "Hide room",
+      "show": "Show room",
+      "color": "Room color",
+      "fillOpacity": "Fill opacity",
+      "borderOpacity": "Border opacity",
+      "rename": "Rename",
+      "doneEditing": "Done editing",
+      "editVertices": "Edit vertices",
+      "resetLabel": "Reset label position",
+      "delete": "Delete room"
+    },
+    "pin": {
+      "setLabel": "Set label",
+      "setIcon": "Set icon",
+      "setHeight": "Set height",
+      "delete": "Delete pin",
+      "removeFromSpot": "Remove from this spot",
+      "stackTitle": "{count} devices at this spot"
+    },
+    "wall": {
+      "material": "Wall material",
+      "thickness": "Wall thickness ({unit})",
+      "delete": "Delete wall"
+    },
+    "opening": {
+      "width": "Width ({unit})",
+      "storedUnits": "stored units",
+      "calibrate": "Calibrate Scale for real units",
+      "delete": "Delete"
+    },
+    "meshStub": {
+      "goToFloor": "Go to floor"
+    },
+    "notCalibrated": "Not calibrated"
+  },
+  "mapBackground": {
+    "noWebgl": "This browser can't draw the map (WebGL2 is needed).",
+    "failed": "Couldn't load the map: {error}",
+    "add": "Add map background",
+    "remove": "Remove map background",
+    "opacity": "Map opacity",
+    "adjust": "Move map (drag; Ctrl+scroll or pinch to zoom)",
+    "adjustHint": "Drag the map to line it up with your buildings.",
+    "zoomIn": "Zoom map in",
+    "zoomOut": "Zoom map out",
+    "rotation": "Rotation",
+    "resetRotation": "North up",
+    "done": "Done",
+    "style": "Map type",
+    "street": "Street map",
+    "aerial": "Aerial photo (Esri)"
   }
 }

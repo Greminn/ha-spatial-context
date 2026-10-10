@@ -33,6 +33,7 @@ import {
   type SmallSubUnit,
 } from "../units";
 import { sharedStyles } from "../styles";
+import { localize } from "../i18n";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
  * pushing it down: the drawing-mode toolbar (top-left), the scale readout
@@ -311,15 +312,15 @@ export class CanvasOverlay extends LitElement {
   private _renderModeToolbar() {
     return html`
       <div class="mode-toolbar floating-panel">
-        ${this._modeButton("select", "mdi:cursor-default-click", "Select")}
-        ${this._modeButton("pan", "mdi:hand-back-right-outline", "Pan")}
-        ${this._modeButton("trace", "mdi:vector-square", "Trace Room")}
-        ${this._modeButton("wall", "mdi:wall", "Trace Wall")}
-        ${this._openingModeButton("door", "mdi:door", "Add Door")}
-        ${this._openingModeButton("window", "mdi:window-closed-variant", "Add Window")}
-        ${this._modeButton("scale", "mdi:ruler", "Set Scale")}
-        ${this._modeButton("place", "mdi:map-marker-plus", "Place Device")}
-        ${this._modeButton("align", "mdi:compare", "Align Floors")}
+        ${this._modeButton("select", "mdi:cursor-default-click", localize("canvas.mode.select"))}
+        ${this._modeButton("pan", "mdi:hand-back-right-outline", localize("canvas.mode.pan"))}
+        ${this._modeButton("trace", "mdi:vector-square", localize("canvas.mode.trace"))}
+        ${this._modeButton("wall", "mdi:wall", localize("canvas.mode.wall"))}
+        ${this._openingModeButton("door", "mdi:door", localize("canvas.mode.door"))}
+        ${this._openingModeButton("window", "mdi:window-closed-variant", localize("canvas.mode.window"))}
+        ${this._modeButton("scale", "mdi:ruler", localize("canvas.mode.scale"))}
+        ${this._modeButton("place", "mdi:map-marker-plus", localize("canvas.mode.place"))}
+        ${this._modeButton("align", "mdi:compare", localize("canvas.mode.align"))}
       </div>
     `;
   }
@@ -329,20 +330,20 @@ export class CanvasOverlay extends LitElement {
   private _renderSnapSelect() {
     return html`<select
       class="snap-select"
-      title="What new points snap onto (hold Shift to place one point freely)"
+      title=${localize("canvas.snap.tooltip")}
       @change=${(e: Event) =>
         this._fire("snap-mode-change", {
           snapMode: (e.target as HTMLSelectElement).value as SnapMode,
         })}
     >
       <option value="all" ?selected=${this.snapMode === "all"}>
-        Snap: all
+        ${localize("canvas.snap.all")}
       </option>
       <option value="same" ?selected=${this.snapMode === "same"}>
-        Snap: ${this.mode === "wall" ? "walls only" : "rooms only"}
+        ${this.mode === "wall" ? localize("canvas.snap.walls") : localize("canvas.snap.rooms")}
       </option>
       <option value="off" ?selected=${this.snapMode === "off"}>
-        Snap: off
+        ${localize("canvas.snap.off")}
       </option>
     </select>`;
   }
@@ -353,15 +354,15 @@ export class CanvasOverlay extends LitElement {
         <span class="hint"
           >${
             this.hasPendingTrace
-              ? "Click near the start to close the room."
-              : "Click to add points."
+              ? localize("canvas.hint.closeRoom")
+              : localize("canvas.hint.addPoints")
           }</span
         >
         ${this._renderSnapSelect()}
         ${
           this.hasPendingTrace
             ? html`<button @click=${() => this._fire("cancel-pending-click")}>
-                Cancel
+                ${localize("canvas.button.cancel")}
               </button>`
             : nothing
         }
@@ -370,8 +371,11 @@ export class CanvasOverlay extends LitElement {
     if (this.mode === "wall") {
       return html`<div class="hint-bar floating-panel">
         <span class="hint"
-          >Click to add
-          points${this.hasPendingWall ? ", then Finish." : "."}</span
+          >${
+            this.hasPendingWall
+              ? localize("canvas.hint.addWallPointsFinish")
+              : localize("canvas.hint.addWallPoints")
+          }</span
         >
         ${this._renderSnapSelect()}
         ${
@@ -380,14 +384,14 @@ export class CanvasOverlay extends LitElement {
                 class="primary"
                 @click=${() => this._fire("finish-wall-click")}
               >
-                Finish Wall
+                ${localize("canvas.button.finishWall")}
               </button>`
             : nothing
         }
         ${
           this.hasPendingWall
             ? html`<button @click=${() => this._fire("cancel-pending-click")}>
-                Cancel
+                ${localize("canvas.button.cancel")}
               </button>`
             : nothing
         }
@@ -398,14 +402,14 @@ export class CanvasOverlay extends LitElement {
         <span class="hint"
           >${
             this.pendingScaleCount === 0
-              ? "Click the first point of a known distance."
-              : "Click the second point."
+              ? localize("canvas.hint.scaleFirst")
+              : localize("canvas.hint.scaleSecond")
           }</span
         >
         ${
           this.pendingScaleCount > 0
             ? html`<button @click=${() => this._fire("cancel-pending-click")}>
-                Cancel
+                ${localize("canvas.button.cancel")}
               </button>`
             : nothing
         }
@@ -414,8 +418,11 @@ export class CanvasOverlay extends LitElement {
     if (this.mode === "opening") {
       return html`<div class="hint-bar floating-panel">
         <span class="hint"
-          >Click on a wall to place a
-          ${this.armedOpeningType ?? "opening"}.</span
+          >${localize("canvas.hint.placeOpening", {
+            type: localize(
+              `canvas.openingType.${this.armedOpeningType ?? "opening"}`,
+            ),
+          })}</span
         >
       </div>`;
     }
@@ -428,52 +435,56 @@ export class CanvasOverlay extends LitElement {
   private _renderAlignBar() {
     if (!this.alignTargetFloorId) {
       return html`<div class="hint-bar floating-panel">
-        <span class="hint">Align against:</span>
+        <span class="hint">${localize("canvas.hint.alignAgainst")}</span>
         <select
           @change=${(e: Event) =>
             this._fire("align-target-change", {
               floorId: (e.target as HTMLSelectElement).value,
             })}
         >
-          <option value="" selected>— Choose a floor —</option>
+          <option value="" selected>${localize("canvas.align.choose")}</option>
           ${this.otherFloors.map(
             (f) => html`<option value=${f.floor_id}>${f.name}</option>`,
           )}
         </select>
-        <button @click=${() => this._fire("align-cancel-click")}>Cancel</button>
+        <button @click=${() => this._fire("align-cancel-click")}>
+          ${localize("canvas.button.cancel")}
+        </button>
       </div>`;
     }
     if (!this.alignTargetHasBackground) {
       return html`<div class="hint-bar floating-panel">
-        <span class="hint"
-          >That floor has no background image to align against.</span
-        >
+        <span class="hint">${localize("canvas.hint.noBackground")}</span>
         <button
           @click=${() => this._fire("align-target-change", { floorId: null })}
         >
-          Choose another
+          ${localize("canvas.button.chooseAnother")}
         </button>
-        <button @click=${() => this._fire("align-cancel-click")}>Cancel</button>
+        <button @click=${() => this._fire("align-cancel-click")}>
+          ${localize("canvas.button.cancel")}
+        </button>
       </div>`;
     }
     return html`<div class="hint-bar floating-panel">
-      <span class="hint">Drag to move, use +/− to resize, then Apply.</span>
+      <span class="hint">${localize("canvas.hint.alignDrag")}</span>
       <button
-        title="Shrink overlay slightly"
+        title=${localize("canvas.align.shrink")}
         @click=${() => this._fire("align-scale-click", { factor: 0.995 })}
       >
         −
       </button>
       <button
-        title="Grow overlay slightly"
+        title=${localize("canvas.align.grow")}
         @click=${() => this._fire("align-scale-click", { factor: 1.0050251 })}
       >
         +
       </button>
       <button class="primary" @click=${() => this._fire("align-apply-click")}>
-        Apply
+        ${localize("canvas.button.apply")}
       </button>
-      <button @click=${() => this._fire("align-cancel-click")}>Cancel</button>
+      <button @click=${() => this._fire("align-cancel-click")}>
+        ${localize("canvas.button.cancel")}
+      </button>
     </div>`;
   }
 
@@ -502,7 +513,9 @@ export class CanvasOverlay extends LitElement {
                 areaId: (e.target as HTMLSelectElement).value,
               })}
           >
-            <option value="" ?selected=${!room.area_id}>— Custom —</option>
+            <option value="" ?selected=${!room.area_id}>
+              ${localize("canvas.room.custom")}
+            </option>
             ${this._areaOptions(
               this.areas.filter((a) => a.floor_id !== null),
               room.area_id,
@@ -511,7 +524,7 @@ export class CanvasOverlay extends LitElement {
               // Floor-less HA areas (decks, driveway…) — drawable onto any
               // floor's plan without changing the area's floor in HA.
               this.areas.some((a) => a.floor_id === null)
-                ? html`<optgroup label="Outdoor / no floor">
+                ? html`<optgroup label=${localize("canvas.room.outdoor")}>
                     ${this._areaOptions(
                       this.areas.filter((a) => a.floor_id === null),
                       room.area_id,
@@ -521,7 +534,7 @@ export class CanvasOverlay extends LitElement {
             }
           </select>
           <button
-            title=${visible ? "Hide room" : "Show room"}
+            title=${visible ? localize("canvas.room.hide") : localize("canvas.room.show")}
             @click=${() => this._fire("room-visible-toggle")}
           >
             <ha-icon icon="mdi:eye${visible ? "" : "-off"}"></ha-icon>
@@ -529,7 +542,7 @@ export class CanvasOverlay extends LitElement {
           <input
             type="color"
             class="room-fill-color"
-            title="Room color"
+            title=${localize("canvas.room.color")}
             .value=${room.fill_color ?? DEFAULT_ROOM_FILL_COLOR}
             @input=${(e: Event) =>
               this._fire("room-fill-color-change", {
@@ -539,7 +552,7 @@ export class CanvasOverlay extends LitElement {
           <input
             type="range"
             class="room-opacity"
-            title="Fill opacity"
+            title=${localize("canvas.room.fillOpacity")}
             min="0"
             max="1"
             step="0.02"
@@ -552,7 +565,7 @@ export class CanvasOverlay extends LitElement {
           <input
             type="range"
             class="room-opacity"
-            title="Border opacity"
+            title=${localize("canvas.room.borderOpacity")}
             min="0"
             max="1"
             step="0.02"
@@ -563,13 +576,13 @@ export class CanvasOverlay extends LitElement {
               })}
           />
           <button
-            title="Rename"
+            title=${localize("canvas.room.rename")}
             @click=${() => this._fire("room-rename-click")}
           >
             <ha-icon icon="mdi:pencil"></ha-icon>
           </button>
           <button
-            title=${this.editingRoom ? "Done editing" : "Edit vertices"}
+            title=${this.editingRoom ? localize("canvas.room.doneEditing") : localize("canvas.room.editVertices")}
             class=${this.editingRoom ? "active" : ""}
             @click=${() => this._fire("room-edit-vertices-click")}
           >
@@ -578,7 +591,7 @@ export class CanvasOverlay extends LitElement {
           ${
             room.label_position
               ? html`<button
-                  title="Reset label position"
+                  title=${localize("canvas.room.resetLabel")}
                   @click=${() => this._fire("room-label-reset-click")}
                 >
                   <ha-icon icon="mdi:format-text-variant-outline"></ha-icon>
@@ -587,7 +600,7 @@ export class CanvasOverlay extends LitElement {
           }
           <button
             class="danger"
-            title="Delete room"
+            title=${localize("canvas.room.delete")}
             @click=${() => this._fire("room-delete-click")}
           >
             <ha-icon icon="mdi:delete"></ha-icon>
@@ -601,26 +614,26 @@ export class CanvasOverlay extends LitElement {
         <div class="selection-panel floating-panel">
           <span class="hint">${this._pinLabel(pin)}</span>
           <button
-            title="Set label"
+            title=${localize("canvas.pin.setLabel")}
             @click=${() => this._fire("pin-set-label-click")}
           >
             <ha-icon icon="mdi:tag-text"></ha-icon>
           </button>
           <button
-            title="Set icon"
+            title=${localize("canvas.pin.setIcon")}
             @click=${() => this._fire("pin-set-icon-click")}
           >
             <ha-icon icon="mdi:shape"></ha-icon>
           </button>
           <button
-            title="Set height"
+            title=${localize("canvas.pin.setHeight")}
             @click=${() => this._fire("pin-set-height-click")}
           >
             <ha-icon icon="mdi:human-male-height"></ha-icon>
           </button>
           <button
             class="danger"
-            title="Delete pin"
+            title=${localize("canvas.pin.delete")}
             @click=${() => this._fire("pin-delete-click")}
           >
             <ha-icon icon="mdi:delete"></ha-icon>
@@ -635,7 +648,7 @@ export class CanvasOverlay extends LitElement {
       const wallAttrs = this._thicknessInputAttrs(wallUnit);
       return html`
         <div class="selection-panel floating-panel">
-          <span class="hint">Wall material</span>
+          <span class="hint">${localize("canvas.wall.material")}</span>
           <select
             @change=${(e: Event) =>
               this._fire("wall-material-change", {
@@ -652,7 +665,7 @@ export class CanvasOverlay extends LitElement {
           <input
             type="number"
             class="wall-thickness"
-            title="Wall thickness (${wallUnit})"
+            title=${localize("canvas.wall.thickness", { unit: wallUnit })}
             min=${wallAttrs.min}
             max=${wallAttrs.max}
             step=${wallAttrs.step}
@@ -671,7 +684,7 @@ export class CanvasOverlay extends LitElement {
             (unit) => (this._wallThicknessUnit = unit),
           )}
           <button
-            title=${this.editingWall ? "Done editing" : "Edit vertices"}
+            title=${this.editingWall ? localize("canvas.room.doneEditing") : localize("canvas.room.editVertices")}
             class=${this.editingWall ? "active" : ""}
             @click=${() => this._fire("wall-edit-vertices-click")}
           >
@@ -679,7 +692,7 @@ export class CanvasOverlay extends LitElement {
           </button>
           <button
             class="danger"
-            title="Delete wall"
+            title=${localize("canvas.wall.delete")}
             @click=${() => this._fire("wall-delete-click")}
           >
             <ha-icon icon="mdi:delete"></ha-icon>
@@ -695,11 +708,18 @@ export class CanvasOverlay extends LitElement {
       const unitsPerMeter = this.unitsPerMeter;
       return html`
         <div class="selection-panel floating-panel">
-          <span class="hint">${opening.type}</span>
+          <span class="hint"
+            >${localize(`canvas.openingLabel.${opening.type}`)}</span
+          >
           <input
             type="number"
             class="wall-thickness"
-            title="Width (${unitsPerMeter !== null ? openingUnit : "stored units"})"
+            title=${localize("canvas.opening.width", {
+              unit:
+                unitsPerMeter !== null
+                  ? openingUnit
+                  : localize("canvas.opening.storedUnits"),
+            })}
             min=${unitsPerMeter !== null ? openingAttrs.min : "1"}
             step=${unitsPerMeter !== null ? openingAttrs.step : "1"}
             .value=${
@@ -728,11 +748,13 @@ export class CanvasOverlay extends LitElement {
                   openingUnit,
                   (unit) => (this._openingWidthUnit = unit),
                 )
-              : html`<span class="hint">Calibrate Scale for real units</span>`
+              : html`<span class="hint"
+                  >${localize("canvas.opening.calibrate")}</span
+                >`
           }
           <button
             class="danger"
-            title="Delete"
+            title=${localize("canvas.opening.delete")}
             @click=${() => this._fire("opening-delete-click")}
           >
             <ha-icon icon="mdi:delete"></ha-icon>
@@ -768,7 +790,7 @@ export class CanvasOverlay extends LitElement {
             >${stub.detail ?? stub.quality}</span
           >
           <button
-            title="Go to floor"
+            title=${localize("canvas.meshStub.goToFloor")}
             @click=${() => this._fire("mesh-stub-goto-floor-click")}
           >
             <ha-icon icon="mdi:arrow-right-circle"></ha-icon>
@@ -789,7 +811,7 @@ export class CanvasOverlay extends LitElement {
     return html`
       <div class="pin-stack floating-panel">
         <span class="stack-title"
-          >${this.pinStack.length} devices at this spot</span
+          >${localize("canvas.pin.stackTitle", { count: this.pinStack.length })}</span
         >
         ${this.pinStack.map(
           (pin) => html`
@@ -802,7 +824,7 @@ export class CanvasOverlay extends LitElement {
               </button>
               <button
                 class="pin-stack-remove"
-                title="Remove from this spot"
+                title=${localize("canvas.pin.removeFromSpot")}
                 @click=${() => this._fire("pin-stack-remove-click", { pinId: pin.id })}
               >
                 <ha-icon icon="mdi:delete"></ha-icon>
@@ -810,7 +832,9 @@ export class CanvasOverlay extends LitElement {
             </div>
           `,
         )}
-        <button @click=${() => this._fire("pin-stack-dismiss")}>Close</button>
+        <button @click=${() => this._fire("pin-stack-dismiss")}>
+          ${localize("canvas.button.close")}
+        </button>
       </div>
     `;
   }
@@ -819,7 +843,7 @@ export class CanvasOverlay extends LitElement {
     return html`
       ${this._renderModeToolbar()} ${this._renderHintBar()}
       <div class="scale-badge floating-panel">
-        ${this.scaleReadout ?? "Not calibrated"}
+        ${this.scaleReadout ?? localize("canvas.notCalibrated")}
       </div>
       ${this.pinStack ? this._renderPinStack() : this._renderSelectionPanel()}
     `;

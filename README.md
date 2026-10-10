@@ -8,7 +8,7 @@ A Home Assistant custom integration for tracing your home's floor plans and plac
 
 ## What it does
 
-Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter/Bluetooth mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo, along with devices that live outdoors (garden lights, a gate sensor), to see how everything relates at a glance. Edits save automatically and can be undone, and your chosen pan/zoom on each tab is remembered across visits.
+Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read live from HA's own floor registry (Settings → Areas → Floors), no separate floor concept to maintain. Trace each floor's rooms and walls (tagged with a material and real thickness for RF-attenuation reasoning) over a background image, calibrate it to real-world metres, then place your actual devices on it and overlay live Zigbee/Wi-Fi/Matter/Bluetooth mesh topology directly on the map. A separate **Property** tab lets you place each building (a multi-story house aligned into one, a detached garage, etc.) on a whole-property site photo or a live street/aerial map, along with devices that live outdoors (garden lights, a gate sensor), to see how everything relates at a glance. Edits save automatically and can be undone, and your chosen pan/zoom on each tab is remembered across visits.
 
 ## Requirements
 
@@ -21,6 +21,8 @@ Adds a **Spatial Context** panel to the HA sidebar, one tab per floor — read l
 | Wi-Fi | An integration that reports each client's access point: **UniFi Network**, **TP-Link Omada**, or the custom **TP-Link Deco** integration |
 | Matter | Home Assistant's **Matter** integration |
 | Bluetooth | **Home Assistant 2025.2** or newer, an **admin** account, and Bluetooth devices registered by an integration (BTHome, Xiaomi BLE, SwitchBot and similar); ESPHome Bluetooth proxies are supported |
+
+The Property tab's optional **map background** needs **Home Assistant 2026.10** or newer (its built-in map tile service) and a home location set in HA; a browser with WebGL2 draws it. Everything else works without it.
 
 ## Installation
 
@@ -60,7 +62,7 @@ Copy `custom_components/spatial_context/` from this repository into your Home As
 6. **Place your devices** — **Place Device**, pick from the list, click the map. A device can only be in one place: one floor, or outdoors on the Property tab.
 7. **Repeat steps 3–6 for every floor.**
 8. **Align floors that physically stack** (upstairs directly over downstairs) — **Align Floors**. This puts them in one coordinate system, which cross-floor Connectivity Map links need and is what lets them collapse into one building next. Leave a standalone floor (a detached garage) unaligned.
-9. **Place buildings on the Property tab** — switch to **Property**, upload a site photo, then **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
+9. **Place buildings on the Property tab** — switch to **Property**, then either upload a site photo or add a live map (see [the Property tab](#floor-tabs--the-property-tab)), and use **Place Building** for each one. Aligned floors place as a single building; unaligned ones place separately.
 10. **Place outdoor devices** — on the Property tab, use **Place outdoor device** for anything outside every building (garden lights, a gate sensor). Decks and other outdoor areas attached to the house can instead be drawn as rooms on a floor.
 11. **Saving** — changes save automatically a few seconds after each edit (turn off under Settings → **Auto-save changes** to save manually with **Save** in the header).
 
@@ -82,6 +84,8 @@ One tool is active at a time; clicking the active tool again returns to Select. 
 
 While tracing a room or wall, a new point snaps onto a nearby existing wall/room edge, or aligns horizontal/vertical with your last point — shown live as a preview line and marker *before* you click, so you can see it coming rather than only after. Once a shape has enough points to close, the guide also points back at its own start, so you can find exactly where a clean closing corner is. The **Snap** menu in the drawing bar picks what new points snap onto: **all** (walls and rooms), **walls only** / **rooms only** (just the kind you're drawing, so a wall traced along a room's edge doesn't jump onto it), or **off**. It's remembered per browser and also applies to dragging corners. Hold **Shift** to place a single point free of any snapping.
 
+![Tracing a wall, with the Snap menu and alignment guides](docs/screenshot-snap.jpeg)
+
 | Icon | Tool | What it does | How to use it |
 |---|---|---|---|
 | <img src="https://api.iconify.design/mdi/cursor-default-click.svg?color=%23888888" width="20"> | **Select** | The default mode — click anything to select it and edit it (rename, change area/material, edit vertices, delete) via the panel that appears bottom-left. | Click a room, wall, door/window, or device pin. Drag a selected shape's vertex handles to reshape it, or drag a pin to move it. Drag inside a selected room to move the whole room, along with the devices placed in it (walls stay put) — a dashed outline marks where it started, and bringing it back close snaps it exactly home. While dragging, its corners also snap into line with other rooms' and walls' corners (pink guides show the alignment; hold **Shift** to drag freely). Drag a selected room's name to move its label somewhere more readable (**Reset label position** in its panel puts it back) — by default a label sits at the most open spot inside the room. Dragging empty canvas pans the view. |
@@ -98,7 +102,7 @@ While tracing a room or wall, a new point snaps onto a nearby existing wall/room
 
 | Icon | Name | What it does |
 |---|---|---|
-| <img src="https://api.iconify.design/mdi/image.svg?color=%23888888" width="20"> | **Background** | Upload, replace, or remove the current floor's background image, and adjust its opacity. You can also just drag an image file straight onto the canvas instead of using this menu. |
+| <img src="https://api.iconify.design/mdi/image.svg?color=%23888888" width="20"> | **Background** | Upload, replace, or remove the current floor's background image, and adjust its opacity. You can also just drag an image file straight onto the canvas instead of using this menu. On the Property tab it also holds the **map background** controls (see [below](#floor-tabs--the-property-tab)). |
 | <img src="https://api.iconify.design/mdi/layers.svg?color=%23888888" width="20"> | **Connectivity Map** | Show a live network overlay — **Zigbee**, **Wi-Fi**, **Matter/Thread** or **Bluetooth** — drawn between your placed devices and coloured by link quality. Off by default; closing the menu turns it off again. See [Connectivity Map](#connectivity-map) below for what each layer shows. |
 | <img src="https://api.iconify.design/mdi/undo.svg?color=%23888888" width="20"> <img src="https://api.iconify.design/mdi/redo.svg?color=%23888888" width="20"> | **Undo / Redo** | Step back through your edits on the current floor or the Property tab (also **Ctrl/Cmd+Z** and **Ctrl/Cmd+Shift+Z**). A drag counts as one step, and even **Reset floor** can be undone. History starts fresh when you switch floors. |
 | <img src="https://api.iconify.design/mdi/content-save.svg?color=%23888888" width="20"> | **Save** | Save the current floor's (or Property tab's) layout, including whatever pan/zoom you're currently looking at — that view is restored next time you open this floor/tab. A dot badge shows when there are unsaved changes. With **Auto-save changes** on (Settings, on by default) edits save themselves a few seconds after each change, and switching floors saves first instead of asking — except after **Reset floor/property** or **remove all devices**, which wait for you to press Save. Refreshing or closing the tab with unsaved changes asks first. |
@@ -135,8 +139,11 @@ The panel checks itself against what's installed each time it opens (and wheneve
 
 The tab bar shows one tab per HA floor (with that floor's own icon, or a generic floor icon if it hasn't been given one), plus a fixed **Property** tab (<img src="https://api.iconify.design/mdi/map.svg?color=%23888888" width="16">) at the end.
 
-The Property tab is a separate, whole-property view — upload a site/aerial photo (same **Background** menu as a floor), then place a labeled, rotatable rectangle for each *building*: two floors linked via **Align Floors** collapse to a single placement (so a multi-story house shows as one shape), while a floor that's never been aligned to anything (a detached garage, say) gets its own.
+The Property tab is a separate, whole-property view — give it a backdrop (an uploaded site/aerial photo, a live map, or both), then place a labeled, rotatable rectangle for each *building*: two floors linked via **Align Floors** collapse to a single placement (so a multi-story house shows as one shape), while a floor that's never been aligned to anything (a detached garage, say) gets its own.
 
+- **Map background** (needs HA 2026.10+): **Background → Add map background** puts a live map behind everything, centred on your Home Assistant home location. **Map type** switches between **Street map** — drawn from Home Assistant's own map tile service, so there's no key and no third-party request — and **Aerial photo (Esri)**, which makes it far easier to place a house on its roof. Aerial tiles are loaded by your browser straight from Esri's servers (Esri sees your IP address and the area you're viewing), and its credit is shown on the canvas; OpenStreetMap's is shown for the street map. A **Map opacity** slider sits beside it, and an uploaded background image still draws on top of the map, so you can use both.
+- **Move map** (the map-search button in the toolbar, shown while a map is on): your buildings stay where they are and the map moves under them, so you can line a footprint up with the real roof. **Drag** to move it, **Ctrl+scroll** or the zoom buttons to zoom, **Shift+scroll** or the slider to rotate (the compass button turns it back to north-up), or **pinch and twist** on a touch screen. Switching between street and aerial keeps the same position. The map is saved with the layout and its moves can be undone.
+- **Ghost outline**: each placed building shows its traced rooms and walls inside its rectangle, so you can see exactly how well it fits the photo or map as you move, rotate and resize it.
 - **Place Building**: pick a building from the dropdown in the top-left toolbar, then click the site photo to drop it there.
 - **Scale**: no separate calibration step. Once a placed building has a floor with **Set Scale** done, the Property tab works out its own scale from that building's size on the photo (shown top-right), and outdoor devices get real-world positions in the export. With several calibrated buildings the largest is used, and the badge warns if they disagree, which usually means one is sized wrong against the photo.
 - **Place outdoor devices** (<img src="https://api.iconify.design/mdi/map-marker-plus.svg?color=%23888888" width="16">): for devices outside every building — garden lights, a driveway sensor. The device picker opens on **Outdoor / no floor** (HA areas with no floor). A device lives in one place only, so placing it outdoors takes it off any floor, and vice versa.
@@ -147,13 +154,21 @@ The Property tab is a separate, whole-property view — upload a site/aerial pho
 
 ## Screenshots
 
-| Property tab | Zigbee mesh |
+| Property tab — aerial map, buildings and outdoor devices | Move map — line the map up with a building |
 |---|---|
-| ![Property tab — Top Floor and Garage placed on a site photo](docs/screenshot-property.jpeg) | ![Zigbee mesh overlay, including a cross-floor link stub down to Bottom Floor](docs/screenshot-zigbee-mesh.jpeg) |
+| ![Property tab on an aerial map, with Top Floor and Garage placed, their traced rooms shown as a ghost outline, and outdoor devices](docs/screenshot-property.jpeg) | ![Move map mode, with the rotation slider and the Background menu's map type and opacity](docs/screenshot-map-adjust.jpeg) |
 
-| Wi-Fi mesh | Matter mesh |
+| Zigbee mesh | Wi-Fi network |
 |---|---|
-| ![Wi-Fi mesh overlay](docs/screenshot-wifi-mesh.jpeg) | ![Matter mesh overlay](docs/screenshot-matter-mesh.jpeg) |
+| ![Zigbee mesh overlay, including cross-floor link stubs down to Bottom Floor](docs/screenshot-zigbee-mesh.jpeg) | ![Wi-Fi network overlay](docs/screenshot-wifi-network.jpeg) |
+
+| Matter network | Bluetooth |
+|---|---|
+| ![Matter network overlay](docs/screenshot-matter-mesh.jpeg) | ![Bluetooth layer selected in the Connectivity Map menu](docs/screenshot-bluetooth-network.jpeg) |
+
+| Settings | Placing devices |
+|---|---|
+| ![The Settings menu](docs/screenshot-settings.jpeg) | ![The device picker open beside the floor plan](docs/screenshot-picker.jpeg) |
 
 ## Development (frontend)
 
