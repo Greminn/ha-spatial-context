@@ -9,3 +9,6 @@ custom_components/spatial_context/www/*.js.map
 .env
 .DS_Store
 NOTES.local.md
+
+# Local reference screenshots (HA UI), not part of the project
+visual/
