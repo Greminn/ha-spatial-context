@@ -104,7 +104,10 @@
       "quality": "Signal",
       "area": "Area",
       "style": "Style",
-      "visible": "Visible"
+      "visible": "Visible",
+      "name": "Name",
+      "label": "Label",
+      "height": "Height ({unit})"
     }
   },
   "mapBackground": {

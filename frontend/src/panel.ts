@@ -62,12 +62,7 @@ import {
   rayBoxExit,
   reassignPinRooms,
 } from "./canvas/geometry";
-import {
-  formatLarge,
-  largeUnitLabel,
-  parseLarge,
-  unitsPerDisplayUnit,
-} from "./units";
+import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import { sharedStyles, switchStyles } from "./styles";
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
@@ -2648,14 +2643,12 @@ export class SpatialContextPanel extends LitElement {
     this._floorHistory.clear();
   };
 
-  private _onRoomRename = () => {
+  private _onRoomNameChange = (e: CustomEvent<{ name: string }>) => {
     const room = this._selectedRoom;
     if (!room) return;
-    const name = window.prompt("Room name:", room.name);
-    if (!name) return;
     this._updateLayout({
       rooms: this._layout.rooms.map((r) =>
-        r.id === room.id ? { ...r, name } : r,
+        r.id === room.id ? { ...r, name: e.detail.name } : r,
       ),
     });
   };
@@ -2774,15 +2767,10 @@ export class SpatialContextPanel extends LitElement {
     this._editingRoomId = null;
   };
 
-  private _onPinSetLabel = () => {
+  private _onPinLabelChange = (e: CustomEvent<{ label: string }>) => {
     const pin = this._selectedPin;
     if (!pin) return;
-    const label = window.prompt(
-      "Label override (blank to clear):",
-      pin.label_override ?? "",
-    );
-    if (label === null) return;
-    this._patchPin(pin.id, { label_override: label || null });
+    this._patchPin(pin.id, { label_override: e.detail.label.trim() || null });
   };
 
   private _onPinSetIcon = () => {
@@ -2812,18 +2800,12 @@ export class SpatialContextPanel extends LitElement {
     this._iconPickerFor = null;
   };
 
-  private _onPinSetHeight = () => {
+  private _onPinHeightChange = (e: CustomEvent<{ value: string }>) => {
     const pin = this._selectedPin;
     if (!pin) return;
-    const system = this._settings.unit_system;
-    const unitWord = system === "imperial" ? "feet" : "metres";
-    const example = system === "imperial" ? "6" : "1.8";
-    const input = window.prompt(
-      `Mounting height in ${unitWord} above floor level (e.g. ${example} for a high wall mount; blank to clear):`,
-      pin.height_m === null ? "" : formatLarge(pin.height_m, system),
-    );
-    if (input === null) return;
-    const parsed = input.trim() === "" ? null : parseLarge(input, system);
+    const raw = e.detail.value.trim();
+    const parsed =
+      raw === "" ? null : parseLarge(raw, this._settings.unit_system);
     this._patchPin(pin.id, {
       height_m: parsed !== null && Number.isFinite(parsed) ? parsed : null,
     });
@@ -3794,7 +3776,7 @@ export class SpatialContextPanel extends LitElement {
                     @cancel-pending-click=${this._onCancelPending}
                     @finish-wall-click=${this._onFinishWall}
                     @snap-mode-change=${this._onSnapModeChange}
-                    @room-rename-click=${this._onRoomRename}
+                    @room-name-change=${this._onRoomNameChange}
                     @room-area-change=${this._onRoomAreaChange}
                     @room-visible-toggle=${this._onRoomVisibleToggle}
                     @room-fill-color-change=${this._onRoomFillColorChange}
@@ -3805,9 +3787,9 @@ export class SpatialContextPanel extends LitElement {
                     @room-edit-vertices-click=${this._onRoomEditVertices}
                     @room-label-reset-click=${this._onRoomLabelReset}
                     @room-delete-click=${this._onRoomDelete}
-                    @pin-set-label-click=${this._onPinSetLabel}
+                    @pin-label-change=${this._onPinLabelChange}
                     @pin-set-icon-click=${this._onPinSetIcon}
-                    @pin-set-height-click=${this._onPinSetHeight}
+                    @pin-height-change=${this._onPinHeightChange}
                     @pin-delete-click=${this._onPinDelete}
                     @wall-material-change=${this._onWallMaterialChange}
                     @wall-thickness-change=${this._onWallThicknessChange}

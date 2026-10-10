@@ -29,6 +29,7 @@ import {
   canvasUnitsToDisplayAs,
   defaultSmallSubUnit,
   displayToCanvasUnitsAs,
+  formatLarge,
   formatSmallAs,
   parseSmallAs,
   smallSubUnitsFor,
@@ -259,6 +260,7 @@ export class CanvasOverlay extends LitElement {
       }
       /* Controls inside the info card: HA-style rounded fields. */
       .info-row select,
+      .info-row input[type="text"],
       .info-row input[type="number"] {
         height: 36px;
         padding: 0 12px;
@@ -270,6 +272,7 @@ export class CanvasOverlay extends LitElement {
         font-size: 0.875rem;
       }
       .info-row select:focus,
+      .info-row input[type="text"]:focus,
       .info-row input[type="number"]:focus {
         outline: none;
         border-color: var(--sc-accent);
@@ -279,6 +282,13 @@ export class CanvasOverlay extends LitElement {
       }
       .wall-thickness {
         width: 72px;
+      }
+      .text-field {
+        width: 170px;
+        min-width: 0;
+      }
+      .text-field.short {
+        width: 90px;
       }
       .small-unit-select {
         width: auto;
@@ -794,10 +804,20 @@ export class CanvasOverlay extends LitElement {
                 </select>`,
               ),
             )}
-            ${this._actionRow(
+            ${this._fieldRow(
               "mdi:pencil",
-              localize("canvas.room.rename"),
-              () => this._fire("room-rename-click"),
+              localize("canvas.card.name"),
+              html`<input
+                type="text"
+                class="text-field"
+                .value=${room.name}
+                @change=${(e: Event) => {
+                  const input = e.target as HTMLInputElement;
+                  const name = input.value.trim();
+                  if (name) this._fire("room-name-change", { name });
+                  else input.value = room.name;
+                }}
+              />`,
             )}
             ${this._actionRow(
               "mdi:vector-polygon",
@@ -892,18 +912,39 @@ export class CanvasOverlay extends LitElement {
         subtitle: localize("canvas.card.device"),
         onClose: this._clearSelection,
         body: html`<div class="info-group">
-          ${this._actionRow(
+          ${this._fieldRow(
             "mdi:tag-text",
-            localize("canvas.pin.setLabel"),
-            () => this._fire("pin-set-label-click"),
+            localize("canvas.card.label"),
+            html`<input
+              type="text"
+              class="text-field"
+              placeholder=${pinDisplayLabel(pin.device_id, this.entityLookup.values())}
+              .value=${pin.label_override ?? ""}
+              @change=${(e: Event) =>
+                this._fire("pin-label-change", {
+                  label: (e.target as HTMLInputElement).value,
+                })}
+            />`,
           )}
           ${this._actionRow("mdi:shape", localize("canvas.pin.setIcon"), () =>
             this._fire("pin-set-icon-click"),
           )}
-          ${this._actionRow(
+          ${this._fieldRow(
             "mdi:human-male-height",
-            localize("canvas.pin.setHeight"),
-            () => this._fire("pin-set-height-click"),
+            localize("canvas.card.height", {
+              unit: this.unitSystem === "imperial" ? "ft" : "m",
+            }),
+            html`<input
+              type="text"
+              inputmode="decimal"
+              class="text-field short"
+              placeholder=${this.unitSystem === "imperial" ? "6" : "1.8"}
+              .value=${pin.height_m === null ? "" : formatLarge(pin.height_m, this.unitSystem)}
+              @change=${(e: Event) =>
+                this._fire("pin-height-change", {
+                  value: (e.target as HTMLInputElement).value,
+                })}
+            />`,
           )}
         </div>`,
         footer: this._deleteButton(
