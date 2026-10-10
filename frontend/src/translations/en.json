@@ -103,7 +103,8 @@
       "link": "Link",
       "quality": "Signal",
       "area": "Area",
-      "style": "Style"
+      "style": "Style",
+      "visible": "Visible"
     }
   },
   "mapBackground": {

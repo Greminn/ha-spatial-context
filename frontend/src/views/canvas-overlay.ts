@@ -257,23 +257,84 @@ export class CanvasOverlay extends LitElement {
         font-size: 0.8rem;
         color: var(--sc-fg-secondary);
       }
+      /* Controls inside the info card: HA-style rounded fields. */
+      .info-row select,
+      .info-row input[type="number"] {
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--sc-divider);
+        border-radius: 12px;
+        background: var(--sc-panel-bg);
+        color: var(--sc-fg);
+        font: inherit;
+        font-size: 0.875rem;
+      }
+      .info-row select:focus,
+      .info-row input[type="number"]:focus {
+        outline: none;
+        border-color: var(--sc-accent);
+      }
+      .info-row .select-wrap select {
+        padding-right: 32px;
+      }
       .wall-thickness {
-        width: 52px;
+        width: 72px;
       }
       .small-unit-select {
-        width: 52px;
-        padding: 4px;
+        width: auto;
       }
       .room-fill-color {
-        width: 28px;
-        height: 28px;
+        -webkit-appearance: none;
+        appearance: none;
+        width: 44px;
+        height: 32px;
         padding: 0;
-        border: none;
+        border: 1px solid var(--sc-divider);
+        border-radius: 10px;
         background: none;
         cursor: pointer;
+        overflow: hidden;
       }
+      .room-fill-color::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      .room-fill-color::-webkit-color-swatch {
+        border: none;
+      }
+      .room-fill-color::-moz-color-swatch {
+        border: none;
+      }
+      /* Slider: thin track filled up to the value (--pct) in the primary
+       * colour, round thumb — like HA's own sliders. */
       .room-opacity {
-        width: 60px;
+        -webkit-appearance: none;
+        appearance: none;
+        width: 140px;
+        height: 4px;
+        border-radius: 2px;
+        background: linear-gradient(
+          to right,
+          var(--sc-accent) var(--pct, 50%),
+          var(--sc-divider) var(--pct, 50%)
+        );
+        outline: none;
+      }
+      .room-opacity::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--sc-accent);
+        border: none;
+        cursor: pointer;
+      }
+      .room-opacity::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--sc-accent);
+        border: none;
+        cursor: pointer;
       }
     `,
   ];
@@ -668,8 +729,9 @@ export class CanvasOverlay extends LitElement {
   }
 
   /** A label on the left and its control on the right. */
-  private _fieldRow(label: string, control: unknown) {
+  private _fieldRow(icon: string, label: string, control: unknown) {
     return html`<div class="info-row">
+      <ha-icon icon=${icon}></ha-icon>
       <span class="grow">${label}</span>
       ${control}
     </div>`;
@@ -701,6 +763,7 @@ export class CanvasOverlay extends LitElement {
         body: html`
           <div class="info-group">
             ${this._fieldRow(
+              "mdi:floor-plan",
               localize("canvas.card.area"),
               this._selectWrap(
                 html`<select
@@ -754,9 +817,8 @@ export class CanvasOverlay extends LitElement {
                 : nothing
             }
             ${this._fieldRow(
-              visible
-                ? localize("canvas.room.hide")
-                : localize("canvas.room.show"),
+              "mdi:eye",
+              localize("canvas.card.visible"),
               html`<input
                 type="checkbox"
                 class="switch"
@@ -769,6 +831,7 @@ export class CanvasOverlay extends LitElement {
           <div class="info-group">
             <div class="info-group-title">${localize("canvas.card.style")}</div>
             ${this._fieldRow(
+              "mdi:palette",
               localize("canvas.room.color"),
               html`<input
                 type="color"
@@ -781,6 +844,7 @@ export class CanvasOverlay extends LitElement {
               />`,
             )}
             ${this._fieldRow(
+              "mdi:opacity",
               localize("canvas.room.fillOpacity"),
               html`<input
                 type="range"
@@ -788,6 +852,7 @@ export class CanvasOverlay extends LitElement {
                 min="0"
                 max="1"
                 step="0.02"
+                style="--pct:${(room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY) * 100}%"
                 .value=${String(room.fill_opacity ?? DEFAULT_ROOM_FILL_OPACITY)}
                 @input=${(e: Event) =>
                   this._fire("room-fill-opacity-change", {
@@ -796,6 +861,7 @@ export class CanvasOverlay extends LitElement {
               />`,
             )}
             ${this._fieldRow(
+              "mdi:square-outline",
               localize("canvas.room.borderOpacity"),
               html`<input
                 type="range"
@@ -803,6 +869,7 @@ export class CanvasOverlay extends LitElement {
                 min="0"
                 max="1"
                 step="0.02"
+                style="--pct:${(room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY) * 100}%"
                 .value=${String(room.border_opacity ?? DEFAULT_ROOM_BORDER_OPACITY)}
                 @input=${(e: Event) =>
                   this._fire("room-border-opacity-change", {
@@ -856,6 +923,7 @@ export class CanvasOverlay extends LitElement {
         onClose: this._clearSelection,
         body: html`<div class="info-group">
           ${this._fieldRow(
+            "mdi:wall",
             localize("canvas.wall.material"),
             this._selectWrap(
               html`<select
@@ -877,6 +945,7 @@ export class CanvasOverlay extends LitElement {
             ),
           )}
           ${this._fieldRow(
+            "mdi:arrow-expand-horizontal",
             localize("canvas.wall.thickness", { unit: wallUnit }),
             html`<span class="inline-pair"
               ><input
@@ -927,6 +996,7 @@ export class CanvasOverlay extends LitElement {
         onClose: this._clearSelection,
         body: html`<div class="info-group">
           ${this._fieldRow(
+            "mdi:arrow-expand-horizontal",
             localize("canvas.opening.width", {
               unit:
                 unitsPerMeter !== null
@@ -992,6 +1062,7 @@ export class CanvasOverlay extends LitElement {
         onClose: this._clearSelection,
         body: html`<div class="info-group">
           ${this._fieldRow(
+            "mdi:signal",
             localize("canvas.card.quality"),
             html`<span style="color:${qualityColor(link.quality)}"
               >${link.detail ?? link.quality}</span
@@ -1008,6 +1079,7 @@ export class CanvasOverlay extends LitElement {
         onClose: this._clearSelection,
         body: html`<div class="info-group">
           ${this._fieldRow(
+            "mdi:signal",
             localize("canvas.card.quality"),
             html`<span style="color:${qualityColor(stub.quality)}"
               >${stub.detail ?? stub.quality}</span
