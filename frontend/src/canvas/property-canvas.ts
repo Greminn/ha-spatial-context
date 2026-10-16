@@ -142,7 +142,7 @@ export class PropertyCanvas extends LitElement {
         right: 12px;
         bottom: 60px;
         padding: 1px 6px;
-        border-radius: 4px;
+        border-radius: var(--ha-border-radius-sm, 4px);
         font-size: var(--sc-fs-caption);
         color: #333;
         background: rgba(255, 255, 255, 0.8);
@@ -155,7 +155,7 @@ export class PropertyCanvas extends LitElement {
         left: 12px;
         top: 64px;
         max-width: calc(100% - 16px);
-        padding: 4px 8px;
+        padding: var(--ha-space-1, 4px) var(--ha-space-2, 8px);
         border-radius: 6px;
         font-size: var(--sc-fs-small);
         color: var(--sc-fg);

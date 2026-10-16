@@ -26,8 +26,9 @@ export class SettingsMenu extends LitElement {
       .header {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 16px 24px 8px 16px;
+        gap: var(--ha-space-4, 16px);
+        padding: var(--ha-space-4, 16px) var(--ha-space-6, 24px)
+          var(--ha-space-2, 8px) var(--ha-space-4, 16px);
         font-size: var(--sc-fs-dialog);
         font-weight: 500;
       }
@@ -35,12 +36,13 @@ export class SettingsMenu extends LitElement {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        padding-bottom: 8px;
+        padding-bottom: var(--ha-space-2, 8px);
       }
       .footer {
         display: flex;
         justify-content: flex-end;
-        padding: 12px 24px 20px;
+        padding: var(--ha-space-3, 12px) var(--ha-space-6, 24px)
+          var(--ha-space-5, 20px);
       }
       a.link {
         display: inline-flex;
@@ -58,8 +60,8 @@ export class SettingsMenu extends LitElement {
       }
       .done {
         height: 48px;
-        padding: 0 28px;
-        border-radius: 24px;
+        padding: 0 var(--ha-space-7, 28px);
+        border-radius: var(--ha-border-radius-3xl, 24px);
         background: var(--sc-accent);
         color: var(--text-primary-color, #fff);
         font-size: var(--sc-fs-row);
@@ -74,13 +76,14 @@ export class SettingsMenu extends LitElement {
         border-radius: 50%;
       }
       .section {
-        padding: 4px 0;
+        padding: var(--ha-space-1, 4px) 0;
       }
       .section + .section {
-        margin-top: 4px;
+        margin-top: var(--ha-space-1, 4px);
       }
       .section-title {
-        padding: 16px 24px 4px;
+        padding: var(--ha-space-4, 16px) var(--ha-space-6, 24px)
+          var(--ha-space-1, 4px);
         font-size: var(--sc-fs-caption);
         font-weight: 400;
         letter-spacing: 0.08em;
@@ -91,8 +94,8 @@ export class SettingsMenu extends LitElement {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        gap: 16px;
-        padding: 8px 24px;
+        gap: var(--ha-space-4, 16px);
+        padding: var(--ha-space-2, 8px) var(--ha-space-6, 24px);
         min-height: 44px;
       }
       .label {
@@ -125,7 +128,7 @@ export class SettingsMenu extends LitElement {
         white-space: nowrap;
       }
       .segmented button + button {
-        border-left: 1px solid var(--sc-divider);
+        border-inline-start: 1px solid var(--sc-divider);
       }
       .segmented button.active {
         background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
@@ -140,7 +143,7 @@ export class SettingsMenu extends LitElement {
         background: var(--sc-bg);
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
-        padding: 6px 12px;
+        padding: 6px var(--ha-space-3, 12px);
       }
       select {
         max-width: 170px;
@@ -158,13 +161,13 @@ export class SettingsMenu extends LitElement {
       .number {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--ha-space-1, 4px);
         color: var(--sc-fg-secondary);
         font-size: var(--sc-fs-small);
       }
       input[type="number"] {
         width: 64px;
-        text-align: right;
+        text-align: end;
       }
     `,
   ];

@@ -38,7 +38,7 @@ export class EntityPickerSidebar extends LitElement {
         width: var(--sc-picker-width, 300px);
         min-width: 240px;
         max-width: 600px;
-        border-left: 1px solid var(--sc-divider);
+        border-inline-start: 1px solid var(--sc-divider);
         background: var(--sc-panel-bg);
         height: 100%;
         overflow: hidden;
@@ -47,7 +47,8 @@ export class EntityPickerSidebar extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 8px 8px 0 16px;
+        padding: var(--ha-space-2, 8px) var(--ha-space-2, 8px) 0
+          var(--ha-space-4, 16px);
       }
       .picker-title {
         font-size: var(--sc-fs-title);
@@ -68,7 +69,7 @@ export class EntityPickerSidebar extends LitElement {
           min-width: 0;
           max-width: none;
           height: auto;
-          border-left: none;
+          border-inline-start: none;
           border-top: 1px solid var(--sc-divider);
         }
         .resize-handle {
@@ -85,7 +86,7 @@ export class EntityPickerSidebar extends LitElement {
         z-index: 1;
       }
       .search {
-        padding: 12px;
+        padding: var(--ha-space-3, 12px);
       }
       .more-button {
         flex: none;
@@ -102,16 +103,16 @@ export class EntityPickerSidebar extends LitElement {
         position: absolute;
         right: 12px;
         z-index: 5;
-        margin-top: 4px;
+        margin-top: var(--ha-space-1, 4px);
         min-width: 220px;
         padding: 6px;
       }
       .search-box {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         height: var(--sc-h-control);
-        padding: 0 12px;
+        padding: 0 var(--ha-space-3, 12px);
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
         background: var(--sc-bg);
@@ -144,8 +145,8 @@ export class EntityPickerSidebar extends LitElement {
       }
       .filters {
         display: flex;
-        gap: 8px;
-        margin-top: 8px;
+        gap: var(--ha-space-2, 8px);
+        margin-top: var(--ha-space-2, 8px);
       }
       .filters .select-wrap {
         flex: 1;
@@ -154,7 +155,7 @@ export class EntityPickerSidebar extends LitElement {
         flex: 1;
         min-width: 0;
         height: var(--sc-h-field);
-        padding: 0 12px;
+        padding: 0 var(--ha-space-3, 12px);
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
         background: var(--sc-bg);
@@ -169,9 +170,9 @@ export class EntityPickerSidebar extends LitElement {
       .item {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3, 12px);
         min-height: 60px;
-        padding: 8px 12px;
+        padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
         cursor: pointer;
         border-bottom: 1px solid var(--sc-divider);
       }
@@ -238,7 +239,7 @@ export class EntityPickerSidebar extends LitElement {
         white-space: nowrap;
       }
       .empty {
-        padding: 16px;
+        padding: var(--ha-space-4, 16px);
         color: var(--sc-fg-secondary);
         font-size: var(--sc-fs-body);
       }

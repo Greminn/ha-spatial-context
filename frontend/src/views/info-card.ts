@@ -15,16 +15,16 @@ export const infoCardStyles = css`
     max-height: calc(100% - 80px);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 8px;
-    border-radius: 28px;
+    gap: var(--ha-space-2, 8px);
+    padding: var(--ha-space-2, 8px);
+    border-radius: var(--ha-border-radius-4xl, 28px);
     pointer-events: auto;
   }
   .info-head {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 4px 0;
+    gap: var(--ha-space-1, 4px);
+    padding: var(--ha-space-1, 4px) var(--ha-space-1, 4px) 0;
   }
   .info-close {
     display: grid;
@@ -73,20 +73,20 @@ export const infoCardStyles = css`
   .info-body {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--ha-space-2, 8px);
     min-height: 0;
     overflow-y: auto;
   }
   .info-group {
     /* Don't shrink to fit the card: the body scrolls instead. */
     flex: none;
-    padding: 4px 0;
-    border-radius: 24px;
+    padding: var(--ha-space-1, 4px) 0;
+    border-radius: var(--ha-border-radius-3xl, 24px);
     overflow: hidden;
     background: var(--primary-background-color, var(--sc-bg));
   }
   .info-group-title {
-    padding: 8px 16px 0;
+    padding: var(--ha-space-2, 8px) var(--ha-space-4, 16px) 0;
     font-size: var(--sc-fs-caption);
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -95,12 +95,12 @@ export const infoCardStyles = css`
   .info-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--ha-space-3, 12px);
     width: 100%;
     min-height: 48px;
-    padding: 6px 16px;
+    padding: 6px var(--ha-space-4, 16px);
     font-size: var(--sc-fs-row);
-    text-align: left;
+    text-align: start;
   }
   .info-row.action {
     justify-content: flex-start;
@@ -168,14 +168,14 @@ export const infoCardStyles = css`
     border-radius: 50%;
   }
   .info-row.stack-row {
-    padding: 0 4px 0 0;
+    padding: 0 var(--ha-space-1, 4px) 0 0;
   }
   .stack-choose {
     flex: 1;
     min-width: 0;
-    padding: 12px 16px;
+    padding: var(--ha-space-3, 12px) var(--ha-space-4, 16px);
     border-radius: 0;
-    text-align: left;
+    text-align: start;
     justify-content: flex-start;
   }
   .stack-remove {
@@ -189,17 +189,17 @@ export const infoCardStyles = css`
   }
   .info-foot {
     display: flex;
-    gap: 8px;
-    padding: 0 4px 4px;
+    gap: var(--ha-space-2, 8px);
+    padding: 0 var(--ha-space-1, 4px) var(--ha-space-1, 4px);
   }
   .info-foot button {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--ha-space-2, 8px);
     min-height: 44px;
-    padding: 10px 16px;
+    padding: 10px var(--ha-space-4, 16px);
     border-radius: 22px;
     font-size: var(--sc-fs-row);
   }
@@ -211,7 +211,7 @@ export const infoCardStyles = css`
   .info-row input[type="text"],
   .info-row input[type="number"] {
     height: var(--sc-h-field);
-    padding: 0 12px;
+    padding: 0 var(--ha-space-3, 12px);
     border: 1px solid var(--sc-divider);
     border-radius: var(--sc-r-control);
     background: var(--sc-panel-bg);
@@ -226,7 +226,7 @@ export const infoCardStyles = css`
     border-color: var(--sc-accent);
   }
   .info-row .select-wrap select {
-    padding-right: 32px;
+    padding-inline-end: var(--ha-space-8, 32px);
   }
   .wall-thickness {
     width: 72px;

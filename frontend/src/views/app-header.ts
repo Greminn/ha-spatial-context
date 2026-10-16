@@ -28,14 +28,14 @@ export class AppHeader extends LitElement {
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         height: 56px;
-        padding: 0 8px 0 4px;
+        padding: 0 var(--ha-space-2, 8px) 0 var(--ha-space-1, 4px);
         background: var(--sc-header-bg);
         border-bottom: 1px solid var(--sc-divider);
       }
       .identity {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3, 12px);
         min-width: 0;
         overflow: hidden;
       }
@@ -43,7 +43,7 @@ export class AppHeader extends LitElement {
         flex: none;
         width: 40px;
         height: var(--sc-h-control);
-        margin-right: -4px;
+        margin-inline-end: -4px;
       }
       .identity h1 {
         margin: 0;
@@ -79,11 +79,11 @@ export class AppHeader extends LitElement {
         }
         .identity {
           grid-area: identity;
-          padding-left: 4px;
+          padding-inline-start: var(--ha-space-1, 4px);
         }
         .actions {
           grid-area: actions;
-          padding-right: 8px;
+          padding-inline-end: var(--ha-space-2, 8px);
         }
         floor-tabs {
           grid-area: tabs;
@@ -122,7 +122,7 @@ export class AppHeader extends LitElement {
         --mdc-icon-size: 20px;
       }
       .icon-button.active {
-        background: rgba(0, 0, 0, 0.06);
+        background: var(--sc-hover);
       }
     `,
   ];

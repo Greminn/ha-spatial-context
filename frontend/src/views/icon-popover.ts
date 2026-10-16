@@ -28,7 +28,7 @@ export class IconPopover extends LitElement {
         --mdc-icon-size: 20px;
       }
       .icon-button.active {
-        background: rgba(0, 0, 0, 0.06);
+        background: var(--sc-hover);
       }
       /* The popover's feature is switched on (e.g. a network layer is
        * showing) even while the menu is closed. */
@@ -54,7 +54,7 @@ export class IconPopover extends LitElement {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border-radius: 28px;
+        border-radius: var(--ha-border-radius-4xl, 28px);
         background: var(--sc-panel-bg);
         color: var(--sc-fg);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -79,7 +79,7 @@ export class IconPopover extends LitElement {
         max-height: calc(100vh - 80px);
         overflow-y: auto;
         min-width: 240px;
-        padding: 8px;
+        padding: var(--ha-space-2, 8px);
         display: flex;
         flex-direction: column;
         gap: 2px;

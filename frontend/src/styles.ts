@@ -15,23 +15,35 @@ export const sharedStyles = css`
     --sc-panel-shadow: var(--ha-card-box-shadow, 0 2px 6px rgba(0, 0, 0, 0.3));
     --sc-header-bg: var(--app-header-background-color, var(--sc-bg));
     /* Type scale. */
-    --sc-fs-caption: 0.75rem; /* section titles, map notes */
-    --sc-fs-small: 0.8125rem; /* hints, secondary text, chips */
-    --sc-fs-body: 0.875rem; /* buttons, fields, dropdowns */
-    --sc-fs-row: 0.9375rem; /* list rows, menu items, dialog rows */
-    --sc-fs-title: 1.125rem; /* card titles */
-    --sc-fs-header: 1.25rem; /* app bar title */
-    --sc-fs-dialog: 1.375rem; /* dialog titles */
+    --sc-fs-caption: var(
+      --ha-font-size-s,
+      12px
+    ); /* section titles, map notes */
+    --sc-fs-small: var(
+      --ha-font-size-s,
+      12px
+    ); /* hints, secondary text, chips */
+    --sc-fs-body: var(--ha-font-size-m, 14px); /* buttons, fields, dropdowns */
+    --sc-fs-row: var(
+      --ha-font-size-m,
+      14px
+    ); /* list rows, menu items, dialog rows */
+    --sc-fs-title: var(--ha-font-size-l, 16px); /* card titles */
+    --sc-fs-header: var(--ha-font-size-xl, 20px); /* app bar title */
+    --sc-fs-dialog: var(--ha-font-size-2xl, 24px); /* dialog titles */
     /* Shape: controls are 12px rounded rectangles, 40px tall (36px for
      * fields inside cards and dialogs). */
-    --sc-r-control: 12px;
+    --sc-r-control: var(--ha-border-radius-lg, 12px);
     /* Hover tint, laid over whatever fill the element already has. */
     --sc-hover: color-mix(in srgb, var(--sc-fg) 8%, transparent);
     --sc-h-control: 40px;
     --sc-h-field: 36px;
     box-sizing: border-box;
     color: var(--sc-fg);
-    font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
+    font-family: var(
+      --ha-font-family-body,
+      var(--paper-font-body1_-_font-family, Roboto, sans-serif)
+    );
   }
   :host *,
   :host *::before,
@@ -44,7 +56,7 @@ export const sharedStyles = css`
     cursor: pointer;
     border: none;
     border-radius: var(--sc-r-control);
-    padding: 6px 12px;
+    padding: 6px var(--ha-space-3, 12px);
     background: transparent;
     color: var(--sc-fg);
   }
@@ -60,7 +72,7 @@ export const sharedStyles = css`
   }
   button.primary {
     background: var(--sc-accent);
-    color: white;
+    color: var(--text-primary-color, #fff);
   }
   button.primary:hover {
     filter: brightness(1.05);
@@ -82,7 +94,7 @@ export const sharedStyles = css`
     font-family: inherit;
     font-size: var(--sc-fs-body);
     height: var(--sc-h-field);
-    padding: 0 12px;
+    padding: 0 var(--ha-space-3, 12px);
     border: 1px solid var(--sc-divider);
     border-radius: var(--sc-r-control);
     color: var(--sc-fg);
@@ -101,12 +113,12 @@ export const sharedStyles = css`
   .menu-item {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: var(--ha-space-5, 20px);
     width: 100%;
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: var(--ha-space-3, 12px) var(--ha-space-4, 16px);
+    border-radius: var(--ha-border-radius-md, 8px);
     font-size: var(--sc-fs-row);
-    text-align: left;
+    text-align: start;
     justify-content: flex-start;
   }
   .menu-item ha-icon {
@@ -184,7 +196,7 @@ export const selectStyles = css`
     appearance: none;
     -webkit-appearance: none;
     width: 100%;
-    padding-right: 30px;
+    padding-inline-end: 30px;
   }
   .select-wrap .chev {
     position: absolute;
@@ -211,12 +223,12 @@ export const switchStyles = css`
     height: 32px;
     margin: 0;
     border: 2px solid color-mix(in srgb, var(--sc-fg) 45%, transparent);
-    border-radius: 16px;
+    border-radius: var(--ha-border-radius-xl, 16px);
     background: transparent;
     cursor: pointer;
     transition:
-      background 0.15s,
-      border-color 0.15s;
+      background var(--ha-animation-duration-fast, 150ms),
+      border-color var(--ha-animation-duration-fast, 150ms);
     flex: none;
   }
   .switch::before {
@@ -229,15 +241,15 @@ export const switchStyles = css`
     border-radius: 50%;
     background: var(--sc-fg-secondary);
     transition:
-      transform 0.15s,
-      background 0.15s;
+      transform var(--ha-animation-duration-fast, 150ms),
+      background var(--ha-animation-duration-fast, 150ms);
   }
   .switch:checked {
     border-color: var(--sc-accent);
     background: var(--sc-accent);
   }
   .switch:checked::before {
-    background: white;
+    background: var(--text-primary-color, #fff);
     transform: translateX(20px);
   }
   .switch:focus-visible {
@@ -260,8 +272,8 @@ export const toolRowStyles = css`
     height: 56px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 0 12px;
+    gap: var(--ha-space-3, 12px);
+    padding: 0 var(--ha-space-3, 12px);
     /* HA's second bar is a step darker than the app bar above it. */
     background: var(--primary-background-color, var(--sc-bg));
     border-bottom: 1px solid var(--sc-divider);
@@ -292,7 +304,7 @@ export const toolRowStyles = css`
     transform: none;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--ha-space-2, 8px);
     background: none;
     border: none;
     box-shadow: none;
@@ -306,7 +318,7 @@ export const toolRowStyles = css`
     z-index: 1;
   }
   .tool-row.sub .hint-bar button.primary {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
   .tool-row .hint-bar input[type="range"] {
     width: 130px;
@@ -314,7 +326,7 @@ export const toolRowStyles = css`
   .tool-row input[type="number"] {
     width: 76px;
     height: var(--sc-h-control);
-    padding: 0 12px;
+    padding: 0 var(--ha-space-3, 12px);
     border: 1px solid var(--sc-divider);
     border-radius: var(--sc-r-control);
     background: var(--sc-panel-bg);
@@ -331,7 +343,7 @@ export const toolRowStyles = css`
   /* Whatever the row's last items are (Background, undo/redo/save) sit at
    * the right. */
   .tool-row ::slotted([slot="row-end"]) {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
   /* Every field and button in the row is the same 40px:
    * rounded rectangle, surface fill, thin border, HA's dropdown chevron. */
@@ -366,7 +378,7 @@ export const toolRowStyles = css`
   }
   .tool-row .hint-bar button {
     height: var(--sc-h-control);
-    padding: 0 16px;
+    padding: 0 var(--ha-space-4, 16px);
     border: 1px solid var(--sc-divider);
     border-radius: var(--sc-r-control);
     background: var(--sc-panel-bg);
@@ -431,8 +443,8 @@ export const scaleStyles = css`
     display: inline-flex;
     flex-direction: column;
     gap: 2px;
-    padding: 4px 10px 6px;
-    border-radius: 8px;
+    padding: var(--ha-space-1, 4px) 10px 6px;
+    border-radius: var(--ha-border-radius-md, 8px);
     font-size: var(--sc-fs-caption);
     color: var(--sc-fg);
   }
@@ -447,7 +459,7 @@ export const scaleStyles = css`
     gap: 6px;
     min-height: 32px;
     max-width: min(320px, calc(100vw - 120px));
-    padding: 6px 12px;
+    padding: 6px var(--ha-space-3, 12px);
     border-radius: var(--sc-r-control);
     font-size: var(--sc-fs-small);
     color: var(--sc-fg-secondary);

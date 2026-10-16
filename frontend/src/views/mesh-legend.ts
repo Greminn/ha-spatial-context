@@ -15,8 +15,8 @@ export const meshLegendStyles = css`
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 16px;
-    border-radius: 20px;
+    padding: 6px var(--ha-space-4, 16px);
+    border-radius: var(--ha-border-radius-2xl, 20px);
     font-size: var(--sc-fs-caption);
     color: var(--sc-fg-secondary);
     pointer-events: none;

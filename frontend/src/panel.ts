@@ -136,10 +136,10 @@ export class SpatialContextPanel extends LitElement {
         z-index: 5;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         max-width: min(640px, calc(100% - 32px));
-        padding: 8px 12px;
-        border-left: 4px solid var(--sc-danger);
+        padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
+        border-inline-start: 4px solid var(--sc-danger);
         font-size: var(--sc-fs-body);
       }
       .save-error ha-icon {
@@ -160,7 +160,7 @@ export class SpatialContextPanel extends LitElement {
         min-width: 0;
         position: relative;
         /* Room for the controls row the overlay draws across the top. */
-        padding-top: 56px;
+        padding-top: var(--ha-space-14, 56px);
       }
       .canvas-area.drag-over {
         outline: 2px dashed var(--sc-accent);
@@ -168,16 +168,16 @@ export class SpatialContextPanel extends LitElement {
       }
       .loading,
       .no-floors {
-        padding: 32px;
+        padding: var(--ha-space-8, 32px);
         color: var(--sc-fg-secondary);
       }
       .popover-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        gap: var(--ha-space-4, 16px);
         min-height: 44px;
-        padding: 6px 16px;
+        padding: 6px var(--ha-space-4, 16px);
         font-size: var(--sc-fs-row);
       }
       .menu-divider {
@@ -186,7 +186,7 @@ export class SpatialContextPanel extends LitElement {
         background: var(--sc-divider);
       }
       .menu-item .trail {
-        margin-left: auto;
+        margin-inline-start: auto;
         color: var(--sc-accent);
       }
       /* Innerspace-style layer menu: "Connectivity Map" opens a list of
@@ -206,7 +206,7 @@ export class SpatialContextPanel extends LitElement {
       }
       .popover-row select {
         height: var(--sc-h-field);
-        padding: 0 12px;
+        padding: 0 var(--ha-space-3, 12px);
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);

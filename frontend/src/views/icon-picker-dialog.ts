@@ -94,8 +94,8 @@ export class IconPickerDialog extends LitElement {
         max-height: min(640px, calc(100vh - 32px));
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--ha-space-3, 12px);
+        padding: var(--ha-space-4, 16px);
       }
       .title {
         font-size: var(--sc-fs-title);
@@ -105,7 +105,7 @@ export class IconPickerDialog extends LitElement {
         width: 100%;
         box-sizing: border-box;
         height: var(--sc-h-field);
-        padding: 0 12px;
+        padding: 0 var(--ha-space-3, 12px);
         font: inherit;
         font-size: var(--sc-fs-body);
         color: var(--sc-fg);
@@ -119,15 +119,15 @@ export class IconPickerDialog extends LitElement {
         overflow-y: auto;
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-        gap: 4px;
+        gap: var(--ha-space-1, 4px);
       }
       .icon-choice {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 8px 4px;
-        border-radius: 8px;
+        gap: var(--ha-space-1, 4px);
+        padding: var(--ha-space-2, 8px) var(--ha-space-1, 4px);
+        border-radius: var(--ha-border-radius-md, 8px);
         min-width: 0;
       }
       .icon-choice.current {
@@ -151,7 +151,7 @@ export class IconPickerDialog extends LitElement {
       .actions {
         display: flex;
         justify-content: space-between;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
       }
     `,
   ];

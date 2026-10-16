@@ -43,7 +43,7 @@ export class FloorTabs extends LitElement {
       button {
         height: 100%;
         border-radius: 0;
-        padding: 0 24px;
+        padding: 0 var(--ha-space-6, 24px);
         font-size: var(--sc-fs-body);
         font-weight: 400;
         letter-spacing: normal;
@@ -52,7 +52,7 @@ export class FloorTabs extends LitElement {
         border-bottom: 2px solid transparent;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
       }
       button ha-icon {
         --mdc-icon-size: 18px;
@@ -63,17 +63,17 @@ export class FloorTabs extends LitElement {
        * scrolls from its start, where center would push the first tabs
        * off the left edge, out of scroll reach. */
       :host > :first-child {
-        margin-left: auto;
+        margin-inline-start: auto;
       }
       :host > :last-child {
-        margin-right: auto;
+        margin-inline-end: auto;
       }
       .divider {
         width: 1px;
         height: 24px;
         align-self: center;
         background: var(--sc-divider);
-        margin: 0 4px;
+        margin: 0 var(--ha-space-1, 4px);
       }
       button:hover {
         background: transparent;
@@ -96,7 +96,7 @@ export class FloorTabs extends LitElement {
        * so names stay visible — an icon alone rarely tells floors apart. */
       @media (max-width: 600px) {
         button {
-          padding: 0 12px;
+          padding: 0 var(--ha-space-3, 12px);
           white-space: nowrap;
           flex: none;
         }

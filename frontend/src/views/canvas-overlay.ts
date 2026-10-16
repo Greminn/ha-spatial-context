@@ -85,7 +85,7 @@ export class CanvasOverlay extends LitElement {
       .mode-toolbar button {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--ha-space-1, 4px);
         padding: 6px 10px;
         border-radius: 10px;
       }
@@ -93,7 +93,7 @@ export class CanvasOverlay extends LitElement {
       .tool-divider {
         align-self: stretch;
         width: 1px;
-        margin: 6px 4px;
+        margin: 6px var(--ha-space-1, 4px);
         background: var(--sc-divider);
       }
       .mode-toolbar ha-icon {
@@ -115,11 +115,11 @@ export class CanvasOverlay extends LitElement {
         transform: translateX(-50%);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         pointer-events: auto;
       }
       .snap-select {
-        padding: 4px;
+        padding: var(--ha-space-1, 4px);
       }
       .hint {
         font-size: var(--sc-fs-small);
@@ -128,9 +128,9 @@ export class CanvasOverlay extends LitElement {
       .color-field {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         height: var(--sc-h-field);
-        padding: 0 8px 0 10px;
+        padding: 0 var(--ha-space-2, 8px) 0 10px;
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
@@ -149,21 +149,21 @@ export class CanvasOverlay extends LitElement {
       .color-list {
         max-height: 260px;
         overflow-y: auto;
-        margin: 0 8px 4px;
+        margin: 0 var(--ha-space-2, 8px) var(--ha-space-1, 4px);
         border: 1px solid var(--sc-divider);
-        border-radius: 16px;
+        border-radius: var(--ha-border-radius-xl, 16px);
         background: var(--sc-panel-bg);
       }
       .color-item {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--ha-space-3, 12px);
         width: 100%;
         min-height: 44px;
         padding: 6px 14px;
         border-radius: 0;
         font-size: var(--sc-fs-row);
-        text-align: left;
+        text-align: start;
         justify-content: flex-start;
         cursor: pointer;
       }

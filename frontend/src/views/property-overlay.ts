@@ -65,14 +65,14 @@ export class PropertyOverlay extends LitElement {
       .mode-toolbar button {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--ha-space-1, 4px);
         padding: 6px 10px;
         border-radius: 10px;
       }
       .tool-divider {
         align-self: stretch;
         width: 1px;
-        margin: 6px 4px;
+        margin: 6px var(--ha-space-1, 4px);
         background: var(--sc-divider);
       }
       .mode-toolbar ha-icon,
