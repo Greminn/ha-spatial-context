@@ -36,7 +36,8 @@
       "placeOpening": "Auf eine Wand klicken, um {type} zu platzieren.",
       "alignAgainst": "Ausrichten an:",
       "noBackground": "Diese Etage hat kein Hintergrundbild zum Ausrichten.",
-      "alignDrag": "Zum Verschieben ziehen, mit +/− die Größe ändern, dann „Anwenden“."
+      "alignDrag": "Zum Verschieben ziehen, mit +/− die Größe ändern, dann „Anwenden“.",
+      "multiSelected": "{count} Geräte ausgewählt. Ein Gerät ziehen, um alle gemeinsam zu verschieben."
     },
     "openingType": {
       "door": "eine Tür",
@@ -52,7 +53,8 @@
       "finishWall": "Wand fertigstellen",
       "chooseAnother": "Andere wählen",
       "apply": "Anwenden",
-      "close": "Schließen"
+      "close": "Schließen",
+      "clearSelection": "Auswahl aufheben"
     },
     "align": {
       "choose": "— Etage wählen —",

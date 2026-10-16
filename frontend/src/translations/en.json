@@ -36,7 +36,8 @@
       "placeOpening": "Click on a wall to place a {type}.",
       "alignAgainst": "Align against:",
       "noBackground": "That floor has no background image to align against.",
-      "alignDrag": "Drag to move, use +/− to resize, then Apply."
+      "alignDrag": "Drag to move, use +/− to resize, then Apply.",
+      "multiSelected": "{count} devices selected. Drag one to move them together."
     },
     "openingType": {
       "door": "door",
@@ -52,7 +53,8 @@
       "finishWall": "Finish Wall",
       "chooseAnother": "Choose another",
       "apply": "Apply",
-      "close": "Close"
+      "close": "Close",
+      "clearSelection": "Clear"
     },
     "align": {
       "choose": "— Choose a floor —",

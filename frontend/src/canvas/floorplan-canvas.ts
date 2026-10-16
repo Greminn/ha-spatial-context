@@ -114,6 +114,8 @@ type Gesture =
   | { kind: "alignDrag" }
   | { kind: "vertex"; index: number }
   | { kind: "pin"; pinId: string }
+  | { kind: "pinGroup"; startX: number; startY: number }
+  | { kind: "marquee"; startX: number; startY: number; additive: boolean }
   | { kind: "roomLabel"; roomId: string }
   | { kind: "roomMove"; roomId: string; startX: number; startY: number }
   | { kind: "openingMove"; openingId: string }
@@ -363,6 +365,15 @@ export class FloorplanCanvas extends LitElement {
         stroke: #e91e63;
         opacity: 1;
       }
+      .marquee {
+        fill: var(--sc-accent);
+        fill-opacity: 0.12;
+        stroke: var(--sc-accent);
+        stroke-width: 1.5;
+        stroke-dasharray: 6 4;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
       .axis-guide {
         stroke: #e91e63;
         stroke-width: 1;
@@ -428,6 +439,9 @@ export class FloorplanCanvas extends LitElement {
   @property({ attribute: false }) editingRoomId: string | null = null;
   @property({ attribute: false }) editingWallId: string | null = null;
   @property({ attribute: false }) selectedPinId: string | null = null;
+  /** Pins picked together (Shift-click or a Shift-drag box) — dragging any
+   * one of them moves the whole set. Only meaningful with 2 or more. */
+  @property({ attribute: false }) multiPinIds: string[] = [];
   @property({ attribute: false }) selectedWallId: string | null = null;
   @property({ attribute: false }) selectedOpeningId: string | null = null;
   /** `${fromPin.id}|${toPin.id}` of the currently-selected mesh link, or
@@ -478,6 +492,18 @@ export class FloorplanCanvas extends LitElement {
   private _gestureCancelled = false;
   /** A dragged corner's outline before the drag, for Esc to restore. */
   private _vertexDragStartPoints: [number, number][] | null = null;
+  /** The multi-selection being dragged: every selected pin shifts by this
+   * offset live and is committed as one "pins-move" on release. */
+  @state() private _liveGroupMove: { dx: number; dy: number } | null = null;
+  /** Shift-drag selection box, in image coordinates. */
+  @state() private _marquee: {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  } | null = null;
+  /** Shift held when the current press began — decides box-select vs pan. */
+  private _downShift = false;
   @state() private _liveDragPin: { id: string; x: number; y: number } | null =
     null;
   @state() private _liveOpeningEdit: {
@@ -740,12 +766,15 @@ export class FloorplanCanvas extends LitElement {
    * along with it. */
   private get _displayPins(): Pin[] {
     const move = this._liveRoomMove;
-    if (!move) return this.pins;
-    return this.pins.map((pin) =>
-      pin.room_id === move.id
-        ? { ...pin, x: pin.x + move.dx, y: pin.y + move.dy }
-        : pin,
-    );
+    const group = this._liveGroupMove;
+    if (!move && !group) return this.pins;
+    return this.pins.map((pin) => {
+      if (move && pin.room_id === move.id)
+        return { ...pin, x: pin.x + move.dx, y: pin.y + move.dy };
+      if (group && this.multiPinIds.includes(pin.id))
+        return { ...pin, x: pin.x + group.dx, y: pin.y + group.dy };
+      return pin;
+    });
   }
 
   /** Snaps a new trace point onto horizontal/vertical from the trace's
@@ -1031,6 +1060,7 @@ export class FloorplanCanvas extends LitElement {
     this._lastImage = image;
     this._lastClient = { x: e.clientX, y: e.clientY };
     this._moved = false;
+    this._downShift = e.shiftKey;
     this._gesture = null;
     this._downHit =
       this.mode === "select"
@@ -1142,6 +1172,18 @@ export class FloorplanCanvas extends LitElement {
       this._liveEditPoints = points;
     } else if (this._gesture?.kind === "pin") {
       this._liveDragPin = { id: this._gesture.pinId, x: image.x, y: image.y };
+    } else if (this._gesture?.kind === "pinGroup") {
+      this._liveGroupMove = {
+        dx: image.x - this._gesture.startX,
+        dy: image.y - this._gesture.startY,
+      };
+    } else if (this._gesture?.kind === "marquee") {
+      this._marquee = {
+        x0: this._gesture.startX,
+        y0: this._gesture.startY,
+        x1: image.x,
+        y1: image.y,
+      };
     } else if (this._gesture?.kind === "roomMove") {
       let dx = image.x - this._gesture.startX;
       let dy = image.y - this._gesture.startY;
@@ -1234,6 +1276,37 @@ export class FloorplanCanvas extends LitElement {
         : null;
       return { kind: "vertex", index: this._downHit.index };
     }
+    // Shift-drag on empty canvas draws a selection box instead of panning.
+    if (
+      this.mode === "select" &&
+      this._downHit?.type === "empty" &&
+      this._downShift &&
+      this._lastImage
+    ) {
+      return {
+        kind: "marquee",
+        startX: this._lastImage.x,
+        startY: this._lastImage.y,
+        additive: true,
+      };
+    }
+    // Dragging any pin of a multi-selection (without Shift) carries the lot.
+    if (
+      this.multiPinIds.length > 1 &&
+      !this._downShift &&
+      this._lastImage &&
+      (this._downHit?.type === "pin" || this._downHit?.type === "pinStack")
+    ) {
+      const hitPins =
+        this._downHit.type === "pin" ? [this._downHit.pin] : this._downHit.pins;
+      if (hitPins.some((p) => this.multiPinIds.includes(p.id))) {
+        return {
+          kind: "pinGroup",
+          startX: this._lastImage.x,
+          startY: this._lastImage.y,
+        };
+      }
+    }
     if (this._downHit?.type === "pin")
       return { kind: "pin", pinId: this._downHit.pin.id };
     if (this._downHit?.type === "roomLabel")
@@ -1319,6 +1392,40 @@ export class FloorplanCanvas extends LitElement {
       this._liveEditPoints
     ) {
       this._dispatchVertexChanged(this._liveEditPoints);
+    } else if (this._gesture?.kind === "pinGroup") {
+      const move = this._liveGroupMove;
+      this._liveGroupMove = null;
+      // Dropped back where it started: nothing changed, so no undo step.
+      if (move && (move.dx !== 0 || move.dy !== 0)) {
+        this.dispatchEvent(
+          new CustomEvent("pins-move", {
+            detail: {
+              pinIds: [...this.multiPinIds],
+              dx: move.dx,
+              dy: move.dy,
+            },
+          }),
+        );
+      }
+    } else if (this._gesture?.kind === "marquee" && this._marquee) {
+      const { x0, y0, x1, y1 } = this._marquee;
+      const minX = Math.min(x0, x1);
+      const maxX = Math.max(x0, x1);
+      const minY = Math.min(y0, y1);
+      const maxY = Math.max(y0, y1);
+      this._marquee = null;
+      this.dispatchEvent(
+        new CustomEvent("pins-select-box", {
+          detail: {
+            pinIds: this.pins
+              .filter(
+                (p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY,
+              )
+              .map((p) => p.id),
+            additive: this._gesture.additive,
+          },
+        }),
+      );
     } else if (this._gesture?.kind === "pin" && this._liveDragPin) {
       this.dispatchEvent(
         new CustomEvent("pin-move", {
@@ -1494,6 +1601,15 @@ export class FloorplanCanvas extends LitElement {
       points.splice(hit.index + 1, 0, newPoint);
       this._liveEditPoints = points;
       this._dispatchVertexChanged(points);
+    } else if ((hit.type === "pin" || hit.type === "pinStack") && shiftKey) {
+      this.dispatchEvent(
+        new CustomEvent("pin-multi-toggle", {
+          detail: {
+            pinIds:
+              hit.type === "pin" ? [hit.pin.id] : hit.pins.map((p) => p.id),
+          },
+        }),
+      );
     } else if (hit.type === "pin") {
       this.dispatchEvent(
         new CustomEvent("pin-select", {
@@ -1635,6 +1751,8 @@ export class FloorplanCanvas extends LitElement {
     this._liveRoomMove = null;
     this._roomMoveGuides = { x: null, y: null };
     this._liveDragPin = null;
+    this._liveGroupMove = null;
+    this._marquee = null;
     this._liveRoomLabel = null;
     this._liveOpeningEdit = null;
     this._gesture = null;
@@ -1914,6 +2032,10 @@ export class FloorplanCanvas extends LitElement {
    * snapping over on release. */
   private _livePinPosition(pin: Pin): { x: number; y: number } {
     if (this._liveDragPin?.id === pin.id) return this._liveDragPin;
+    const group = this._liveGroupMove;
+    if (group && this.multiPinIds.includes(pin.id)) {
+      return { x: pin.x + group.dx, y: pin.y + group.dy };
+    }
     const move = this._liveRoomMove;
     if (move && pin.room_id === move.id) {
       return { x: pin.x + move.dx, y: pin.y + move.dy };
@@ -1945,6 +2067,19 @@ export class FloorplanCanvas extends LitElement {
    * `_meshStubsForCurrentFloor`) — distinct from a normal solid
    * `.mesh-link` line so it reads as "continues elsewhere," not a second
    * real device on this floor. */
+  /** The Shift-drag selection box. */
+  private _renderMarquee() {
+    const m = this._marquee;
+    if (!m) return nothing;
+    return svg`<rect
+      class="marquee"
+      x=${Math.min(m.x0, m.x1)}
+      y=${Math.min(m.y0, m.y1)}
+      width=${Math.abs(m.x1 - m.x0)}
+      height=${Math.abs(m.y1 - m.y0)}
+    ></rect>`;
+  }
+
   /** Axis guides showing what a dragged room's edge snapped to. */
   private _renderRoomMoveGuides() {
     if (!this._liveRoomMove) return nothing;
@@ -2101,7 +2236,8 @@ export class FloorplanCanvas extends LitElement {
       const live = this._liveDragPin?.id === pin.id ? this._liveDragPin : null;
       const x = live?.x ?? pin.x;
       const y = live?.y ?? pin.y;
-      const selected = pin.id === this.selectedPinId;
+      const selected =
+        pin.id === this.selectedPinId || this.multiPinIds.includes(pin.id);
       return this._renderPinMarker(
         x,
         y,
@@ -2113,7 +2249,9 @@ export class FloorplanCanvas extends LitElement {
       );
     }
 
-    const selected = group.pins.some((p) => p.id === this.selectedPinId);
+    const selected = group.pins.some(
+      (p) => p.id === this.selectedPinId || this.multiPinIds.includes(p.id),
+    );
     const label = `${group.pins.length} devices: ${group.pins.map((p) => this._pinLabel(p)).join(", ")}`;
     return this._renderPinMarker(
       group.x,
@@ -2537,7 +2675,7 @@ export class FloorplanCanvas extends LitElement {
           ${this.meshLinks.map((link) => this._renderMeshLink(link))}
           ${this.meshStubs.map((stub) => this._renderMeshStubLine(stub))}
           ${this._renderMeshStubMarkers()}
-          ${this._renderRoomMoveGuides()}
+          ${this._renderRoomMoveGuides()} ${this._renderMarquee()}
           ${this.mode === "trace" || this.mode === "wall" ? this._renderPendingTrace() : nothing}
           ${this._renderScaleLine()}
           ${this.mode === "scale" ? this._renderPendingScale() : nothing}

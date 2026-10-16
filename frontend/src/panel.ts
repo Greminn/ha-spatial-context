@@ -238,6 +238,8 @@ export class SpatialContextPanel extends LitElement {
   @state() private _selectedRoomId: string | null = null;
   @state() private _editingRoomId: string | null = null;
   @state() private _selectedPinId: string | null = null;
+  /** Pins picked together (Shift-click / Shift-drag box); 2 or more. */
+  @state() private _multiPinIds: string[] = [];
   /** Set when a click/placement lands where 2+ pins share a spot — the
    * overlay shows a picker instead of guessing which one was meant. */
   @state() private _pinStackIds: string[] | null = null;
@@ -1213,6 +1215,7 @@ export class SpatialContextPanel extends LitElement {
     this._selectedRoomId = null;
     this._editingRoomId = null;
     this._selectedPinId = null;
+    this._multiPinIds = [];
     this._selectedWallId = null;
     this._editingWallId = null;
     this._selectedOpeningId = null;
@@ -2463,6 +2466,7 @@ export class SpatialContextPanel extends LitElement {
         return;
       }
       this._onCancelPending();
+      this._multiPinIds = [];
       this._mode = "select";
       this._armedEntityId = null;
       this._armedOpeningType = null;
@@ -2913,6 +2917,7 @@ export class SpatialContextPanel extends LitElement {
       pins: this._layout.pins.filter((p) => p.id !== pin.id),
     });
     this._selectedPinId = null;
+    this._multiPinIds = [];
   };
 
   private _patchPin(pinId: string, patch: Partial<Pin>): void {
@@ -3024,6 +3029,7 @@ export class SpatialContextPanel extends LitElement {
     this._autoSaveHeld = true;
     this._updateLayout({ pins: [] });
     this._selectedPinId = null;
+    this._multiPinIds = [];
     this._pinStackIds = null;
   };
 
@@ -3069,6 +3075,7 @@ export class SpatialContextPanel extends LitElement {
       this._editingRoomId = null;
     } else {
       this._selectedPinId = null;
+      this._multiPinIds = [];
       this._pinStackIds = null;
       this._selectedWallId = null;
       this._editingWallId = null;
@@ -3104,6 +3111,7 @@ export class SpatialContextPanel extends LitElement {
       this._selectedRoomId = null;
       this._editingRoomId = null;
       this._selectedPinId = null;
+      this._multiPinIds = [];
       this._pinStackIds = null;
       this._selectedOpeningId = null;
       this._selectedMeshLink = null;
@@ -3131,6 +3139,7 @@ export class SpatialContextPanel extends LitElement {
       this._selectedRoomId = null;
       this._editingRoomId = null;
       this._selectedPinId = null;
+      this._multiPinIds = [];
       this._pinStackIds = null;
       this._selectedWallId = null;
       this._editingWallId = null;
@@ -3172,11 +3181,13 @@ export class SpatialContextPanel extends LitElement {
     if (coLocated.length > 0) {
       this._pinStackIds = [...coLocated.map((p) => p.id), pin.id];
       this._selectedPinId = null;
+      this._multiPinIds = [];
     } else {
       // Auto-select the pin just placed, so Set Height/Rename/etc. act on
       // it instead of whatever was selected before arming placement mode.
       this._pinStackIds = null;
       this._selectedPinId = pin.id;
+      this._multiPinIds = [];
       this._selectedRoomId = null;
       this._selectedWallId = null;
       this._editingWallId = null;
@@ -3197,8 +3208,88 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
+  /** Applies a new set of picked pins: 2+ become the multi-selection, one
+   * falls back to ordinary single-pin selection, none leaves things as is. */
+  private _applyPinPick(ids: string[]): void {
+    this._pinStackIds = null;
+    this._selectedRoomId = null;
+    this._editingRoomId = null;
+    this._selectedWallId = null;
+    this._editingWallId = null;
+    this._selectedOpeningId = null;
+    this._selectedMeshLink = null;
+    this._selectedMeshStub = null;
+    if (ids.length > 1) {
+      this._selectedPinId = null;
+      this._multiPinIds = ids;
+    } else {
+      this._selectedPinId = ids[0] ?? null;
+      this._multiPinIds = [];
+    }
+  }
+
+  /** The pins already picked, counting a lone selected pin as the start of
+   * a multi-selection (click one, Shift-click the next). */
+  private _currentPinPick(): string[] {
+    if (this._multiPinIds.length > 0) return this._multiPinIds;
+    return this._selectedPinId ? [this._selectedPinId] : [];
+  }
+
+  private _onPinMultiToggle = (e: CustomEvent<{ pinIds: string[] }>) => {
+    const current = this._currentPinPick();
+    const toggling = e.detail.pinIds;
+    const allIn = toggling.every((id) => current.includes(id));
+    const next = allIn
+      ? current.filter((id) => !toggling.includes(id))
+      : [...current, ...toggling.filter((id) => !current.includes(id))];
+    this._applyPinPick(next);
+  };
+
+  private _onPinsSelectBox = (
+    e: CustomEvent<{ pinIds: string[]; additive: boolean }>,
+  ) => {
+    const base = e.detail.additive ? this._currentPinPick() : [];
+    const next = [
+      ...base,
+      ...e.detail.pinIds.filter((id) => !base.includes(id)),
+    ];
+    // An empty box is just a miss — leave the current selection alone.
+    if (next.length === 0) return;
+    this._applyPinPick(next);
+  };
+
+  private _onPinsMove = (
+    e: CustomEvent<{ pinIds: string[]; dx: number; dy: number }>,
+  ) => {
+    const { pinIds, dx, dy } = e.detail;
+    debugLog.log("pins_move", {
+      count: pinIds.length,
+      dx: Math.round(dx),
+      dy: Math.round(dy),
+    });
+    const moving = new Set(pinIds);
+    const pins = this._layout.pins.map((p) => {
+      if (!moving.has(p.id)) return p;
+      const x = p.x + dx;
+      const y = p.y + dy;
+      return {
+        ...p,
+        x,
+        y,
+        room_id: findRoomForPoint(x, y, this._layout.rooms),
+      };
+    });
+    // One layout update, so the whole group move is a single undo step.
+    this._updateLayout({ pins });
+  };
+
+  private _onMultiPinClear = () => {
+    this._multiPinIds = [];
+  };
+
   private _onPinSelect = (e: CustomEvent<{ pinId: string | null }>) => {
     this._selectedPinId = e.detail.pinId;
+    this._multiPinIds = [];
     this._pinStackIds = null;
     if (e.detail.pinId !== null) {
       this._selectedRoomId = null;
@@ -3217,6 +3308,7 @@ export class SpatialContextPanel extends LitElement {
     this._editingWallId = null;
     this._selectedOpeningId = null;
     this._selectedPinId = null;
+    this._multiPinIds = [];
     this._selectedMeshLink = null;
     this._selectedMeshStub = null;
   };
@@ -3229,6 +3321,7 @@ export class SpatialContextPanel extends LitElement {
       this._selectedRoomId = null;
       this._editingRoomId = null;
       this._selectedPinId = null;
+      this._multiPinIds = [];
       this._pinStackIds = null;
       this._selectedWallId = null;
       this._editingWallId = null;
@@ -3245,6 +3338,7 @@ export class SpatialContextPanel extends LitElement {
       this._selectedRoomId = null;
       this._editingRoomId = null;
       this._selectedPinId = null;
+      this._multiPinIds = [];
       this._pinStackIds = null;
       this._selectedWallId = null;
       this._editingWallId = null;
@@ -3264,6 +3358,7 @@ export class SpatialContextPanel extends LitElement {
   private _onPinStackChoose = (e: CustomEvent<{ pinId: string }>) => {
     this._pinStackIds = null;
     this._selectedPinId = e.detail.pinId;
+    this._multiPinIds = [];
   };
 
   /** The info card's close button: drop whatever is selected. */
@@ -3295,6 +3390,7 @@ export class SpatialContextPanel extends LitElement {
     // single-pin selection (or nothing) rather than showing a 1-item picker.
     this._pinStackIds = remaining.length > 1 ? remaining : null;
     this._selectedPinId = remaining.length === 1 ? remaining[0]! : null;
+    this._multiPinIds = [];
   };
 
   private _pinLabel(pin: Pin): string {
@@ -3850,6 +3946,7 @@ export class SpatialContextPanel extends LitElement {
                     .selectedRoomId=${this._selectedRoomId}
                     .editingRoomId=${this._editingRoomId}
                     .selectedPinId=${this._selectedPinId}
+                    .multiPinIds=${this._multiPinIds}
                     .selectedWallId=${this._selectedWallId}
                     .editingWallId=${this._editingWallId}
                     .selectedOpeningId=${this._selectedOpeningId}
@@ -3869,6 +3966,9 @@ export class SpatialContextPanel extends LitElement {
                     @pin-place=${this._onPinPlace}
                     @pin-move=${this._onPinMove}
                     @pin-select=${this._onPinSelect}
+                    @pin-multi-toggle=${this._onPinMultiToggle}
+                    @pins-select-box=${this._onPinsSelectBox}
+                    @pins-move=${this._onPinsMove}
                     @pin-stack-select=${this._onPinStackSelect}
                     @mesh-link-select=${this._onMeshLinkSelect}
                     @mesh-stub-select=${this._onMeshStubSelect}
@@ -3898,6 +3998,8 @@ export class SpatialContextPanel extends LitElement {
                     .editingRoom=${!!this._editingRoomId}
                     .areas=${this._areasForCurrentFloor}
                     .selectedPin=${this._selectedPin}
+                    .multiPinCount=${this._multiPinIds.length}
+                    @multi-pin-clear=${this._onMultiPinClear}
                     .selectedWall=${this._selectedWall}
                     .editingWall=${!!this._editingWallId}
                     .selectedOpening=${this._selectedOpening}

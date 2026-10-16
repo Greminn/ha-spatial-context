@@ -227,6 +227,8 @@ export class CanvasOverlay extends LitElement {
   @property({ type: Boolean }) editingRoom = false;
   @property({ attribute: false }) areas: AreaMeta[] = [];
   @property({ attribute: false }) selectedPin: Pin | null = null;
+  /** How many pins are multi-selected (Shift-click / Shift-drag box). */
+  @property({ type: Number }) multiPinCount = 0;
   @property({ attribute: false }) selectedWall: Wall | null = null;
   @property({ type: Boolean }) editingWall = false;
   @property({ attribute: false }) unitSystem: UnitSystem = "metric";
@@ -488,6 +490,18 @@ export class CanvasOverlay extends LitElement {
     }
     if (this.mode === "align") {
       return this._renderAlignBar();
+    }
+    if (this.mode === "select" && this.multiPinCount > 1) {
+      return html`<div class="hint-bar floating-panel">
+        <span class="hint"
+          >${localize("canvas.hint.multiSelected", {
+            count: String(this.multiPinCount),
+          })}</span
+        >
+        <button @click=${() => this._fire("multi-pin-clear")}>
+          ${localize("canvas.button.clearSelection")}
+        </button>
+      </div>`;
     }
     return nothing;
   }
