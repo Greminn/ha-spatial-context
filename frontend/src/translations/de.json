@@ -252,10 +252,22 @@
     "bluetoothFailed": "Bluetooth-Abonnement fehlgeschlagen",
     "floorSave": "Diese Etage konnte nicht gespeichert werden – Sie bleiben hier, damit nichts verloren geht.",
     "propertySave": "Die Anwesen-Ansicht konnte nicht gespeichert werden – öffnen Sie den Tab „Anwesen“ erneut.",
+    "saveFailed": "Speichern fehlgeschlagen: {error} Deine Änderungen sind noch da — lass diesen Tab geöffnet.",
+    "retry": "Erneut versuchen",
     "bgType": "Das Hintergrundbild muss eine PNG-, JPEG- oder GIF-Datei sein.",
     "bgUpload": "Hochladen des Hintergrundbilds fehlgeschlagen: {error}"
   },
+  "dialog": {
+    "ok": "OK",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "remove": "Entfernen",
+    "discard": "Verwerfen",
+    "reset": "Zurücksetzen",
+    "apply": "Anwenden"
+  },
   "confirm": {
+    "removeOutdoorPin": "\"{name}\" vom Anwesen entfernen?",
     "discardFloor": "Nicht gespeicherte Änderungen an dieser Etage verwerfen?",
     "discardProperty": "Nicht gespeicherte Änderungen an der Anwesen-Ansicht verwerfen?",
     "removeOutdoorOne": "Das {count} Außengerät vom Anwesen entfernen?",

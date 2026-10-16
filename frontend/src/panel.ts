@@ -84,6 +84,8 @@ import "./views/row-actions";
 import "./views/entity-picker-sidebar";
 import "./views/property-overlay";
 import "./views/icon-picker-dialog";
+import "./views/confirm-dialog";
+import type { ScDialog } from "./views/confirm-dialog";
 import { localize } from "./i18n";
 import { panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-menu";
@@ -364,6 +366,27 @@ export class SpatialContextPanel extends LitElement {
   @query("floorplan-canvas") private _canvas?: FloorplanCanvas;
   @query("property-canvas") private _propertyCanvas?: PropertyCanvas;
   @query("#file-input") private _fileInput?: HTMLInputElement;
+  @query("sc-dialog") private _dialogEl?: ScDialog;
+
+  /** Themed replacement for window.confirm: `key` is a `confirm.*` string,
+   * `verb` the confirm button's label (a `dialog.*` string). */
+  private async _ask(
+    key: string,
+    verb: "delete" | "remove" | "discard" | "reset" | "apply",
+    params?: Record<string, string | number>,
+  ): Promise<boolean> {
+    return (
+      (await this._dialogEl?.confirm({
+        text: localize(`confirm.${key}`, params),
+        confirmText: localize(`dialog.${verb}`),
+        destructive: true,
+      })) ?? false
+    );
+  }
+
+  private async _notify(text: string): Promise<void> {
+    await this._dialogEl?.alert({ text });
+  }
 
   private _hass?: HomeAssistant;
   private _initialized = false;
@@ -1128,10 +1151,10 @@ export class SpatialContextPanel extends LitElement {
     if (!opts.skipDirtyCheck && this._dirty) {
       if (this._autoSaveActive) {
         if (!(await this._flushAutoSave())) {
-          window.alert(localize("errors.floorSave"));
+          await this._notify(localize("errors.floorSave"));
           return;
         }
-      } else if (!window.confirm(localize("confirm.discardFloor"))) {
+      } else if (!(await this._ask("discardFloor", "discard"))) {
         return;
       }
     }
@@ -1302,10 +1325,10 @@ export class SpatialContextPanel extends LitElement {
     if (this._propertyDirty) {
       if (this._autoSaveActive) {
         if (!(await this._flushAutoSave())) {
-          window.alert(localize("errors.propertySave"));
+          await this._notify(localize("errors.propertySave"));
           return;
         }
-      } else if (!window.confirm(localize("confirm.discardProperty"))) {
+      } else if (!(await this._ask("discardProperty", "discard"))) {
         return;
       }
     }
@@ -1655,10 +1678,14 @@ export class SpatialContextPanel extends LitElement {
     if (pin) this._iconPickerFor = { kind: "outdoor", pinId: pin.id };
   };
 
-  private _onOutdoorPinDelete = () => {
+  private _onOutdoorPinDelete = async () => {
     const pin = this._selectedOutdoorPin;
     if (!pin) return;
-    if (!window.confirm(`Remove "${this._pinLabel(pin)}" from the property?`)) {
+    if (
+      !(await this._ask("removeOutdoorPin", "remove", {
+        name: this._pinLabel(pin),
+      }))
+    ) {
       return;
     }
     this._updatePropertyLayout({
@@ -1677,18 +1704,15 @@ export class SpatialContextPanel extends LitElement {
     }
   };
 
-  private _onClearAllOutdoorPins = () => {
+  private _onClearAllOutdoorPins = async () => {
     const count = this._propertyLayout.pins.length;
     if (count === 0) return;
     if (
-      !window.confirm(
-        localize(
-          count === 1
-            ? "confirm.removeOutdoorOne"
-            : "confirm.removeOutdoorMany",
-          { count },
-        ),
-      )
+      !(await this._ask(
+        count === 1 ? "removeOutdoorOne" : "removeOutdoorMany",
+        "remove",
+        { count },
+      ))
     ) {
       return;
     }
@@ -1793,12 +1817,12 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
-  private _onPlacementDeleteClick = () => {
+  private _onPlacementDeleteClick = async () => {
     const p = this._selectedPlacement;
     if (!p) return;
     const label =
       p.label_override ?? this._floorNameById.get(p.floor_id) ?? p.floor_id;
-    if (!window.confirm(localize("confirm.deletePlacement", { label }))) return;
+    if (!(await this._ask("deletePlacement", "delete", { label }))) return;
     this._updatePropertyLayout({
       placements: this._propertyLayout.placements.filter(
         (pl) => pl.id !== p.id,
@@ -2068,9 +2092,9 @@ export class SpatialContextPanel extends LitElement {
   };
   private _onExportClick = () => void this._export();
 
-  private _onResetClick = () => {
+  private _onResetClick = async () => {
     if (this._view === "property") {
-      if (!window.confirm(localize("confirm.resetProperty"))) {
+      if (!(await this._ask("resetProperty", "reset"))) {
         return;
       }
       this._autoSaveHeld = true;
@@ -2085,7 +2109,7 @@ export class SpatialContextPanel extends LitElement {
     const floorName =
       this._floors.find((f) => f.floor_id === this._currentFloorId)?.name ??
       localize("floor.thisFloor");
-    if (!window.confirm(localize("confirm.resetFloor", { floor: floorName }))) {
+    if (!(await this._ask("resetFloor", "reset", { floor: floorName }))) {
       return;
     }
     this._autoSaveHeld = true;
@@ -2544,7 +2568,7 @@ export class SpatialContextPanel extends LitElement {
    * to live here rather than only on the input element. */
   private async _handleBackgroundFile(file: File): Promise<void> {
     if (!SpatialContextPanel._ACCEPTED_BACKGROUND_TYPES.has(file.type)) {
-      window.alert(localize("errors.bgType"));
+      await this._notify(localize("errors.bgType"));
       return;
     }
     try {
@@ -2553,7 +2577,7 @@ export class SpatialContextPanel extends LitElement {
       if (this._view === "property") this._updatePropertyLayout(patch);
       else this._updateLayout(patch);
     } catch (err) {
-      window.alert(
+      await this._notify(
         localize("errors.bgUpload", { error: (err as Error).message }),
       );
     }
@@ -2652,9 +2676,7 @@ export class SpatialContextPanel extends LitElement {
     const targetName =
       this._floors.find((f) => f.floor_id === targetFloorId)?.name ??
       localize("floor.thatFloor");
-    if (
-      !window.confirm(localize("confirm.applyAlignment", { floor: targetName }))
-    ) {
+    if (!(await this._ask("applyAlignment", "apply", { floor: targetName }))) {
       return;
     }
 
@@ -2844,11 +2866,11 @@ export class SpatialContextPanel extends LitElement {
         : this._selectedRoomId;
   };
 
-  private _onRoomDelete = () => {
+  private _onRoomDelete = async () => {
     const room = this._selectedRoom;
     if (
       !room ||
-      !window.confirm(localize("confirm.deleteRoom", { name: room.name }))
+      !(await this._ask("deleteRoom", "delete", { name: room.name }))
     )
       return;
     const rooms = this._layout.rooms.filter((r) => r.id !== room.id);
@@ -2904,13 +2926,11 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
-  private _onPinDelete = () => {
+  private _onPinDelete = async () => {
     const pin = this._selectedPin;
     if (
       !pin ||
-      !window.confirm(
-        localize("confirm.deletePin", { name: this._pinLabel(pin) }),
-      )
+      !(await this._ask("deletePin", "delete", { name: this._pinLabel(pin) }))
     )
       return;
     this._updateLayout({
@@ -2960,9 +2980,9 @@ export class SpatialContextPanel extends LitElement {
         : this._selectedWallId;
   };
 
-  private _onWallDelete = () => {
+  private _onWallDelete = async () => {
     const wall = this._selectedWall;
-    if (!wall || !window.confirm(localize("confirm.deleteWall"))) {
+    if (!wall || !(await this._ask("deleteWall", "delete"))) {
       return;
     }
     this._updateLayout({
@@ -2987,17 +3007,14 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
-  private _onOpeningDelete = () => {
+  private _onOpeningDelete = async () => {
     const opening = this._selectedOpening;
     if (
       !opening ||
-      !window.confirm(
-        localize(
-          opening.type === "door"
-            ? "confirm.deleteDoor"
-            : "confirm.deleteWindow",
-        ),
-      )
+      !(await this._ask(
+        opening.type === "door" ? "deleteDoor" : "deleteWindow",
+        "delete",
+      ))
     )
       return;
     this._updateLayout({
@@ -3013,16 +3030,15 @@ export class SpatialContextPanel extends LitElement {
       this._armedEntityId === e.detail.entityId ? null : e.detail.entityId;
   };
 
-  private _onClearAllPins = () => {
+  private _onClearAllPins = async () => {
     const count = this._layout.pins.length;
     if (count === 0) return;
     if (
-      !window.confirm(
-        localize(
-          count === 1 ? "confirm.removeFloorOne" : "confirm.removeFloorMany",
-          { count },
-        ),
-      )
+      !(await this._ask(
+        count === 1 ? "removeFloorOne" : "removeFloorMany",
+        "remove",
+        { count },
+      ))
     ) {
       return;
     }
@@ -3371,13 +3387,13 @@ export class SpatialContextPanel extends LitElement {
     this._pinStackIds = null;
   };
 
-  private _onPinStackRemove = (e: CustomEvent<{ pinId: string }>) => {
+  private _onPinStackRemove = async (e: CustomEvent<{ pinId: string }>) => {
     const pin = this._layout.pins.find((p) => p.id === e.detail.pinId);
     if (!pin) return;
     if (
-      !window.confirm(
-        localize("confirm.removeFromSpot", { name: this._pinLabel(pin) }),
-      )
+      !(await this._ask("removeFromSpot", "remove", {
+        name: this._pinLabel(pin),
+      }))
     )
       return;
     this._updateLayout({
@@ -3398,16 +3414,17 @@ export class SpatialContextPanel extends LitElement {
     return pinDisplayLabel(pin.device_id, this._entityLookup.values());
   }
 
-  private _onScaleLineComplete = (
+  private _onScaleLineComplete = async (
     e: CustomEvent<{ points: [number, number][] }>,
   ) => {
     const system = this._settings.unit_system;
     const unitWord = localize(
       system === "imperial" ? "units.feet" : "units.metres",
     );
-    const input = window.prompt(
-      localize("prompt.distance", { unit: unitWord }),
-    );
+    const input = await this._dialogEl?.prompt({
+      text: localize("prompt.distance", { unit: unitWord }),
+      confirmText: localize("dialog.ok"),
+    });
     const meters = input ? parseLarge(input, system) : null;
     if (meters === null || !Number.isFinite(meters) || meters <= 0) return;
     const points = e.detail.points as [[number, number], [number, number]];
@@ -3789,10 +3806,13 @@ export class SpatialContextPanel extends LitElement {
             ? html`<div class="save-error floating-panel" role="alert">
                 <ha-icon icon="mdi:alert"></ha-icon>
                 <span
-                  >Couldn't save: ${this._saveError} Your changes are still here
-                  — keep this tab open.</span
+                  >${localize("errors.saveFailed", {
+                    error: this._saveError,
+                  })}</span
                 >
-                <button @click=${this._onSaveClick}>Retry</button>
+                <button @click=${this._onSaveClick}>
+                  ${localize("errors.retry")}
+                </button>
               </div>`
             : nothing
         }
@@ -4073,6 +4093,7 @@ export class SpatialContextPanel extends LitElement {
               `
         }
       </div>
+      <sc-dialog></sc-dialog>
       ${
         this._iconPickerPin
           ? html`<icon-picker-dialog

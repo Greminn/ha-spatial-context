@@ -252,10 +252,22 @@
     "bluetoothFailed": "Bluetooth subscription failed",
     "floorSave": "Couldn't save this floor — staying here so nothing is lost.",
     "propertySave": "Couldn't save the property view — reopen the Property tab to try again.",
+    "saveFailed": "Couldn't save: {error} Your changes are still here — keep this tab open.",
+    "retry": "Retry",
     "bgType": "Background image must be a PNG, JPEG, or GIF file.",
     "bgUpload": "Background image upload failed: {error}"
   },
+  "dialog": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "remove": "Remove",
+    "discard": "Discard",
+    "reset": "Reset",
+    "apply": "Apply"
+  },
   "confirm": {
+    "removeOutdoorPin": "Remove \"{name}\" from the property?",
     "discardFloor": "Discard unsaved changes to this floor?",
     "discardProperty": "Discard unsaved changes to the property view?",
     "removeOutdoorOne": "Remove all {count} outdoor device from the property?",
