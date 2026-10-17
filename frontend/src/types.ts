@@ -85,6 +85,10 @@ export interface Settings {
    * own device separate from the Zigbee2MQTT Bridge (#27). Null = the
    * Bridge device. */
   zigbee_coordinator_device_id: string | null;
+  /** HA device to draw the Thread border router at (#38). HA's Matter
+   * topology gives border routers no device of their own, so without this
+   * every link to one is dropped. Null = not set. */
+  thread_border_router_device_id: string | null;
   /** Save layout edits automatically a few seconds after each change
    * (#32). The manual Save button works either way. */
   auto_save: boolean;

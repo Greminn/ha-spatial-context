@@ -709,7 +709,14 @@ export class SpatialContextPanel extends LitElement {
     if (this._networkType === "matter" && this._matterTopology) {
       const deviceIdByNodeId = new Map<string, string>();
       for (const node of this._matterTopology.nodes) {
-        if (node.ha_device_id) deviceIdByNodeId.set(node.id, node.ha_device_id);
+        // Border routers carry no ha_device_id in HA's topology (#38), so
+        // they use the device the user picked in Settings.
+        const deviceId =
+          node.ha_device_id ??
+          (node.kind === "border_router"
+            ? this._settings.thread_border_router_device_id
+            : null);
+        if (deviceId) deviceIdByNodeId.set(node.id, deviceId);
       }
       const out: {
         sourceDeviceId: string;

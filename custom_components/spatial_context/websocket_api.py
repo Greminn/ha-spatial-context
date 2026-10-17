@@ -324,6 +324,9 @@ _SETTINGS_SCHEMA = {
     vol.Optional("zigbee_coordinator_device_id", default=None): vol.Any(
         None, str
     ),
+    vol.Optional("thread_border_router_device_id", default=None): vol.Any(
+        None, str
+    ),
     vol.Optional("auto_save", default=True): bool,
     vol.Optional("debug_logging", default=False): bool,
 }

@@ -268,6 +268,10 @@ def _empty_settings() -> dict[str, Any]:
         # network adapter from its own integration — #27). None = the
         # Bridge device, which Z2M's own identifiers already map to.
         "zigbee_coordinator_device_id": None,
+        # HA device the Thread border router is drawn at (#38). HA's Matter
+        # topology leaves border routers without an `ha_device_id`, so links
+        # to one need a user-chosen device. None = not set.
+        "thread_border_router_device_id": None,
         # Save layout edits automatically a few seconds after each change
         # (#32) — the panel's own debounce; the manual Save button still
         # works either way.

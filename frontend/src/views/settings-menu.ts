@@ -234,12 +234,44 @@ export class SettingsMenu extends LitElement {
     </div>`;
   }
 
+  /** A dropdown of the devices placed on the map, with a default entry
+   * for "none chosen". Keeps a saved choice visible even once its pin is
+   * removed, rather than the select silently showing the default. */
+  private _deviceSelect(opts: {
+    value: string | null;
+    defaultLabel: string;
+    aria: string;
+    onChange: (deviceId: string | null) => void;
+  }) {
+    const { value } = opts;
+    const placed = this.coordinatorChoices.some((c) => c.deviceId === value);
+    return html`<span class="select-wrap"
+      ><select
+        aria-label=${opts.aria}
+        @change=${(e: Event) =>
+          opts.onChange((e.target as HTMLSelectElement).value || null)}
+      >
+        <option value="" ?selected=${!value}>${opts.defaultLabel}</option>
+        ${
+          value && !placed
+            ? html`<option value=${value} selected>
+                ${localize("settings.notPlaced")}
+              </option>`
+            : nothing
+        }
+        ${this.coordinatorChoices.map(
+          ({ deviceId, label }) =>
+            html`<option value=${deviceId} ?selected=${deviceId === value}>
+              ${label}
+            </option>`,
+        )}</select
+      ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+    ></span>`;
+  }
+
   override render() {
     const s = this.settings;
     const coordinator = s.zigbee_coordinator_device_id;
-    const coordinatorPlaced = this.coordinatorChoices.some(
-      (c) => c.deviceId === coordinator,
-    );
     return html`
       <div class="header">
         <button
@@ -296,38 +328,13 @@ export class SettingsMenu extends LitElement {
           <div class="section-title">${localize("settings.zigbeeMesh")}</div>
           ${this._row(
             localize("settings.coordinator"),
-            html`<span class="select-wrap"
-              ><select
-                aria-label=${localize("settings.coordinatorAria")}
-                @change=${(e: Event) =>
-                  this._change({
-                    zigbee_coordinator_device_id:
-                      (e.target as HTMLSelectElement).value || null,
-                  })}
-              >
-                <option value="" ?selected=${!coordinator}>
-                  ${localize("settings.bridge")}
-                </option>
-                ${
-                  // Keep a saved choice visible even once its pin is removed,
-                  // rather than the select silently showing the default.
-                  coordinator && !coordinatorPlaced
-                    ? html`<option value=${coordinator} selected>
-                        ${localize("settings.notPlaced")}
-                      </option>`
-                    : nothing
-                }
-                ${this.coordinatorChoices.map(
-                  ({ deviceId, label }) =>
-                    html`<option
-                      value=${deviceId}
-                      ?selected=${deviceId === coordinator}
-                    >
-                      ${label}
-                    </option>`,
-                )}</select
-              ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
-            ></span>`,
+            this._deviceSelect({
+              value: coordinator,
+              defaultLabel: localize("settings.bridge"),
+              aria: localize("settings.coordinatorAria"),
+              onChange: (zigbee_coordinator_device_id) =>
+                this._change({ zigbee_coordinator_device_id }),
+            }),
             localize("settings.coordinatorHint"),
           )}
           ${this._row(
@@ -353,6 +360,21 @@ export class SettingsMenu extends LitElement {
               />s</span
             >`,
             localize("settings.scanTimeoutHint"),
+          )}
+        </div>
+
+        <div class="section">
+          <div class="section-title">${localize("settings.matterThread")}</div>
+          ${this._row(
+            localize("settings.borderRouter"),
+            this._deviceSelect({
+              value: s.thread_border_router_device_id,
+              defaultLabel: localize("settings.notSet"),
+              aria: localize("settings.borderRouterAria"),
+              onChange: (thread_border_router_device_id) =>
+                this._change({ thread_border_router_device_id }),
+            }),
+            localize("settings.borderRouterHint"),
           )}
         </div>
 
