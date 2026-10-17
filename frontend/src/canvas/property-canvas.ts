@@ -17,6 +17,7 @@ import {
   clamp,
   distance,
   pointToSegmentDistance,
+  isMouseWheel,
 } from "./geometry";
 import { pinDisplayLabel } from "./device-display";
 import { qualityColor } from "./mesh-colors";
@@ -958,7 +959,7 @@ export class PropertyCanvas extends LitElement {
       );
       return;
     }
-    if (e.ctrlKey) {
+    if (e.ctrlKey || isMouseWheel(e)) {
       const factor = e.deltaY < 0 ? 0.9 : 1.1;
       this._zoomBy(factor, this._clientToImage(e.clientX, e.clientY));
       return;

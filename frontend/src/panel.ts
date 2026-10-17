@@ -308,6 +308,7 @@ export class SpatialContextPanel extends LitElement {
   // --- Property tab ---------------------------------------------------
   @state() private _view: "floor" | "property" = "floor";
   @state() private _placementGhosts: Map<string, PlacementGhost> = new Map();
+  private _ghostsLoading = false;
   @state() private _propertyLayout: PropertyLayout = emptyPropertyLayout();
   @state() private _propertyDirty = false;
   /** Why the last save failed, until one succeeds — shown as a banner.
@@ -1367,6 +1368,15 @@ export class SpatialContextPanel extends LitElement {
    * Loaded after the tab opens so it never delays it; a floor that fails
    * to load just contributes nothing. */
   private async _loadPlacementGhosts(): Promise<void> {
+    this._ghostsLoading = true;
+    try {
+      await this._loadPlacementGhostsNow();
+    } finally {
+      this._ghostsLoading = false;
+    }
+  }
+
+  private async _loadPlacementGhostsNow(): Promise<void> {
     const placements = this._livePlacements;
     const floorIds = new Set<string>();
     const membersOf = (p: PropertyPlacement): FloorMeta[] =>
@@ -2039,6 +2049,16 @@ export class SpatialContextPanel extends LitElement {
       changed.has("_propertyDirty")
     ) {
       this._scheduleAutoSave();
+    }
+    // A building placed (or restored by undo) after the tab opened has no
+    // ghost outline yet — load it now rather than on the next page load (#39).
+    if (
+      changed.has("_propertyLayout") &&
+      this._view === "property" &&
+      !this._ghostsLoading &&
+      this._livePlacements.some((p) => !this._placementGhosts.has(p.id))
+    ) {
+      void this._loadPlacementGhosts();
     }
   }
 

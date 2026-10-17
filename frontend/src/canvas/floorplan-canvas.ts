@@ -30,6 +30,7 @@ import {
   pointInPolygon,
   pointToPolylineDistance,
   snapToAxis,
+  isMouseWheel,
 } from "./geometry";
 import {
   findMeshLinkAt,
@@ -1850,7 +1851,7 @@ export class FloorplanCanvas extends LitElement {
    * Safari/Chrome synthesize those as wheel events with `ctrlKey: true`. */
   private _onWheel = (e: WheelEvent): void => {
     e.preventDefault();
-    if (e.ctrlKey) {
+    if (e.ctrlKey || isMouseWheel(e)) {
       const factor = e.deltaY < 0 ? 0.9 : 1.1;
       this._zoomBy(factor, this._clientToImage(e.clientX, e.clientY));
       return;

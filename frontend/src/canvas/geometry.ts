@@ -286,3 +286,16 @@ export function blurActiveElement(within: Node): void {
   }
   if (root === scope) el.blur();
 }
+
+/** True for a notched mouse wheel rather than a trackpad: notches report
+ * `wheelDeltaY` in multiples of 120 with no horizontal component, while
+ * trackpads send small varying deltas. A mouse wheel zooms the canvas (as on
+ * HA's own map page); a trackpad's two-finger scroll keeps panning it.
+ * Heuristic — an unusual mouse can still pan, and Ctrl+wheel always zooms. */
+export function isMouseWheel(e: WheelEvent): boolean {
+  if (e.deltaMode !== 0) return true;
+  const notch = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+  return (
+    e.deltaX === 0 && !!notch && Math.abs(notch) >= 120 && notch % 120 === 0
+  );
+}
