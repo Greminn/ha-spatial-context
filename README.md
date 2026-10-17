@@ -24,7 +24,7 @@ Home Assistant knows your devices by name and area, but not where anything actua
 
 | Layer | Needs |
 |---|---|
-| Zigbee | **Zigbee2MQTT**, connected to Home Assistant over MQTT (ZHA isn't supported) |
+| Zigbee | **Zigbee2MQTT**, connected to Home Assistant over MQTT, or **ZHA** (new and untested on real ZHA networks, so please report what you see). If you run both, Zigbee2MQTT is used |
 | Wi-Fi | An integration that reports each client's access point: **UniFi Network**, **TP-Link Omada**, or the custom **TP-Link Deco** integration |
 | Matter / Thread | Home Assistant's **Matter** integration |
 | Bluetooth | **Home Assistant 2025.2** or newer, an **admin** account, and Bluetooth devices registered by an integration (BTHome, Xiaomi BLE, SwitchBot and similar). ESPHome Bluetooth proxies are supported |

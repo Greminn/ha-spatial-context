@@ -71,6 +71,19 @@ async def async_get_network_map(
     if not force_refresh and cache.mesh is not None:
         return {**cache.mesh, "fetched_at": cache.fetched_at}
 
+    if _uses_zha(hass):
+        # ZHA keeps its own topology (zigpy's neighbor tables), so there is
+        # no MQTT round trip — see zha_mesh.py (#40).
+        from .zha_mesh import async_fetch_zha_mesh
+
+        settings = await async_get_settings(hass)
+        mesh = await async_fetch_zha_mesh(
+            hass, force_refresh, settings["zigbee_timeout_seconds"], _merge_links
+        )
+        cache.mesh = mesh
+        cache.fetched_at = time.time()
+        return {**cache.mesh, "fetched_at": cache.fetched_at}
+
     # `type: raw` polls every router's neighbor/routing table over the air —
     # on a ~70-node mesh a response has been observed taking anywhere from
     # ~90s up to ~130s (confirmed by direct MQTT round-trip testing), so the
@@ -131,6 +144,13 @@ async def async_get_network_map(
     cache.mesh = {"nodes": out_nodes, "links": out_links}
     cache.fetched_at = time.time()
     return {**cache.mesh, "fetched_at": cache.fetched_at}
+
+
+def _uses_zha(hass: HomeAssistant) -> bool:
+    """ZHA is loaded and no Zigbee2MQTT devices exist, so there is nothing
+    for the MQTT path to map. A house running both keeps the Zigbee2MQTT
+    behaviour it always had."""
+    return "zha" in hass.config.components and not _build_ieee_to_device_id_map(hass)
 
 
 def _build_ieee_to_device_id_map(hass: HomeAssistant) -> dict[str, str]:
