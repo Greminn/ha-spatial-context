@@ -87,7 +87,7 @@ import "./views/icon-picker-dialog";
 import "./views/confirm-dialog";
 import type { ScDialog } from "./views/confirm-dialog";
 import { localize } from "./i18n";
-import { panMap, rotateMapTo, zoomMap } from "./map/map-camera";
+import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-menu";
 import type { PropertyBuilding } from "./views/property-overlay";
 
@@ -105,6 +105,10 @@ function readStoredSnapMode(): SnapMode {
   }
   return "all";
 }
+
+/** Long side of a new building on a scaled canvas when its floor isn't
+ * calibrated: roughly a typical house. */
+const DEFAULT_BUILDING_LONG_SIDE_M = 12;
 
 @safeCustomElement("spatial-context-panel")
 export class SpatialContextPanel extends LitElement {
@@ -1086,7 +1090,9 @@ export class SpatialContextPanel extends LitElement {
 
   /** A placement's building scale: its anchor floor's calibration, else
    * any other floor sharing its building_id (one coordinate system). */
-  private _buildingMetersPerUnit(placement: PropertyPlacement): number | null {
+  private _buildingMetersPerUnit(
+    placement: Pick<PropertyPlacement, "floor_id" | "building_id">,
+  ): number | null {
     const anchor = this._floors.find((f) => f.floor_id === placement.floor_id);
     if (anchor?.meters_per_unit) return anchor.meters_per_unit;
     if (placement.building_id === null) return null;
@@ -1748,23 +1754,51 @@ export class SpatialContextPanel extends LitElement {
     this._selectedPlacementId = null;
   };
 
+  /** Long side, in Property units, for a newly placed building: its real
+   * size (traced footprint x floor calibration) at the map's or the
+   * already-placed buildings' scale, or a typical house when it's
+   * uncalibrated. Undefined when the canvas has no real-world scale, which
+   * keeps newPlacement's fixed default. */
+  private _newPlacementLongSide(
+    building: { floorId: string; buildingId: string | null },
+    bounds: ContentBounds | null,
+  ): number | undefined {
+    const map = this._propertyLayout.map_background;
+    const mpu = map
+      ? metersPerUnit(map)
+      : (this._propertyScale?.metersPerUnit ?? null);
+    if (!mpu) return undefined;
+    const floorMpu = this._buildingMetersPerUnit({
+      floor_id: building.floorId,
+      building_id: building.buildingId,
+    });
+    const longMeters =
+      bounds && floorMpu
+        ? Math.max(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y) *
+          floorMpu
+        : DEFAULT_BUILDING_LONG_SIDE_M;
+    return longMeters / mpu;
+  }
+
   private _onPlacementPlace = (e: CustomEvent<{ x: number; y: number }>) => {
     if (!this._armedBuildingKey) return;
     const building = this._buildings.find(
       (b) => b.key === this._armedBuildingKey,
     );
     if (!building) return;
+    const bounds = this._buildingBounds(
+      this._floors.filter(
+        (f) => (f.building_id ?? f.floor_id) === building.key,
+      ),
+    );
     const placement = newPlacement(
       building.floorId,
       building.buildingId,
       e.detail.x,
       e.detail.y,
       building.aspectRatio,
-      this._buildingBounds(
-        this._floors.filter(
-          (f) => (f.building_id ?? f.floor_id) === building.key,
-        ),
-      ),
+      bounds,
+      this._newPlacementLongSide(building, bounds),
     );
     this._updatePropertyLayout({
       placements: [...this._propertyLayout.placements, placement],

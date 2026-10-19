@@ -345,15 +345,10 @@ export function newPlacement(
   y: number,
   aspectRatio: number,
   sourceBounds: ContentBounds | null,
+  longSide: number = NEW_PLACEMENT_LONG_SIDE,
 ): PropertyPlacement {
-  const width =
-    aspectRatio >= 1
-      ? NEW_PLACEMENT_LONG_SIDE
-      : NEW_PLACEMENT_LONG_SIDE * aspectRatio;
-  const height =
-    aspectRatio >= 1
-      ? NEW_PLACEMENT_LONG_SIDE / aspectRatio
-      : NEW_PLACEMENT_LONG_SIDE;
+  const width = aspectRatio >= 1 ? longSide : longSide * aspectRatio;
+  const height = aspectRatio >= 1 ? longSide / aspectRatio : longSide;
   return {
     id: newId("placement"),
     building_id: buildingId,
