@@ -11,4 +11,4 @@ extras/   favicon.ico + PNGs, avatars 512, one-colour PNGs, social-preview 1280x
 
 Sidebar icon (panel registration): mdi:floor-plan  (verified in the installed MDI set; alternative mdi:home-analytics)
 Colours: mark #039be5 (light) / #03a9f4 (dark); wordmark #37474f / #eceff1
-Social image tagline "Your home, understood by AI" is placeholder wording; change it if you prefer.
+Social image tagline: "Give your AI assistant a floor plan of your home."
