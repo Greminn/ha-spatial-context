@@ -64,9 +64,9 @@ An assistant can work out which room a device is in, how far apart two devices a
 
 ## Support the project
 
-Spatial Context is a personal project, free and shared as is. If it's useful to you and you'd like to say thanks, you can [buy me a coffee](https://buymeacoffee.com/greminn). It's never expected, and bug reports and ideas are just as welcome.
+Spatial Context is a personal project, free and shared as is. If it's useful to you and you'd like to say thanks, you can [buy me an espresso](https://buymeacoffee.com/greminn). It's never expected, and bug reports and ideas are just as welcome.
 
-<a href="https://buymeacoffee.com/greminn"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-%E2%98%95-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+<a href="https://buymeacoffee.com/greminn"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20an%20espresso&emoji=&slug=greminn&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me an espresso" height="50"></a>
 
 ## Status
 
