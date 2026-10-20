@@ -12,3 +12,8 @@ NOTES.local.md
 
 # Local reference screenshots (HA UI), not part of the project
 visual/
+
+# The docs site (VitePress): build output and cache
+site/node_modules/
+site/.vitepress/cache/
+site/.vitepress/dist/
