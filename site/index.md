@@ -26,7 +26,7 @@ features:
 ## Also from me
 
 <div class="other-project-card">
-  <img src="/ha-spatial-context/home-desk-icon.svg" alt="" width="56" height="56" />
+  <img src="/home-desk-icon.svg" alt="" width="56" height="56" />
   <div>
     <p class="other-project-title">Home Desk <span class="other-project-badge">Coming soon</span></p>
     <p class="other-project-text">A place for everything that needs your attention in your smart home.</p>
