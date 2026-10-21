@@ -7,7 +7,9 @@
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context on the Top Floor with the Zigbee mesh layer on: every link coloured by signal quality, the layer menu open, and the Zigbee2MQTT Bridge's card listing all 36 of its links](docs/screenshot-main-v2.jpeg)
+![Spatial Context showing the Top Floor with the Zigbee mesh layer on](site/public/screenshots/screenshot-main-v3.jpeg)
+
+*The Top Floor with the Zigbee mesh layer on. Every link is coloured by signal quality, the selected device's card lists its links with their LQI, and the key along the bottom explains the lines.*
 
 ## What you get
 
@@ -20,6 +22,8 @@ Home Assistant knows your devices by name and area, but not where anything actua
 ## Documentation
 
 The full guide is at **<https://greminn.github.io/ha-spatial-context/>**:
+
+> **Note:** the guide goes live when V1 is published. Until then these links won't open.
 
 - [What is Spatial Context?](https://greminn.github.io/ha-spatial-context/guide/what-is-spatial-context) and [your first floor plan](https://greminn.github.io/ha-spatial-context/guide/first-floor-plan)
 - [Using the panel](https://greminn.github.io/ha-spatial-context/guide/using-the-panel), [placing devices](https://greminn.github.io/ha-spatial-context/guide/placing-devices) and [wall materials](https://greminn.github.io/ha-spatial-context/guide/wall-materials)
