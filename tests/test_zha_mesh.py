@@ -123,6 +123,41 @@ class ZhaMeshTest(unittest.TestCase):
         self.assertEqual(link["lqi_readings"], [120])
         self.assertEqual(link["lqi"], 120)
 
+    def test_stale_zero_and_one_readings_do_not_define_a_link(self) -> None:
+        zigbee_mesh, _ = _setup()
+
+        def link(source: str, target: str, lqi: int) -> dict:
+            return {
+                "sourceIeeeAddr": source,
+                "targetIeeeAddr": target,
+                "linkquality": lqi,
+                "relationship": 2,
+            }
+
+        merged = zigbee_mesh._merge_links(
+            [
+                # Reads 0 one way and 79 the other: a link at 79.
+                link("a", "b", 0),
+                link("b", "a", 79),
+                # Only stale readings: no data, not a weak link.
+                link("c", "d", 1),
+                link("d", "c", 0),
+                # A stale 1 against a real 49: still a link at 49.
+                link("e", "f", 49),
+                link("f", "e", 1),
+            ]
+        )
+        by_pair = {
+            frozenset((m["source_ieee"], m["target_ieee"])): m for m in merged
+        }
+        ab = by_pair[frozenset(("a", "b"))]
+        self.assertEqual(ab["lqi_readings"], [79])
+        self.assertGreater(ab["lqi"], 0)
+        cd = by_pair[frozenset(("c", "d"))]
+        self.assertEqual(cd["lqi_readings"], [])
+        ef = by_pair[frozenset(("e", "f"))]
+        self.assertEqual(ef["lqi_readings"], [49])
+
 
 if __name__ == "__main__":
     unittest.main()

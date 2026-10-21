@@ -204,6 +204,40 @@ describe("normalizeMeshLinks", () => {
       "LQI 60 (raw 252 / 60)",
     );
   });
+
+  it("treats a Zigbee route with no readings as unknown, not as the weakest link", () => {
+    const unmeasured: MeshLink = {
+      source_ieee: "s",
+      target_ieee: "t",
+      lqi: 0,
+      lqi_readings: [],
+      parent_child: true,
+      source_device_id: "a",
+      target_device_id: "b",
+    };
+    const measured: MeshLink = {
+      ...unmeasured,
+      lqi: 120,
+      lqi_readings: [130, 120],
+      target_device_id: "c",
+    };
+    const ctx = context({
+      networkType: "zigbee",
+      zigbeeMesh: { nodes: [], links: [unmeasured, measured], fetched_at: 0 },
+      pinByDeviceId: new Map([
+        ["a", pin("a")],
+        ["b", pin("b")],
+        ["c", pin("c")],
+      ]),
+      currentFloorId: "up",
+    });
+    const [none] = normalizeMeshLinks(ctx);
+    expect(none?.quality).toBe("unknown");
+    expect(none?.value).toBeUndefined();
+    const legend = floorMeshLegend(ctx);
+    expect(legend?.unknown).toBe(true);
+    expect(legend?.range).toBeNull();
+  });
 });
 
 describe("meshLinksForFloor", () => {

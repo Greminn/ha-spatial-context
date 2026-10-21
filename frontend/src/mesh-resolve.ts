@@ -91,19 +91,30 @@ export function normalizeMeshLinks(ctx: MeshContext): NormalizedMeshLink[] {
       ),
       floorOfDevice,
       ctx.zigbeeShowAllLinks,
-    ).map((link) => ({
-      sourceDeviceId: link.source_device_id!,
-      targetDeviceId: link.target_device_id!,
-      quality: lqiToQuality(link.lqi),
-      value: link.lqi,
-      // `lqi` is scale-corrected (see zigbee_mesh.py's _reporter_scales) —
-      // show the raw readings too whenever they differ from it, so a
-      // saturated reporter (e.g. a Hue bulb claiming 252 everywhere) is
-      // visible as such.
-      detail: link.lqi_readings.every((raw) => raw === link.lqi)
-        ? `LQI ${link.lqi}`
-        : `LQI ${link.lqi} (raw ${link.lqi_readings.join(" / ")})`,
-    }));
+    ).map((link) =>
+      // A route Zigbee2MQTT lists without measuring either direction has no
+      // readings at all (the backend reports it as LQI 0): no data, not a
+      // weak link.
+      link.lqi_readings.length === 0
+        ? {
+            sourceDeviceId: link.source_device_id!,
+            targetDeviceId: link.target_device_id!,
+            quality: "unknown" as const,
+          }
+        : {
+            sourceDeviceId: link.source_device_id!,
+            targetDeviceId: link.target_device_id!,
+            quality: lqiToQuality(link.lqi),
+            value: link.lqi,
+            // `lqi` is scale-corrected (see zigbee_mesh.py's
+            // _reporter_scales) — show the raw readings too whenever they
+            // differ from it, so a saturated reporter (e.g. a Hue bulb
+            // claiming 252 everywhere) is visible as such.
+            detail: link.lqi_readings.every((raw) => raw === link.lqi)
+              ? `LQI ${link.lqi}`
+              : `LQI ${link.lqi} (raw ${link.lqi_readings.join(" / ")})`,
+          },
+    );
   }
   if (ctx.networkType === "wifi" && ctx.wifiMesh) {
     return ctx.wifiMesh.links.map((link) => ({

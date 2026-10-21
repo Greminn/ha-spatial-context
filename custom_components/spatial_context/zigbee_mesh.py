@@ -219,7 +219,10 @@ def _merge_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
             lqi = link.get("lqi")
         # An explicit null means "not measured" — leave it out rather than
         # count it as 0, which would drag the pair's weaker side to zero.
-        if lqi is not None:
+        # Z-Stack's stale neighbor entries read 0 or 1 (one pair reporting
+        # 0 one way and 79 the other is a link at 79, not a link at 0), so
+        # those are left out too.
+        if lqi is not None and lqi > _STALE_LQI:
             readings[(target_ieee, source_ieee)] = lqi
         entry = pairs.setdefault(
             frozenset((source_ieee, target_ieee)),
@@ -258,6 +261,11 @@ def _merge_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
     return out
 
+
+# A reading at or below this is a stale neighbor-table entry, not a measured
+# link (confirmed on a live 800-pair network: 32 pairs had a 0 or 1, most with
+# a healthy reading the other way).
+_STALE_LQI = 1
 
 # Readings below this are "barely heard" (Z-Stack lists stale neighbors at
 # 0-1) — too noisy for a ratio, so they don't feed the scale fit.
