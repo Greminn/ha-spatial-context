@@ -1,10 +1,10 @@
 {
   "domain": "spatial_context",
   "name": "Spatial Context",
+  "after_dependencies": ["mqtt", "zha"],
   "codeowners": ["@Greminn"],
   "config_flow": true,
   "dependencies": ["http", "frontend", "panel_custom", "websocket_api", "image_upload"],
-  "after_dependencies": ["mqtt", "zha"],
   "documentation": "https://github.com/Greminn/ha-spatial-context",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Greminn/ha-spatial-context/issues",
