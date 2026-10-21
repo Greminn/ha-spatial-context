@@ -53,6 +53,7 @@ export const sharedStyles = css`
   button {
     font-family: inherit;
     font-size: var(--sc-fs-body);
+    font-weight: var(--ha-font-weight-medium, 500);
     cursor: pointer;
     border: none;
     border-radius: var(--sc-r-control);
@@ -65,6 +66,17 @@ export const sharedStyles = css`
    * :not()s lift the specificity above components' own background rules. */
   button:hover:not(:disabled):not(.primary) {
     background-image: linear-gradient(var(--sc-hover), var(--sc-hover));
+  }
+  /* People who ask for less motion get none: no sliding, fading or shaking. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   button:focus-visible {
     outline: 2px solid var(--sc-accent);
@@ -89,16 +101,36 @@ export const sharedStyles = css`
     background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
     color: var(--sc-accent);
   }
+  /* Filled fields, as in Home Assistant's forms: a grey box with a line
+   * under it that thickens in the accent colour on focus. */
   input[type="text"],
   input[type="search"] {
     font-family: inherit;
     font-size: var(--sc-fs-body);
     height: var(--sc-h-field);
     padding: 0 var(--ha-space-3, 12px);
-    border: 1px solid var(--sc-divider);
-    border-radius: var(--sc-r-control);
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--sc-fg) 60%, transparent);
+    border-radius: var(--ha-border-radius-sm, 4px)
+      var(--ha-border-radius-sm, 4px) 0 0;
     color: var(--sc-fg);
-    background: var(--sc-bg);
+    background: var(
+      --ha-color-form-background,
+      color-mix(in srgb, var(--sc-fg) 12%, transparent)
+    );
+  }
+  input[type="text"]:hover,
+  input[type="search"]:hover {
+    border-bottom-color: var(--sc-fg);
+    background: var(
+      --ha-color-form-background-hover,
+      color-mix(in srgb, var(--sc-fg) 16%, transparent)
+    );
+  }
+  input[type="text"]:focus-visible,
+  input[type="search"]:focus-visible {
+    outline: none;
+    border-bottom: 2px solid var(--sc-accent);
   }
   .floating-panel {
     background: var(--sc-panel-bg);
@@ -118,6 +150,7 @@ export const sharedStyles = css`
     padding: var(--ha-space-3, 12px) var(--ha-space-4, 16px);
     border-radius: var(--ha-border-radius-md, 8px);
     font-size: var(--sc-fs-row);
+    font-weight: var(--ha-font-weight-normal, 400);
     text-align: start;
     justify-content: flex-start;
   }

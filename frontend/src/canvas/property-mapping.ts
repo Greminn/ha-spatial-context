@@ -1,5 +1,11 @@
 import type { PropertyPlacement } from "../types";
 
+/** Size of a new building's rectangle on the Property tab until it is fitted
+ * to the building's real footprint; its ratio is also the neutral aspect
+ * ratio for a building with nothing traced. */
+export const DEFAULT_PLACEMENT_WIDTH = 220;
+export const DEFAULT_PLACEMENT_HEIGHT = 160;
+
 /** Floor-plan <-> Property-tab site-photo coordinates, through a building's
  * placement: its rectangle on the photo is the building's traced
  * footprint (`source_bounds`, floor-plan units) scaled to `width`×`height`,

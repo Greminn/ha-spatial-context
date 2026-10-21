@@ -269,6 +269,7 @@ export class IconPickerDialog extends LitElement {
               html`<button
                 class="icon-choice ${name === current ? "current" : ""}"
                 title=${`mdi:${name}`}
+                aria-label=${`mdi:${name}`}
                 @click=${() => this._fire("icon-picked", { icon: `mdi:${name}` })}
               >
                 <ha-icon icon=${`mdi:${name}`}></ha-icon>

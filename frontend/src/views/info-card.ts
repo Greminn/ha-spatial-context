@@ -257,6 +257,7 @@ export function renderCard(opts: {
         <button
           class="info-close"
           title=${localize("canvas.button.close")}
+          aria-label=${localize("canvas.button.close")}
           @click=${opts.onClose}
         >
           <ha-icon icon="mdi:close"></ha-icon>
@@ -274,6 +275,9 @@ export function renderCard(opts: {
             ? html`<button
                 class="info-toggle"
                 title=${localize(
+                  opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
+                )}
+                aria-label=${localize(
                   opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
                 )}
                 aria-expanded=${opts.collapsed ? "false" : "true"}

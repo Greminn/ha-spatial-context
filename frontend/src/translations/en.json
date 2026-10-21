@@ -5,7 +5,9 @@
   "appHeader": {
     "saving": "Saving…",
     "save": "Save",
-    "menu": "Menu"
+    "menu": "Menu",
+    "back": "Back",
+    "settings": "Settings"
   },
   "canvas": {
     "mode": {
@@ -64,22 +66,17 @@
     "room": {
       "custom": "— Custom —",
       "outdoor": "Outdoor / no floor",
-      "hide": "Hide room",
-      "show": "Show room",
-      "color": "Room color",
       "fillOpacity": "Fill opacity",
       "borderOpacity": "Border opacity",
-      "rename": "Rename",
       "doneEditing": "Done editing",
       "editVertices": "Edit vertices",
+      "useAreaName": "Use area name “{name}”",
       "resetLabel": "Reset label position",
       "delete": "Delete room"
     },
     "pin": {
-      "setLabel": "Set label",
       "setIcon": "Set icon",
-      "setHeight": "Set height",
-      "delete": "Delete pin",
+      "delete": "Remove device",
       "removeFromSpot": "Remove from this spot",
       "stackTitle": "{count} devices at this spot"
     },
@@ -91,7 +88,7 @@
     "opening": {
       "width": "Width ({unit})",
       "storedUnits": "stored units",
-      "calibrate": "Calibrate Scale for real units",
+      "calibrate": "Calibrate scale for real units",
       "delete": "Delete"
     },
     "meshStub": {
@@ -136,14 +133,9 @@
     "done": "Done",
     "style": "Map type",
     "street": "Street map",
-    "aerial": "Aerial photo (Esri)",
-    "zoom": "Zoom",
-    "angle": "Angle"
+    "aerial": "Aerial photo (Esri)"
   },
   "settings": {
-    "title": "Settings",
-    "close": "Close",
-    "done": "Done",
     "editing": "Editing",
     "autoSave": "Auto-save changes",
     "autoSaveHint": "Saves a few seconds after each change",
@@ -166,13 +158,23 @@
     "borderRouterHint": "The device placed for your Thread border router, so its links are drawn",
     "scanTimeout": "Scan timeout",
     "scanTimeoutAria": "Zigbee scan timeout in seconds",
-    "scanTimeoutHint": "Raise it if Load Mesh times out on a large mesh",
+    "scanTimeoutHint": "Raise it if Load mesh times out on a large mesh",
     "troubleshooting": "Troubleshooting",
     "debugLogging": "Debug logging",
     "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",
     "about": "About",
     "version": "Version",
-    "github": "GitHub repository"
+    "github": "GitHub repository",
+    "releaseNotes": "Release notes",
+    "releaseNotesHint": "What's new in each version",
+    "documentation": "Documentation",
+    "documentationHint": "How to set up and use Spatial Context",
+    "reportIssue": "Report an issue",
+    "reportIssueHint": "Attach the debug report from the ⋮ menu to help find the cause",
+    "githubHint": "Greminn/ha-spatial-context — a star helps others find it",
+    "support": "Support the project",
+    "supportHint": "Free and shared as is. Buy me an espresso if it's useful",
+    "licence": "Licence"
   },
   "picker": {
     "search": "Search devices…",
@@ -186,6 +188,11 @@
     "alreadyPlaced": "Already placed on {floor} — remove it there first",
     "placedOn": "Placed on {floor}",
     "placed": "✓ placed",
+    "showAll": "All devices",
+    "showUnplaced": "Not placed yet",
+    "showPlaced": "Placed",
+    "locate": "Show on plan",
+    "remove": "Remove from plan",
     "title": "Place device"
   },
   "iconPicker": {
@@ -200,7 +207,19 @@
   },
   "legend": {
     "weak": "Weak",
-    "strong": "Strong"
+    "medium": "Medium",
+    "strong": "Strong",
+    "unknown": "No signal data",
+    "dashedFloor": "To another floor or outside",
+    "dashedProperty": "Inside a building",
+    "hint": {
+      "zigbee": "Link quality (LQI): strong 150 and up, medium 80 and up, otherwise weak",
+      "wifi": "Signal: strong −50 dBm or better, medium −70 dBm or better, otherwise weak",
+      "bluetooth": "Signal: strong −70 dBm or better, medium −85 dBm or better, otherwise weak",
+      "matter": "As rated by Matter"
+    },
+    "lqi": "LQI {value}",
+    "dbm": "{value} dBm"
   },
   "rowActions": {
     "undo": "Undo (Ctrl/Cmd+Z)",
@@ -224,6 +243,7 @@
     "replaceBackground": "Replace background",
     "removeBackground": "Remove background",
     "opacity": "Opacity",
+    "gettingStarted": "Getting started guide",
     "exportJson": "Export JSON",
     "debugReport": "Download debug report",
     "debugReportHint": "Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue",
@@ -240,7 +260,7 @@
     "matterShort": "Matter",
     "refresh": "Refresh mesh",
     "load": "Load mesh",
-    "loadingZigbee": "Loading… {seconds}s (usually 1-2 min)",
+    "loadingZigbee": "Loading… {seconds}s (usually 1–2 min)",
     "showAll": "Show all links",
     "live": "● Live",
     "loading": "Loading…",
@@ -275,23 +295,22 @@
     "removeOutdoorPin": "Remove \"{name}\" from the property?",
     "discardFloor": "Discard unsaved changes to this floor?",
     "discardProperty": "Discard unsaved changes to the property view?",
-    "removeOutdoorOne": "Remove all {count} outdoor device from the property?",
+    "removeOutdoorOne": "Remove the outdoor device from the property?",
     "removeOutdoorMany": "Remove all {count} outdoor devices from the property?",
-    "removeFloorOne": "Remove all {count} placed device from this floor?",
+    "removeFloorOne": "Remove the placed device from this floor?",
     "removeFloorMany": "Remove all {count} placed devices from this floor?",
     "deletePlacement": "Delete the \"{label}\" placement?",
-    "resetProperty": "Reset the property view? This clears every building placement, every outdoor device and the background photo. Nothing is permanent until you hit Save afterward.",
-    "resetFloor": "Reset \"{floor}\"? This clears every room, wall, opening, placed device, and the background image on this floor. Nothing is permanent until you hit Save afterward.",
+    "resetProperty": "Reset the property view? This clears every building placement, every outdoor device and the background photo. Nothing is permanent until you hit Save afterwards.",
+    "resetFloor": "Reset \"{floor}\"? This clears every room, wall, opening, placed device, and the background image on this floor. Nothing is permanent until you hit Save afterwards.",
     "applyAlignment": "Apply this alignment to \"{floor}\"? This rewrites every room, wall, door/window, and placed device position on that floor — plus its background image's placement and, if this floor has one set, its scale calibration too — to match this floor's coordinate system. This saves immediately and cannot be undone.",
     "deleteWall": "Delete this wall? Any doors/windows on it will be removed too.",
     "deleteRoom": "Delete room \"{name}\"?",
-    "deletePin": "Delete pin for {name}?",
+    "deletePin": "Remove {name} from this floor?",
     "deleteDoor": "Delete this door?",
     "deleteWindow": "Delete this window?",
     "removeFromSpot": "Remove {name} from this spot?"
   },
   "prompt": {
-    "label": "Label (blank to clear override):",
     "distance": "Real-world distance between these two points, in {unit}:"
   },
   "units": {
@@ -303,7 +322,6 @@
     "thatFloor": "that floor"
   },
   "property": {
-    "rename": "Rename",
     "setIcon": "Set icon",
     "removeFromProperty": "Remove from the property",
     "goToFloorOf": "Go to {name}'s floor",

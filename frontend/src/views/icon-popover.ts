@@ -6,7 +6,8 @@ import { sharedStyles } from "../styles";
 /** An icon button that toggles a floating dropdown of arbitrary slotted
  * content — shared by the header's background/mesh controls so each stays
  * out of the toolbar until opened. Open/closed state is owned by the
- * parent, matching every other component here. */
+ * parent, matching every other component here: a press anywhere outside
+ * asks the parent to close it by firing the same `toggle` as the button. */
 @safeCustomElement("icon-popover")
 export class IconPopover extends LitElement {
   static override styles = [
@@ -35,30 +36,6 @@ export class IconPopover extends LitElement {
       .icon-button.highlight {
         color: var(--sc-accent);
       }
-      /* Settings: a centred modal like HA's own dialogs — dimmed backdrop,
-       * large radius; the content brings its own header, body and footer. */
-      .scrim {
-        position: fixed;
-        inset: 0;
-        z-index: 99;
-        background: rgba(0, 0, 0, 0.32);
-      }
-      .modal {
-        position: fixed;
-        z-index: 100;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: min(560px, calc(100vw - 32px));
-        max-height: calc(100vh - 32px);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border-radius: var(--ha-border-radius-4xl, 28px);
-        background: var(--sc-panel-bg);
-        color: var(--sc-fg);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      }
       /* Compact: the row's own button style (40px rounded square). */
       :host([compact]) .icon-button {
         width: 40px;
@@ -66,10 +43,6 @@ export class IconPopover extends LitElement {
         border: 1px solid var(--sc-divider);
         border-radius: var(--sc-r-control);
         background: var(--sc-panel-bg);
-      }
-      .modal ::slotted(*) {
-        flex: 1 1 auto;
-        min-height: 0;
       }
       .popover {
         /* Fixed, placed from the button's rect, so it isn't clipped by a
@@ -90,30 +63,10 @@ export class IconPopover extends LitElement {
   @property() icon = "";
   @property() label = "";
   @property({ type: Boolean }) open = false;
-  @property({ type: Boolean }) dialog = false;
   @property({ type: Boolean }) highlight = false;
   @property({ type: Boolean, reflect: true }) compact = false;
   @state() private _top = 0;
   @state() private _right = 0;
-
-  private _onKeyDown = (e: KeyboardEvent) => {
-    if (this.open && this.dialog && e.key === "Escape") {
-      e.stopPropagation();
-      this.dispatchEvent(
-        new CustomEvent("toggle", { bubbles: true, composed: true }),
-      );
-    }
-  };
-
-  override connectedCallback() {
-    super.connectedCallback();
-    window.addEventListener("keydown", this._onKeyDown, true);
-  }
-
-  override disconnectedCallback() {
-    window.removeEventListener("keydown", this._onKeyDown, true);
-    super.disconnectedCallback();
-  }
 
   override willUpdate(changed: PropertyValues) {
     if (changed.has("open") && this.open) {
@@ -126,11 +79,33 @@ export class IconPopover extends LitElement {
     }
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener("pointerdown", this._onOutsidePress, true);
+  }
+
+  override updated(changed: PropertyValues) {
+    if (!changed.has("open")) return;
+    document.removeEventListener("pointerdown", this._onOutsidePress, true);
+    if (this.open) {
+      document.addEventListener("pointerdown", this._onOutsidePress, true);
+    }
+  }
+
+  private _onOutsidePress = (event: PointerEvent) => {
+    if (event.composedPath().includes(this)) return;
+    this.dispatchEvent(
+      new CustomEvent("toggle", { bubbles: true, composed: true }),
+    );
+  };
+
   override render() {
     return html`
       <button
         class="icon-button ${this.open ? "active" : ""} ${this.highlight ? "highlight" : ""}"
         title=${this.label}
+        aria-label=${this.label}
+        aria-expanded=${this.open ? "true" : "false"}
         @click=${() =>
           this.dispatchEvent(
             new CustomEvent("toggle", { bubbles: true, composed: true }),
@@ -139,28 +114,14 @@ export class IconPopover extends LitElement {
         <ha-icon icon=${this.icon}></ha-icon>
       </button>
       ${
-        this.open && this.dialog
+        this.open
           ? html`<div
-                class="scrim"
-                @click=${() =>
-                  this.dispatchEvent(
-                    new CustomEvent("toggle", {
-                      bubbles: true,
-                      composed: true,
-                    }),
-                  )}
-              ></div>
-              <div class="modal" role="dialog" aria-label=${this.label}>
-                <slot></slot>
-              </div>`
-          : this.open
-            ? html`<div
-                class="popover floating-panel"
-                style="top:${this._top}px; right:${this._right}px"
-              >
-                <slot></slot>
-              </div>`
-            : nothing
+              class="popover floating-panel"
+              style="top:${this._top}px; right:${this._right}px"
+            >
+              <slot></slot>
+            </div>`
+          : nothing
       }
     `;
   }

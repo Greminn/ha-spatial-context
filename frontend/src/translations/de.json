@@ -5,7 +5,9 @@
   "appHeader": {
     "saving": "Speichert…",
     "save": "Speichern",
-    "menu": "Menü"
+    "menu": "Menü",
+    "back": "Zurück",
+    "settings": "Einstellungen"
   },
   "canvas": {
     "mode": {
@@ -64,22 +66,17 @@
     "room": {
       "custom": "— Benutzerdefiniert —",
       "outdoor": "Außenbereich / keine Etage",
-      "hide": "Raum ausblenden",
-      "show": "Raum einblenden",
-      "color": "Raumfarbe",
       "fillOpacity": "Füllungsdeckkraft",
       "borderOpacity": "Randdeckkraft",
-      "rename": "Umbenennen",
       "doneEditing": "Bearbeitung beenden",
       "editVertices": "Eckpunkte bearbeiten",
+      "useAreaName": "Bereichsnamen „{name}“ verwenden",
       "resetLabel": "Beschriftungsposition zurücksetzen",
       "delete": "Raum löschen"
     },
     "pin": {
-      "setLabel": "Beschriftung festlegen",
       "setIcon": "Symbol festlegen",
-      "setHeight": "Höhe festlegen",
-      "delete": "Pin löschen",
+      "delete": "Gerät entfernen",
       "removeFromSpot": "Von dieser Stelle entfernen",
       "stackTitle": "{count} Geräte an dieser Stelle"
     },
@@ -136,14 +133,9 @@
     "done": "Fertig",
     "style": "Kartentyp",
     "street": "Straßenkarte",
-    "aerial": "Luftbild (Esri)",
-    "zoom": "Zoom",
-    "angle": "Winkel"
+    "aerial": "Luftbild (Esri)"
   },
   "settings": {
-    "title": "Einstellungen",
-    "close": "Schließen",
-    "done": "Fertig",
     "editing": "Bearbeiten",
     "autoSave": "Änderungen automatisch speichern",
     "autoSaveHint": "Speichert einige Sekunden nach jeder Änderung",
@@ -172,7 +164,17 @@
     "debugLoggingHint": "Schreibt spatial_context_debug.log in Ihren Konfigurationsordner – nur IDs und Anzahlen",
     "about": "Info",
     "version": "Version",
-    "github": "GitHub-Repository"
+    "github": "GitHub-Repository",
+    "releaseNotes": "Versionshinweise",
+    "releaseNotesHint": "Was in jeder Version neu ist",
+    "documentation": "Dokumentation",
+    "documentationHint": "So richtest du Spatial Context ein und nutzt es",
+    "reportIssue": "Problem melden",
+    "reportIssueHint": "Hänge den Debug-Bericht aus dem ⋮-Menü an, um die Ursache zu finden",
+    "githubHint": "Greminn/ha-spatial-context – ein Stern hilft anderen, es zu finden",
+    "support": "Projekt unterstützen",
+    "supportHint": "Kostenlos und ohne Gewähr. Spendiere mir einen Espresso, wenn es dir nützt",
+    "licence": "Lizenz"
   },
   "picker": {
     "search": "Geräte suchen…",
@@ -186,6 +188,11 @@
     "alreadyPlaced": "Bereits auf {floor} platziert – dort zuerst entfernen",
     "placedOn": "Platziert auf {floor}",
     "placed": "✓ platziert",
+    "showAll": "Alle Geräte",
+    "showUnplaced": "Noch nicht platziert",
+    "showPlaced": "Platziert",
+    "locate": "Im Plan anzeigen",
+    "remove": "Aus dem Plan entfernen",
     "title": "Gerät platzieren"
   },
   "iconPicker": {
@@ -200,7 +207,19 @@
   },
   "legend": {
     "weak": "Schwach",
-    "strong": "Stark"
+    "medium": "Mittel",
+    "strong": "Stark",
+    "unknown": "Keine Signaldaten",
+    "dashedFloor": "Zu einer anderen Etage oder nach draußen",
+    "dashedProperty": "Im Gebäude",
+    "hint": {
+      "zigbee": "Verbindungsqualität (LQI): stark ab 150, mittel ab 80, sonst schwach",
+      "wifi": "Signal: stark −50 dBm oder besser, mittel −70 dBm oder besser, sonst schwach",
+      "bluetooth": "Signal: stark −70 dBm oder besser, mittel −85 dBm oder besser, sonst schwach",
+      "matter": "Wie von Matter bewertet"
+    },
+    "lqi": "LQI {value}",
+    "dbm": "{value} dBm"
   },
   "rowActions": {
     "undo": "Rückgängig (Strg/Cmd+Z)",
@@ -224,6 +243,7 @@
     "replaceBackground": "Hintergrund ersetzen",
     "removeBackground": "Hintergrund entfernen",
     "opacity": "Deckkraft",
+    "gettingStarted": "Einstiegsanleitung",
     "exportJson": "JSON exportieren",
     "debugReport": "Debug-Bericht herunterladen",
     "debugReportHint": "Versionen, Einstellungen, Layout-Anzahlen und das aktuelle Debug-Protokoll – sicher an ein GitHub-Issue anzuhängen",
@@ -275,9 +295,9 @@
     "removeOutdoorPin": "\"{name}\" vom Anwesen entfernen?",
     "discardFloor": "Nicht gespeicherte Änderungen an dieser Etage verwerfen?",
     "discardProperty": "Nicht gespeicherte Änderungen an der Anwesen-Ansicht verwerfen?",
-    "removeOutdoorOne": "Das {count} Außengerät vom Anwesen entfernen?",
+    "removeOutdoorOne": "Das Außengerät vom Anwesen entfernen?",
     "removeOutdoorMany": "Alle {count} Außengeräte vom Anwesen entfernen?",
-    "removeFloorOne": "Das {count} platzierte Gerät von dieser Etage entfernen?",
+    "removeFloorOne": "Das platzierte Gerät von dieser Etage entfernen?",
     "removeFloorMany": "Alle {count} platzierten Geräte von dieser Etage entfernen?",
     "deletePlacement": "Die Platzierung „{label}“ löschen?",
     "resetProperty": "Anwesen-Ansicht zurücksetzen? Dadurch werden alle Gebäudeplatzierungen, alle Außengeräte und das Hintergrundfoto entfernt. Nichts ist endgültig, bis Sie anschließend auf Speichern klicken.",
@@ -285,13 +305,12 @@
     "applyAlignment": "Diese Ausrichtung auf „{floor}“ anwenden? Dadurch werden alle Räume, Wände, Türen/Fenster und Gerätepositionen dieser Etage – sowie die Platzierung ihres Hintergrundbilds und, falls gesetzt, ihre Maßstabskalibrierung – an das Koordinatensystem dieser Etage angepasst. Dies wird sofort gespeichert und kann nicht rückgängig gemacht werden.",
     "deleteWall": "Diese Wand löschen? Türen/Fenster darin werden ebenfalls entfernt.",
     "deleteRoom": "Raum „{name}“ löschen?",
-    "deletePin": "Markierung für {name} löschen?",
+    "deletePin": "{name} von dieser Etage entfernen?",
     "deleteDoor": "Diese Tür löschen?",
     "deleteWindow": "Dieses Fenster löschen?",
     "removeFromSpot": "{name} von dieser Stelle entfernen?"
   },
   "prompt": {
-    "label": "Bezeichnung (leer lassen, um zurückzusetzen):",
     "distance": "Tatsächlicher Abstand zwischen diesen beiden Punkten in {unit}:"
   },
   "units": {
@@ -303,7 +322,6 @@
     "thatFloor": "jene Etage"
   },
   "property": {
-    "rename": "Umbenennen",
     "setIcon": "Symbol festlegen",
     "removeFromProperty": "Vom Anwesen entfernen",
     "goToFloorOf": "Zur Etage von {name}",

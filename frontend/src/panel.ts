@@ -1,25 +1,23 @@
-import { LitElement, html, css, nothing } from "lit";
-import { query, state } from "lit/decorators.js";
+import { LitElement, html, nothing } from "lit";
+import { property, query, state } from "lit/decorators.js";
 import { safeCustomElement } from "./define";
 import type {
   AreaMeta,
-  BluetoothAdvertisement,
   CanvasMode,
   ContentBounds,
   FloorLayout,
   FloorMeta,
   HomeAssistant,
-  MatterNetworkTopology,
   NetworkType,
   Opening,
   OpeningType,
   Pin,
   PlaceableEntity,
   PropertyLayout,
-  PropertyMeshEnd,
   PropertyMeshLink,
   MapBackground,
   MapStyleKind,
+  MeshLegendInfo,
   PlacementGhost,
   PropertyPlacement,
   ResolvedMeshLink,
@@ -29,20 +27,30 @@ import type {
   SnapMode,
   VersionInfo,
   Wall,
-  WifiMesh,
-  ZigbeeMesh,
 } from "./types";
 import { PROPERTY_LOCATION_ID } from "./types";
-import {
-  bleRssiToQuality,
-  dbmToQuality,
-  lqiToQuality,
-} from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
-import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import { EditHistory } from "./history";
+import { MeshDataController } from "./mesh-data";
 import { debugLog } from "./debug-log";
-import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
+import {
+  buildingAspectRatio,
+  buildingBounds,
+  buildingMetersPerUnit,
+  livePlacements,
+  placementForFloor,
+  propertyScale,
+} from "./property-layout";
+import type { PropertyScale } from "./property-layout";
+import {
+  meshLinksForFloor,
+  meshStubsForFloor,
+  normalizeMeshLinks,
+  floorMeshLegend,
+  propertyMeshLegend,
+  propertyMeshLinks,
+} from "./mesh-resolve";
+import type { MeshContext, NormalizedMeshLink } from "./mesh-resolve";
 import {
   HaClient,
   backgroundImageUrl,
@@ -59,7 +67,6 @@ import {
 import {
   findRoomForPoint,
   pointInPolygon,
-  rayBoxExit,
   reassignPinRooms,
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
@@ -72,10 +79,6 @@ import {
 import "./canvas/floorplan-canvas";
 import type { AlignOverlay, FloorplanCanvas } from "./canvas/floorplan-canvas";
 import "./canvas/property-canvas";
-import {
-  DEFAULT_PLACEMENT_HEIGHT,
-  DEFAULT_PLACEMENT_WIDTH,
-} from "./canvas/property-canvas";
 import type { PropertyCanvas } from "./canvas/property-canvas";
 import "./views/app-header";
 import "./views/canvas-overlay";
@@ -88,8 +91,13 @@ import "./views/confirm-dialog";
 import type { ScDialog } from "./views/confirm-dialog";
 import { localize } from "./i18n";
 import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
-import "./views/settings-menu";
+import "./views/settings-page";
 import type { PropertyBuilding } from "./views/property-overlay";
+import { panelStyles } from "./panel-styles";
+
+/** The docs site's walkthrough, linked from the More options menu. */
+const GETTING_STARTED_URL =
+  "https://greminn.github.io/ha-spatial-context/guide/first-floor-plan";
 
 /** Snap mode is per-browser, like the picker sidebar's width — a drawing
  * habit, not a fact every viewer should share. Browser storage can throw
@@ -117,116 +125,7 @@ export class SpatialContextPanel extends LitElement {
     selectStyles,
     sliderStyles,
     switchStyles,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        /* iOS Safari: 100vh is taller than the visible area. */
-        height: 100dvh;
-        background: var(--sc-bg);
-      }
-      .main {
-        flex: 1;
-        display: flex;
-        min-height: 0;
-        position: relative;
-      }
-      .save-error {
-        position: absolute;
-        top: 68px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 5;
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-2, 8px);
-        max-width: min(640px, calc(100% - 32px));
-        padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
-        border-inline-start: 4px solid var(--sc-danger);
-        font-size: var(--sc-fs-body);
-      }
-      .save-error ha-icon {
-        color: var(--sc-danger);
-        flex: none;
-      }
-      /* Phones: the device picker becomes a sheet under the canvas. */
-      @media (max-width: 700px) {
-        .main {
-          flex-direction: column;
-        }
-        .canvas-area {
-          min-height: 0;
-        }
-      }
-      .canvas-area {
-        flex: 1;
-        min-width: 0;
-        position: relative;
-        /* Room for the controls row the overlay draws across the top. */
-        padding-top: var(--ha-space-14, 56px);
-      }
-      .canvas-area.drag-over {
-        outline: 2px dashed var(--sc-accent);
-        outline-offset: -2px;
-      }
-      .loading,
-      .no-floors {
-        padding: var(--ha-space-8, 32px);
-        color: var(--sc-fg-secondary);
-      }
-      .popover-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--ha-space-4, 16px);
-        min-height: 44px;
-        padding: 6px var(--ha-space-4, 16px);
-        font-size: var(--sc-fs-row);
-      }
-      .menu-divider {
-        height: 1px;
-        margin: 6px 0;
-        background: var(--sc-divider);
-      }
-      .menu-item .trail {
-        margin-inline-start: auto;
-        color: var(--sc-accent);
-      }
-      /* Innerspace-style layer menu: "Connectivity Map" opens a list of
-       * mutually-exclusive layers (only one network is ever drawn at once)
-       * instead of a plain <select>, plus a quality legend echoing the
-       * same weak/medium/strong colors the mesh lines themselves use. */
-      .layer-list {
-        display: flex;
-        flex-direction: column;
-        min-width: 220px;
-      }
-      .hidden-file-input {
-        display: none;
-      }
-      input[type="range"] {
-        width: 130px;
-      }
-      .popover-row select {
-        height: var(--sc-h-field);
-        padding: 0 var(--ha-space-3, 12px);
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--sc-r-control);
-        background: var(--sc-panel-bg);
-        color: var(--sc-fg);
-        font: inherit;
-        font-size: var(--sc-fs-body);
-      }
-      .popover-row select:focus {
-        outline: none;
-        border-color: var(--sc-accent);
-      }
-      .hint {
-        font-size: var(--sc-fs-small);
-        color: var(--sc-fg-secondary);
-      }
-    `,
+    panelStyles,
   ];
 
   @state() private _floors: FloorMeta[] = [];
@@ -266,47 +165,15 @@ export class SpatialContextPanel extends LitElement {
   @state() private _saving = false;
   @state() private _loading = true;
   @state() private _pendingCount = 0;
-  /** null = no layer picked — the Connectivity Map's neutral starting
-   * state, both on first load and every time the popover is reopened (see
-   * _onToggleMeshPopover). Nothing should read as "on" until the user
-   * explicitly picks a network. */
-  @state() private _networkType: NetworkType | null = null;
-  @state() private _zigbeeMesh: ZigbeeMesh | null = null;
-  @state() private _zigbeeMeshLoading = false;
-  @state() private _zigbeeMeshError: string | null = null;
-  @state() private _zigbeeMeshFetchedAt: number | null = null;
-  /** Ticks once a second while the Zigbee fetch is in flight — the request
-   * genuinely takes 90-130+ seconds (a live over-the-air neighbor-table
-   * poll via Z2M/MQTT), and with nothing on screen changing for that long,
-   * a static "Refreshing…" label is indistinguishable from a hung/broken
-   * request. A live counter is the difference between "still working" and
-   * "looks stuck" for something this slow. */
-  @state() private _zigbeeMeshElapsedSeconds = 0;
-  private _zigbeeMeshTimer: number | null = null;
-  /** Full neighbor table instead of selectZigbeeLinks' default pick. */
-  @state() private _zigbeeShowAllLinks = false;
-  @state() private _wifiMesh: WifiMesh | null = null;
-  @state() private _wifiMeshLoading = false;
-  @state() private _wifiMeshError: string | null = null;
-  @state() private _matterTopology: MatterNetworkTopology | null = null;
-  @state() private _matterError: string | null = null;
-  private _matterUnsubscribe: (() => void) | null = null;
-  /** Bluetooth layer (#4): latest advertisement per BLE address, published
-   * from a buffer every couple of seconds — HA streams one message per
-   * advertisement, far more often than the map needs redrawing. */
-  @state() private _bluetoothAdverts: Map<string, BluetoothAdvertisement> =
-    new Map();
-  private _bluetoothBuffer: Map<string, BluetoothAdvertisement> = new Map();
-  private _bluetoothFlushTimer: number | null = null;
-  @state() private _bluetoothDevices: Record<string, string[]> = {};
-  @state() private _bluetoothError: string | null = null;
-  private _bluetoothUnsubscribe: (() => void) | null = null;
+  /** The Connectivity Map's network layers: which is picked, and what each has loaded. */
+  private _mesh = new MeshDataController(this, () => this._client);
   @state() private _backgroundPopoverOpen = false;
   @state() private _meshPopoverOpen = false;
   /** Shared across every viewer of the panel (see ha-client.ts's
    * getSettings/saveSettings) — not per-browser, same as floors/property. */
   @state() private _settings: Settings = emptySettings();
-  @state() private _settingsPopoverOpen = false;
+  /** The Settings page is showing in place of the map. */
+  @state() private _settingsOpen = false;
   @state() private _moreOptionsPopoverOpen = false;
 
   // --- Property tab ---------------------------------------------------
@@ -395,6 +262,9 @@ export class SpatialContextPanel extends LitElement {
 
   private _hass?: HomeAssistant;
   private _initialized = false;
+  /** Set by HA when the sidebar is hidden or an overlay (phones, narrow
+   * windows) — the only time the header needs its own menu button. */
+  @property({ type: Boolean }) narrow = false;
 
   set hass(value: HomeAssistant) {
     this._hass = value;
@@ -484,7 +354,7 @@ export class SpatialContextPanel extends LitElement {
         icon: primary.icon || "mdi:home-city",
         floorId: primary.floor_id,
         buildingId: primary.building_id,
-        aspectRatio: this._buildingAspectRatio(floors),
+        aspectRatio: buildingAspectRatio(floors),
       };
     });
   }
@@ -493,28 +363,10 @@ export class SpatialContextPanel extends LitElement {
    * any further transform since floors sharing a building_id already
    * share one coordinate system — that's what Align Floors sets up), or a
    * neutral fallback ratio when nothing's been traced yet on any of them. */
-  private _buildingAspectRatio(floors: FloorMeta[]): number {
-    const bounds = this._buildingBounds(floors);
-    const width = bounds ? bounds.max_x - bounds.min_x : 0;
-    const height = bounds ? bounds.max_y - bounds.min_y : 0;
-    return width > 0 && height > 0
-      ? width / height
-      : DEFAULT_PLACEMENT_WIDTH / DEFAULT_PLACEMENT_HEIGHT;
-  }
-
   /** Union of a building's floors' traced footprints (see
    * _buildingAspectRatio), or null when none has anything traced. */
   private _buildingBounds(floors: FloorMeta[]): ContentBounds | null {
-    const bounds = floors
-      .map((f) => f.content_bounds)
-      .filter((b): b is ContentBounds => b !== null);
-    if (bounds.length === 0) return null;
-    return {
-      min_x: Math.min(...bounds.map((b) => b.min_x)),
-      min_y: Math.min(...bounds.map((b) => b.min_y)),
-      max_x: Math.max(...bounds.map((b) => b.max_x)),
-      max_y: Math.max(...bounds.map((b) => b.max_y)),
-    };
+    return buildingBounds(floors);
   }
 
   private get _floorNameById(): Map<string, string> {
@@ -532,20 +384,9 @@ export class SpatialContextPanel extends LitElement {
    * drawn. One whose anchor floor alone was deleted is re-anchored (in
    * this display copy only) onto a surviving floor of its building, so
    * its name/icon still resolve. Mirrors storage.py's live_placements. */
+  /** See property-layout.ts's livePlacements. */
   private get _livePlacements(): PropertyPlacement[] {
-    const live: PropertyPlacement[] = [];
-    for (const p of this._propertyLayout.placements) {
-      if (this._floors.some((f) => f.floor_id === p.floor_id)) {
-        live.push(p);
-        continue;
-      }
-      const member =
-        p.building_id !== null
-          ? this._floors.find((f) => f.building_id === p.building_id)
-          : undefined;
-      if (member) live.push({ ...p, floor_id: member.floor_id });
-    }
-    return live;
+    return livePlacements(this._floors, this._propertyLayout.placements);
   }
 
   private get _selectedPlacement(): PropertyPlacement | null {
@@ -635,114 +476,30 @@ export class SpatialContextPanel extends LitElement {
    * this" lives in one place. The picked network layer is the master
    * on/off switch: no layer picked means off, and a picked layer stays
    * drawn after the menu is closed. */
-  private get _normalizedMeshLinks(): {
-    sourceDeviceId: string;
-    targetDeviceId: string;
-    quality: "strong" | "medium" | "weak" | "unknown";
-    detail?: string;
-  }[] {
-    if (this._networkType === null) return [];
+  /** Everything the Connectivity Map resolver (mesh-resolve.ts) reads. */
+  private get _meshContext(): MeshContext {
+    return {
+      networkType: this._mesh.networkType,
+      zigbeeMesh: this._mesh.zigbeeMesh,
+      zigbeeShowAllLinks: this._mesh.zigbeeShowAllLinks,
+      wifiMesh: this._mesh.wifiMesh,
+      matterTopology: this._mesh.matterTopology,
+      bluetoothAdverts: this._mesh.bluetoothAdverts,
+      bluetoothDevices: this._mesh.bluetoothDevices,
+      settings: this._settings,
+      floors: this._floors,
+      currentFloorId: this._currentFloorId,
+      layout: this._layout,
+      propertyLayout: this._propertyLayout,
+      pinByDeviceId: this._pinByDeviceId,
+      outdoorPinByDeviceId: this._outdoorPinByDeviceId,
+      otherFloorPinsByDeviceId: this._otherFloorPinsByDeviceId,
+      entityLookup: this._entityLookup,
+    };
+  }
 
-    if (this._networkType === "zigbee" && this._zigbeeMesh) {
-      const pinByDeviceId = this._pinByDeviceId;
-      const outdoor = this._outdoorPinByDeviceId;
-      const floorOfDevice = (deviceId: string) =>
-        pinByDeviceId.has(deviceId)
-          ? (this._currentFloorId ?? undefined)
-          : outdoor.has(deviceId)
-            ? PROPERTY_LOCATION_ID
-            : this._otherFloorPinsByDeviceId.get(deviceId)?.floorId;
-      return selectZigbeeLinks(
-        withCoordinatorDevice(
-          this._zigbeeMesh,
-          this._settings.zigbee_coordinator_device_id,
-        ),
-        floorOfDevice,
-        this._zigbeeShowAllLinks,
-      ).map((link) => ({
-        sourceDeviceId: link.source_device_id!,
-        targetDeviceId: link.target_device_id!,
-        quality: lqiToQuality(link.lqi),
-        // `lqi` is scale-corrected (see zigbee_mesh.py's _reporter_scales) —
-        // show the raw readings too whenever they differ from it, so a
-        // saturated reporter (e.g. a Hue bulb claiming 252 everywhere) is
-        // visible as such.
-        detail: link.lqi_readings.every((raw) => raw === link.lqi)
-          ? `LQI ${link.lqi}`
-          : `LQI ${link.lqi} (raw ${link.lqi_readings.join(" / ")})`,
-      }));
-    }
-    if (this._networkType === "wifi" && this._wifiMesh) {
-      return this._wifiMesh.links.map((link) => ({
-        sourceDeviceId: link.source_device_id,
-        targetDeviceId: link.target_device_id,
-        quality:
-          link.rssi_dbm != null ? dbmToQuality(link.rssi_dbm) : "unknown",
-        ...(link.rssi_dbm != null ? { detail: `${link.rssi_dbm} dBm` } : {}),
-      }));
-    }
-    if (this._networkType === "bluetooth") {
-      // Each BLE device → the scanner that heard it, both resolved through
-      // their registered Bluetooth addresses (see bluetooth_mesh.py);
-      // every candidate pair is emitted and only placed ones get drawn.
-      const out: {
-        sourceDeviceId: string;
-        targetDeviceId: string;
-        quality: "strong" | "medium" | "weak" | "unknown";
-        detail?: string;
-      }[] = [];
-      for (const advert of this._bluetoothAdverts.values()) {
-        const devices = this._bluetoothDevices[advert.address] ?? [];
-        const scanners = this._bluetoothDevices[advert.source] ?? [];
-        for (const deviceId of devices) {
-          for (const scannerId of scanners) {
-            if (deviceId === scannerId) continue; // a proxy hearing itself
-            out.push({
-              sourceDeviceId: deviceId,
-              targetDeviceId: scannerId,
-              quality:
-                advert.rssi != null ? bleRssiToQuality(advert.rssi) : "unknown",
-              ...(advert.rssi != null
-                ? { detail: `RSSI ${advert.rssi} dBm` }
-                : {}),
-            });
-          }
-        }
-      }
-      return out;
-    }
-    if (this._networkType === "matter" && this._matterTopology) {
-      const deviceIdByNodeId = new Map<string, string>();
-      for (const node of this._matterTopology.nodes) {
-        // Border routers carry no ha_device_id in HA's topology (#38), so
-        // they use the device the user picked in Settings.
-        const deviceId =
-          node.ha_device_id ??
-          (node.kind === "border_router"
-            ? this._settings.thread_border_router_device_id
-            : null);
-        if (deviceId) deviceIdByNodeId.set(node.id, deviceId);
-      }
-      const out: {
-        sourceDeviceId: string;
-        targetDeviceId: string;
-        quality: "strong" | "medium" | "weak" | "unknown";
-        detail?: string;
-      }[] = [];
-      for (const conn of this._matterTopology.connections) {
-        const sourceDeviceId = deviceIdByNodeId.get(conn.source);
-        const targetDeviceId = deviceIdByNodeId.get(conn.target);
-        if (!sourceDeviceId || !targetDeviceId) continue;
-        out.push({
-          sourceDeviceId,
-          targetDeviceId,
-          quality: conn.strength,
-          detail: conn.strength,
-        });
-      }
-      return out;
-    }
-    return [];
+  private get _normalizedMeshLinks(): NormalizedMeshLink[] {
+    return normalizeMeshLinks(this._meshContext);
   }
 
   /** Outdoor device pins on the Property tab, by device. */
@@ -758,60 +515,11 @@ export class SpatialContextPanel extends LitElement {
    * as-is, or an indoor pin mapped through its building's placement (see
    * canvas/property-mapping.ts). Null when it isn't placed, or its
    * building hasn't been placed on the Property tab. */
-  private _propertyEnd(deviceId: string): PropertyMeshEnd | null {
-    const outdoor = this._outdoorPinByDeviceId.get(deviceId);
-    if (outdoor) {
-      return {
-        deviceId,
-        x: outdoor.x,
-        y: outdoor.y,
-        label: this._pinLabel(outdoor),
-        floorId: null,
-      };
-    }
-    const local = this._pinByDeviceId.get(deviceId);
-    const indoor = local
-      ? { pin: local, floorId: this._currentFloorId }
-      : this._otherFloorPinsByDeviceId.get(deviceId);
-    if (!indoor?.floorId) return null;
-    const placement = this._placementForFloor(indoor.floorId);
-    const point = placement
-      ? floorToProperty(placement, indoor.pin.x, indoor.pin.y)
-      : null;
-    if (!point) return null;
-    return {
-      deviceId,
-      ...point,
-      label: this._pinLabel(indoor.pin),
-      floorId: indoor.floorId,
-    };
-  }
-
   /** Connectivity Map lines for the Property tab — every link with at
    * least one outdoor end, the indoor end (if any) drawn at its real spot
    * inside its building. Indoor-to-indoor links stay on the floor views. */
   private get _propertyMeshLinks(): PropertyMeshLink[] {
-    const outdoor = this._outdoorPinByDeviceId;
-    const links: PropertyMeshLink[] = [];
-    for (const link of this._normalizedMeshLinks) {
-      if (
-        !outdoor.has(link.sourceDeviceId) &&
-        !outdoor.has(link.targetDeviceId)
-      ) {
-        continue;
-      }
-      const from = this._propertyEnd(link.sourceDeviceId);
-      const to = this._propertyEnd(link.targetDeviceId);
-      if (!from || !to) continue;
-      links.push({
-        key: `${link.sourceDeviceId}|${link.targetDeviceId}`,
-        from,
-        to,
-        quality: link.quality,
-        ...(link.detail ? { detail: link.detail } : {}),
-      });
-    }
-    return links;
+    return propertyMeshLinks(this._meshContext);
   }
 
   private get _selectedPropertyMeshLink(): PropertyMeshLink | null {
@@ -826,66 +534,19 @@ export class SpatialContextPanel extends LitElement {
    * viewed floor — see `_meshStubsForCurrentFloor` for the case where just
    * one end does. */
   private get _meshLinksForCurrentFloor(): ResolvedMeshLink[] {
-    const pinByDeviceId = this._pinByDeviceId;
-    const links: ResolvedMeshLink[] = [];
-    for (const link of this._normalizedMeshLinks) {
-      const fromPin = pinByDeviceId.get(link.sourceDeviceId);
-      const toPin = pinByDeviceId.get(link.targetDeviceId);
-      if (fromPin && toPin) {
-        links.push({
-          fromPin,
-          toPin,
-          quality: link.quality,
-          ...(link.detail ? { detail: link.detail } : {}),
-        });
-      }
-    }
-    return links;
+    return meshLinksForFloor(this._meshContext);
   }
 
   /** Which floor a given floor_id's *building* has been placed at on the
    * Property tab, if any — floors sharing a building_id (Align Floors)
    * all resolve to the same placement. */
   private _placementForFloor(floorId: string): PropertyPlacement | null {
-    const floor = this._floors.find((f) => f.floor_id === floorId);
-    if (!floor) return null;
-    return (
-      this._propertyLayout.placements.find((p) =>
-        floor.building_id !== null
-          ? p.building_id === floor.building_id
-          : p.floor_id === floorId,
-      ) ?? null
-    );
+    return placementForFloor(this._floors, this._propertyLayout, floorId);
   }
 
   /** The current floor's traced content extent (rooms + walls), padded —
    * the box a cross-building stub gets projected to the edge of. Null on
    * a floor with nothing traced yet. */
-  private _currentFloorContentBounds(): {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  } | null {
-    const points: [number, number][] = [];
-    for (const room of this._layout.rooms) points.push(...room.points);
-    for (const wall of this._layout.walls) points.push(...wall.points);
-    if (points.length === 0) return null;
-    const xs = points.map(([x]) => x);
-    const ys = points.map(([, y]) => y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const pad = Math.max(maxX - minX, maxY - minY) * 0.05 || 20;
-    return {
-      minX: minX - pad,
-      minY: minY - pad,
-      maxX: maxX + pad,
-      maxY: maxY + pad,
-    };
-  }
-
   /** For a cross-*building* link (no shared coordinate system) — a real
    * compass bearing, computed from where each building actually sits on
    * the Property tab's site photo, adjusted for this floor's own rotation
@@ -894,32 +555,6 @@ export class SpatialContextPanel extends LitElement {
    * compute a genuine bearing from (either building never placed on the
    * Property tab) or nothing's been traced on this floor yet — no stub is
    * better than a fabricated direction. */
-  private _projectStubTowardBuilding(
-    localPin: Pin,
-    targetFloorId: string,
-  ): { x: number; y: number } | null {
-    if (!this._currentFloorId) return null;
-    const currentPlacement = this._placementForFloor(this._currentFloorId);
-    const targetPlacement = this._placementForFloor(targetFloorId);
-    if (!currentPlacement || !targetPlacement) return null;
-    const bounds = this._currentFloorContentBounds();
-    if (!bounds) return null;
-
-    const angleProperty = Math.atan2(
-      targetPlacement.y - currentPlacement.y,
-      targetPlacement.x - currentPlacement.x,
-    );
-    const rotationRad = (currentPlacement.rotation_deg * Math.PI) / 180;
-    const angleLocal = angleProperty - rotationRad;
-    return rayBoxExit(
-      localPin.x,
-      localPin.y,
-      Math.cos(angleLocal),
-      Math.sin(angleLocal),
-      bounds,
-    );
-  }
-
   /** Links with exactly one end on the currently-viewed floor — the other
    * end is real (placed on some other floor), just off-screen. Rendered
    * as a stub: a line to a marker at the other device's real position
@@ -928,77 +563,16 @@ export class SpatialContextPanel extends LitElement {
    * Garage), a marker projected toward that building's true direction via
    * the Property tab's own placements. Silently omitted (not drawn at a
    * guessed position) whenever that direction can't be computed. */
+  private get _floorMeshLegend(): MeshLegendInfo | null {
+    return floorMeshLegend(this._meshContext);
+  }
+
+  private get _propertyMeshLegend(): MeshLegendInfo | null {
+    return propertyMeshLegend(this._meshContext);
+  }
+
   private get _meshStubsForCurrentFloor(): ResolvedMeshStub[] {
-    if (!this._currentFloorId) return [];
-    const pinByDeviceId = this._pinByDeviceId;
-    const otherPins = this._otherFloorPinsByDeviceId;
-    const currentFloor = this._floors.find(
-      (f) => f.floor_id === this._currentFloorId,
-    );
-    const stubs: ResolvedMeshStub[] = [];
-
-    for (const link of this._normalizedMeshLinks) {
-      const localIsSource = pinByDeviceId.has(link.sourceDeviceId);
-      const localIsTarget = pinByDeviceId.has(link.targetDeviceId);
-      if (localIsSource === localIsTarget) continue;
-      const localPin = pinByDeviceId.get(
-        localIsSource ? link.sourceDeviceId : link.targetDeviceId,
-      )!;
-      const remoteDeviceId = localIsSource
-        ? link.targetDeviceId
-        : link.sourceDeviceId;
-      const outdoorPin = this._outdoorPinByDeviceId.get(remoteDeviceId);
-      if (outdoorPin) {
-        // An outdoor device: its real spot, mapped from the site photo into
-        // this floor's coordinates through this floor's own placement.
-        const placement = this._placementForFloor(this._currentFloorId);
-        const point = placement
-          ? propertyToFloor(placement, outdoorPin.x, outdoorPin.y)
-          : null;
-        if (!point) continue;
-        stubs.push({
-          fromPin: localPin,
-          x: point.x,
-          y: point.y,
-          targetDeviceId: remoteDeviceId,
-          targetFloorId: PROPERTY_LOCATION_ID,
-          targetFloorName: "Outside",
-          targetLabel: this._pinLabel(outdoorPin),
-          quality: link.quality,
-          ...(link.detail ? { detail: link.detail } : {}),
-        });
-        continue;
-      }
-      const remote = otherPins.get(remoteDeviceId);
-      if (!remote || remote.floorId === this._currentFloorId) continue;
-      const remoteFloor = this._floors.find(
-        (f) => f.floor_id === remote.floorId,
-      );
-      const remoteLabel =
-        remote.pin.label_override ??
-        pinDisplayLabel(remote.pin.device_id, this._entityLookup.values());
-
-      const sameBuilding =
-        currentFloor?.building_id !== null &&
-        currentFloor?.building_id === remoteFloor?.building_id;
-      const point = sameBuilding
-        ? { x: remote.pin.x, y: remote.pin.y }
-        : this._projectStubTowardBuilding(localPin, remote.floorId);
-      if (!point) continue;
-
-      stubs.push({
-        fromPin: localPin,
-        x: point.x,
-        y: point.y,
-        targetDeviceId: remoteDeviceId,
-        targetFloorId: remote.floorId,
-        targetFloorName: remoteFloor?.name ?? remote.floorId,
-        targetLabel: remoteLabel,
-        quality: link.quality,
-        ...(link.detail ? { detail: link.detail } : {}),
-      });
-    }
-    return stubs;
+    return meshStubsForFloor(this._meshContext);
   }
 
   private get _selectedPin(): Pin | null {
@@ -1057,35 +631,8 @@ export class SpatialContextPanel extends LitElement {
    * floor's scale carries straight over; the largest placement wins, and
    * `disagree` flags buildings more than 10% apart (one is probably sized
    * wrong against the photo). */
-  private get _propertyScale(): {
-    metersPerUnit: number;
-    buildingName: string;
-    disagree: boolean;
-  } | null {
-    const candidates: { area: number; mpu: number; name: string }[] = [];
-    for (const placement of this._livePlacements) {
-      const b = placement.source_bounds;
-      if (!b || placement.width <= 0) continue;
-      const sourceWidth = b.max_x - b.min_x;
-      if (sourceWidth <= 0) continue;
-      const floorMpu = this._buildingMetersPerUnit(placement);
-      if (floorMpu === null) continue;
-      candidates.push({
-        area: placement.width * placement.height,
-        mpu: (floorMpu * sourceWidth) / placement.width,
-        name:
-          placement.label_override ??
-          this._floorNameById.get(placement.floor_id) ??
-          "a building",
-      });
-    }
-    if (candidates.length === 0) return null;
-    const best = candidates.reduce((a, c) => (c.area > a.area ? c : a));
-    return {
-      metersPerUnit: best.mpu,
-      buildingName: best.name,
-      disagree: candidates.some((c) => Math.abs(c.mpu / best.mpu - 1) > 0.1),
-    };
+  private get _propertyScale(): PropertyScale | null {
+    return propertyScale(this._floors, this._propertyLayout.placements);
   }
 
   /** A placement's building scale: its anchor floor's calibration, else
@@ -1093,13 +640,7 @@ export class SpatialContextPanel extends LitElement {
   private _buildingMetersPerUnit(
     placement: Pick<PropertyPlacement, "floor_id" | "building_id">,
   ): number | null {
-    const anchor = this._floors.find((f) => f.floor_id === placement.floor_id);
-    if (anchor?.meters_per_unit) return anchor.meters_per_unit;
-    if (placement.building_id === null) return null;
-    const member = this._floors.find(
-      (f) => f.building_id === placement.building_id && f.meters_per_unit,
-    );
-    return member?.meters_per_unit ?? null;
+    return buildingMetersPerUnit(this._floors, placement);
   }
 
   private get _propertyScaleReadout(): string | null {
@@ -2184,7 +1725,6 @@ export class SpatialContextPanel extends LitElement {
   private _onToggleBackgroundPopover = () => {
     this._backgroundPopoverOpen = !this._backgroundPopoverOpen;
     this._meshPopoverOpen = false;
-    this._settingsPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
   };
 
@@ -2194,12 +1734,11 @@ export class SpatialContextPanel extends LitElement {
   private _onToggleMeshPopover = () => {
     this._meshPopoverOpen = !this._meshPopoverOpen;
     this._backgroundPopoverOpen = false;
-    this._settingsPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
   };
 
-  private _onToggleSettingsPopover = () => {
-    this._settingsPopoverOpen = !this._settingsPopoverOpen;
+  private _onOpenSettings = () => {
+    this._settingsOpen = true;
     this._backgroundPopoverOpen = false;
     this._meshPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
@@ -2209,7 +1748,6 @@ export class SpatialContextPanel extends LitElement {
     this._moreOptionsPopoverOpen = !this._moreOptionsPopoverOpen;
     this._backgroundPopoverOpen = false;
     this._meshPopoverOpen = false;
-    this._settingsPopoverOpen = false;
   };
 
   /** Every Settings change (see views/settings-menu.ts). Instant-apply, no
@@ -2238,222 +1776,13 @@ export class SpatialContextPanel extends LitElement {
     }
   };
 
-  // Picking a layer shows it straight away wherever that's cheap: Wi-Fi is
-  // read from entity states and Matter is a live subscription, both
-  // near-instant, so they load on pick with no button. Zigbee only ever
-  // shows the backend's cache on pick (cache_only — never a scan); a real
-  // scan (~90s+) still needs an explicit Load/Refresh click (_onLoadMesh).
   private _onNetworkTypeSelect = (picked: NetworkType) => {
-    // Tapping the layer that's already on turns the overlay off.
-    const type = this._networkType === picked ? null : picked;
-    if (this._networkType === "matter" && type !== "matter") {
-      this._unsubscribeMatter();
-    }
-    if (this._networkType === "bluetooth" && type !== "bluetooth") {
-      this._unsubscribeBluetooth();
-    }
-    this._networkType = type;
+    this._mesh.select(picked);
     this._selectedMeshLink = null;
     this._selectedMeshStub = null;
-    if (type === "wifi") void this._refreshWifiMesh();
-    else if (type === "matter") void this._subscribeMatter();
-    else if (type === "bluetooth") void this._subscribeBluetooth();
-    else if (type === "zigbee") void this._loadCachedZigbeeMesh();
   };
 
-  private _onLoadMesh = () => {
-    // Reuses the exact same "already fetched once" check the button's own
-    // label (Load vs Refresh) is driven by, so the label and the actual
-    // force-refresh behavior can't drift apart — force_refresh only on an
-    // explicit "Refresh" click, never on the initial "Load" open (which
-    // should prefer any pre-warmed cache, see zigbee_mesh.py).
-    void this._refreshZigbeeMesh(this._zigbeeMeshFetchedAt !== null);
-  };
-
-  /** Shows a warm backend cache (e.g. from an earlier visit, or pre-warmed
-   * by the refresh_zigbee_mesh service) without the user having to click
-   * Load — and picks up a newer one than this tab holds, e.g. a scheduled
-   * refresh that ran while the panel stayed open. Silent on failure — the
-   * Load button is still there. */
-  private async _loadCachedZigbeeMesh(): Promise<void> {
-    try {
-      const cached = await this._client.getCachedZigbeeMesh();
-      // A real scan in flight wins over this cache read.
-      if (!cached?.fetched_at || this._zigbeeMeshLoading) return;
-      const cachedAt = cached.fetched_at * 1000;
-      if (this._zigbeeMeshFetchedAt && cachedAt <= this._zigbeeMeshFetchedAt) {
-        return;
-      }
-      this._zigbeeMesh = cached;
-      this._zigbeeMeshFetchedAt = cachedAt;
-    } catch {
-      // Transient error — no-op.
-    }
-  }
-
-  private async _refreshZigbeeMesh(forceRefresh = false): Promise<void> {
-    this._zigbeeMeshLoading = true;
-    this._zigbeeMeshError = null;
-    const startedAt = Date.now();
-    this._zigbeeMeshElapsedSeconds = 0;
-    this._zigbeeMeshTimer = window.setInterval(() => {
-      this._zigbeeMeshElapsedSeconds = Math.round(
-        (Date.now() - startedAt) / 1000,
-      );
-    }, 1000);
-    try {
-      this._zigbeeMesh = await this._client.getZigbeeMesh(forceRefresh);
-      debugLog.log("mesh_load", {
-        network: "zigbee",
-        force_refresh: forceRefresh,
-        ms: Date.now() - startedAt,
-        links: this._zigbeeMesh.links.length,
-        nodes: this._zigbeeMesh.nodes.length,
-      });
-      // Backend uses time.time() (epoch seconds) — convert to ms to match
-      // Date.now(), which _meshAgeLabel expects. A cache hit can be well
-      // in the past (e.g. pre-warmed overnight by the refresh_zigbee_mesh
-      // service), not "just now".
-      this._zigbeeMeshFetchedAt = this._zigbeeMesh.fetched_at
-        ? this._zigbeeMesh.fetched_at * 1000
-        : Date.now();
-    } catch (err) {
-      const message = this._meshErrorMessage(
-        err,
-        localize("errors.zigbeeFailed"),
-      );
-      this._zigbeeMeshError = message;
-      debugLog.log("mesh_error", { network: "zigbee", error: message });
-    } finally {
-      this._zigbeeMeshLoading = false;
-      if (this._zigbeeMeshTimer !== null) {
-        window.clearInterval(this._zigbeeMeshTimer);
-        this._zigbeeMeshTimer = null;
-      }
-    }
-  }
-
-  private async _refreshWifiMesh(): Promise<void> {
-    this._wifiMeshLoading = true;
-    this._wifiMeshError = null;
-    try {
-      this._wifiMesh = await this._client.getWifiMesh();
-      debugLog.log("mesh_load", {
-        network: "wifi",
-        links: this._wifiMesh.links.length,
-      });
-    } catch (err) {
-      const message = this._meshErrorMessage(
-        err,
-        localize("errors.wifiFailed"),
-      );
-      this._wifiMeshError = message;
-      debugLog.log("mesh_error", { network: "wifi", error: message });
-    } finally {
-      this._wifiMeshLoading = false;
-    }
-  }
-
-  private async _subscribeMatter(): Promise<void> {
-    this._unsubscribeMatter();
-    this._matterError = null;
-    try {
-      this._matterUnsubscribe = await this._client.subscribeMatterTopology(
-        (topology) => {
-          this._matterTopology = topology;
-        },
-      );
-    } catch (err) {
-      this._matterError = this._meshErrorMessage(
-        err,
-        localize("errors.matterFailed"),
-      );
-    }
-  }
-
-  private _unsubscribeMatter(): void {
-    this._matterUnsubscribe?.();
-    this._matterUnsubscribe = null;
-  }
-
-  /** A Connectivity Map error, worded as what to do about it. An unknown
-   * command means the panel is newer than the backend HA is running (it
-   * was updated without a restart yet). */
-  private _meshErrorMessage(err: unknown, fallback: string): string {
-    const { code, message } = (err ?? {}) as {
-      code?: string;
-      message?: string;
-    };
-    if (code === "unknown_command") {
-      return localize("errors.restartHa");
-    }
-    if (code === "unauthorized") {
-      return localize("errors.needsAdmin");
-    }
-    return message || fallback;
-  }
-
-  private async _subscribeBluetooth(): Promise<void> {
-    this._unsubscribeBluetooth();
-    this._bluetoothError = null;
-    this._bluetoothBuffer = new Map();
-    this._bluetoothAdverts = new Map();
-    let coreStream = false;
-    try {
-      this._bluetoothDevices = (
-        await this._client.getBluetoothDevices()
-      ).devices;
-      // Past this point an unknown command is HA core's own (the stream
-      // arrived in HA 2025.2), not ours — so it's HA that's too old.
-      coreStream = true;
-      this._bluetoothUnsubscribe =
-        await this._client.subscribeBluetoothAdvertisements((event) => {
-          for (const advert of event.add ?? []) {
-            this._bluetoothBuffer.set(advert.address, {
-              address: advert.address,
-              source: advert.source,
-              rssi: advert.rssi,
-              name: advert.name,
-            });
-          }
-          for (const { address } of event.remove ?? []) {
-            this._bluetoothBuffer.delete(address);
-          }
-          this._bluetoothFlushTimer ??= window.setTimeout(() => {
-            this._bluetoothFlushTimer = null;
-            this._bluetoothAdverts = new Map(this._bluetoothBuffer);
-          }, 2000);
-        });
-      // Show the first snapshot straight away rather than after the delay.
-      window.setTimeout(() => {
-        this._bluetoothAdverts = new Map(this._bluetoothBuffer);
-        debugLog.log("mesh_load", {
-          network: "bluetooth",
-          adverts: this._bluetoothBuffer.size,
-          known_addresses: Object.keys(this._bluetoothDevices).length,
-        });
-      }, 300);
-    } catch (err) {
-      // HA allows the advertisement stream for admins only.
-      this._bluetoothError =
-        coreStream && (err as { code?: string })?.code === "unknown_command"
-          ? localize("errors.bluetoothVersion")
-          : this._meshErrorMessage(err, localize("errors.bluetoothFailed"));
-      debugLog.log("mesh_error", {
-        network: "bluetooth",
-        error: this._bluetoothError,
-      });
-    }
-  }
-
-  private _unsubscribeBluetooth(): void {
-    this._bluetoothUnsubscribe?.();
-    this._bluetoothUnsubscribe = null;
-    if (this._bluetoothFlushTimer !== null) {
-      window.clearTimeout(this._bluetoothFlushTimer);
-      this._bluetoothFlushTimer = null;
-    }
-  }
+  private _onLoadMesh = () => this._mesh.loadZigbee();
 
   /** Size the panel to what's actually visible. On iOS the CSS viewport
    * units can include the area under the browser bar or home indicator, so
@@ -2465,8 +1794,35 @@ export class SpatialContextPanel extends LitElement {
     this.style.height = `${Math.max(240, Math.floor(visible - top))}px`;
   };
 
+  /** The tab's favicon while the panel is open: the brand mark in place of
+   * HA's, put back when the user navigates to another panel. */
+  private _faviconRestore: (() => void) | null = null;
+
+  private _setFavicon(): void {
+    const head = document.head;
+    const previous = [
+      ...head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
+    ];
+    const mark = document.createElement("link");
+    mark.rel = "icon";
+    mark.type = "image/svg+xml";
+    mark.href = "/spatial_context/spatial-context-favicon.svg";
+    const fallback = document.createElement("link");
+    fallback.rel = "icon";
+    fallback.type = "image/png";
+    fallback.href = "/spatial_context/spatial-context-favicon.png";
+    previous.forEach((l) => l.remove());
+    head.append(mark, fallback);
+    this._faviconRestore = () => {
+      mark.remove();
+      fallback.remove();
+      head.append(...previous);
+    };
+  }
+
   override connectedCallback(): void {
     super.connectedCallback();
+    this._setFavicon();
     this._fitToViewport();
     window.visualViewport?.addEventListener("resize", this._fitToViewport);
     window.addEventListener("resize", this._fitToViewport);
@@ -2478,6 +1834,8 @@ export class SpatialContextPanel extends LitElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._faviconRestore?.();
+    this._faviconRestore = null;
     window.visualViewport?.removeEventListener("resize", this._fitToViewport);
     window.removeEventListener("resize", this._fitToViewport);
     window.removeEventListener("orientationchange", this._fitToViewport);
@@ -2488,12 +1846,6 @@ export class SpatialContextPanel extends LitElement {
     // Navigating to another HA panel never fires beforeunload — save
     // anything pending on the way out instead.
     void this._flushAutoSave();
-    this._unsubscribeMatter();
-    this._unsubscribeBluetooth();
-    if (this._zigbeeMeshTimer !== null) {
-      window.clearInterval(this._zigbeeMeshTimer);
-      this._zigbeeMeshTimer = null;
-    }
   }
 
   /** The actual focused element, piercing open shadow roots — the listener
@@ -2991,7 +2343,7 @@ export class SpatialContextPanel extends LitElement {
     const pin = this._selectedPin;
     if (
       !pin ||
-      !(await this._ask("deletePin", "delete", { name: this._pinLabel(pin) }))
+      !(await this._ask("deletePin", "remove", { name: this._pinLabel(pin) }))
     )
       return;
     this._updateLayout({
@@ -3085,6 +2437,34 @@ export class SpatialContextPanel extends LitElement {
   };
 
   // --- entity picker ------------------------------------------------------
+
+  /** The picker's per-row buttons: select that device's pin on the plan
+   * being shown, or remove it (asking first, as removing from the canvas
+   * does). */
+  private _pickerPin(deviceId: string): Pin | null {
+    const pins =
+      this._view === "property" ? this._propertyLayout.pins : this._layout.pins;
+    return pins.find((p) => p.device_id === deviceId) ?? null;
+  }
+
+  private _onPickerPinLocate = (e: CustomEvent<{ deviceId: string }>) => {
+    const pin = this._pickerPin(e.detail.deviceId);
+    if (!pin) return;
+    if (this._view === "property") this._selectedOutdoorPinId = pin.id;
+    else this._selectedPinId = pin.id;
+  };
+
+  private _onPickerPinRemove = async (e: CustomEvent<{ deviceId: string }>) => {
+    const pin = this._pickerPin(e.detail.deviceId);
+    if (!pin) return;
+    if (this._view === "property") {
+      this._selectedOutdoorPinId = pin.id;
+      await this._onOutdoorPinDelete();
+    } else {
+      this._selectedPinId = pin.id;
+      await this._onPinDelete();
+    }
+  };
 
   private _onEntityArmed = (e: CustomEvent<{ entityId: string }>) => {
     this._armedEntityId =
@@ -3626,7 +3006,7 @@ export class SpatialContextPanel extends LitElement {
 
   /** The active network layer's display name, or null with none on. */
   private get _networkLabel(): string | null {
-    switch (this._networkType) {
+    switch (this._mesh.networkType) {
       case "zigbee":
         return localize("network.zigbeeShort");
       case "wifi":
@@ -3648,20 +3028,18 @@ export class SpatialContextPanel extends LitElement {
       return html`<div class="no-floors">${localize("panel.noFloors")}</div>`;
     }
 
-    const meshError =
-      this._networkType === "zigbee"
-        ? this._zigbeeMeshError
-        : this._networkType === "wifi"
-          ? this._wifiMeshError
-          : this._networkType === "bluetooth"
-            ? this._bluetoothError
-            : this._matterError;
+    const meshError = this._mesh.error;
 
     return html`
       <app-header
+        .narrow=${this.narrow}
+        ?light=${!(this._hass?.themes?.darkMode ?? false)}
         .floors=${this._orderedFloors}
         .selectedFloorId=${this._currentFloorId}
         .propertySelected=${this._view === "property"}
+        .page=${this._settingsOpen ? "settings" : ""}
+        @open-settings=${this._onOpenSettings}
+        @page-back=${() => (this._settingsOpen = false)}
         @floor-selected=${this._onFloorSelected}
         @property-selected=${this._onPropertySelected}
       >
@@ -3671,63 +3049,63 @@ export class SpatialContextPanel extends LitElement {
                 icon="mdi:lan"
                 label=${localize("menu.connectivity")}
                 .open=${this._meshPopoverOpen}
-                ?highlight=${this._networkType !== null}
+                ?highlight=${this._mesh.networkType !== null}
                 @toggle=${this._onToggleMeshPopover}
               >
                 <div class="layer-list">
                   <button
-                    class="menu-item ${this._networkType === "zigbee" ? "active" : ""}"
+                    class="menu-item ${this._mesh.networkType === "zigbee" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("zigbee")}
                   >
                     <ha-icon icon="mdi:zigbee"></ha-icon>
                     ${localize("network.zigbee")}
-                    ${this._networkType === "zigbee" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
+                    ${this._mesh.networkType === "zigbee" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
-                    class="menu-item ${this._networkType === "wifi" ? "active" : ""}"
+                    class="menu-item ${this._mesh.networkType === "wifi" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("wifi")}
                   >
                     <ha-icon icon="mdi:wifi"></ha-icon>
                     ${localize("network.wifi")}
-                    ${this._networkType === "wifi" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
+                    ${this._mesh.networkType === "wifi" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
-                    class="menu-item ${this._networkType === "matter" ? "active" : ""}"
+                    class="menu-item ${this._mesh.networkType === "matter" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("matter")}
                   >
                     <ha-icon icon="mdi:router-wireless"></ha-icon>
                     ${localize("network.matter")}
-                    ${this._networkType === "matter" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
+                    ${this._mesh.networkType === "matter" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                   <button
-                    class="menu-item ${this._networkType === "bluetooth" ? "active" : ""}"
+                    class="menu-item ${this._mesh.networkType === "bluetooth" ? "active" : ""}"
                     @click=${() => this._onNetworkTypeSelect("bluetooth")}
                   >
                     <ha-icon icon="mdi:bluetooth"></ha-icon>
                     ${localize("network.bluetooth")}
-                    ${this._networkType === "bluetooth" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
+                    ${this._mesh.networkType === "bluetooth" ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing}
                   </button>
                 </div>
                 ${
-                  this._networkType === null
+                  this._mesh.networkType === null
                     ? nothing
                     : html`
                         <div class="menu-divider"></div>
                         ${
-                          this._networkType === "zigbee"
+                          this._mesh.networkType === "zigbee"
                             ? html`<button
                                   class="menu-item"
-                                  ?disabled=${this._zigbeeMeshLoading}
+                                  ?disabled=${this._mesh.zigbeeLoading}
                                   @click=${this._onLoadMesh}
                                 >
                                   <ha-icon icon="mdi:refresh"></ha-icon>
                                   ${
-                                    this._zigbeeMeshLoading
+                                    this._mesh.zigbeeLoading
                                       ? localize("network.loadingZigbee", {
                                           seconds:
-                                            this._zigbeeMeshElapsedSeconds,
+                                            this._mesh.zigbeeElapsedSeconds,
                                         })
-                                      : this._zigbeeMeshFetchedAt
+                                      : this._mesh.zigbeeFetchedAt
                                         ? localize("network.refresh")
                                         : localize("network.load")
                                   }
@@ -3738,9 +3116,9 @@ export class SpatialContextPanel extends LitElement {
                                     type="checkbox"
                                     class="switch"
                                     role="switch"
-                                    .checked=${this._zigbeeShowAllLinks}
+                                    .checked=${this._mesh.zigbeeShowAllLinks}
                                     @change=${(e: Event) => {
-                                      this._zigbeeShowAllLinks = (
+                                      this._mesh.zigbeeShowAllLinks = (
                                         e.target as HTMLInputElement
                                       ).checked;
                                       this._selectedMeshLink = null;
@@ -3748,17 +3126,14 @@ export class SpatialContextPanel extends LitElement {
                                     }}
                                   />
                                 </label>`
-                            : (this._networkType === "matter" &&
-                                  this._matterUnsubscribe) ||
-                                (this._networkType === "bluetooth" &&
-                                  this._bluetoothUnsubscribe)
+                            : this._mesh.live
                               ? html`<span
                                   class="hint"
                                   style="padding: 4px 16px 8px"
                                   >${localize("network.live")}</span
                                 >`
-                              : this._networkType === "wifi" &&
-                                  this._wifiMeshLoading
+                              : this._mesh.networkType === "wifi" &&
+                                  this._mesh.wifiLoading
                                 ? html`<span
                                     class="hint"
                                     style="padding: 4px 16px 8px"
@@ -3773,13 +3148,13 @@ export class SpatialContextPanel extends LitElement {
                                 style="color: var(--sc-danger); padding: 0 16px 8px"
                                 >${meshError}</span
                               >`
-                            : this._networkType === "zigbee" &&
-                                this._zigbeeMeshFetchedAt
+                            : this._mesh.networkType === "zigbee" &&
+                                this._mesh.zigbeeFetchedAt
                               ? html`<span
                                   class="hint"
                                   style="padding: 0 16px 8px"
                                   >${this._meshAgeLabel(
-                                    this._zigbeeMeshFetchedAt,
+                                    this._mesh.zigbeeFetchedAt,
                                   )}</span
                                 >`
                               : nothing
@@ -3791,26 +3166,21 @@ export class SpatialContextPanel extends LitElement {
         }
         <icon-popover
           slot="end"
-          icon="mdi:cog"
-          label="Settings"
-          dialog
-          .open=${this._settingsPopoverOpen}
-          @toggle=${this._onToggleSettingsPopover}
-        >
-          <settings-menu
-            .settings=${this._settings}
-            .coordinatorChoices=${this._placedDeviceChoices}
-            @settings-change=${this._onSettingsChange}
-            @settings-close=${() => (this._settingsPopoverOpen = false)}
-          ></settings-menu>
-        </icon-popover>
-        <icon-popover
-          slot="end"
           icon="mdi:dots-vertical"
           label=${localize("menu.more")}
           .open=${this._moreOptionsPopoverOpen}
           @toggle=${this._onToggleMoreOptionsPopover}
         >
+          <button
+            class="menu-item"
+            @click=${() => {
+              this._moreOptionsPopoverOpen = false;
+              window.open(GETTING_STARTED_URL, "_blank", "noopener");
+            }}
+          >
+            <ha-icon icon="mdi:book-open-variant"></ha-icon>
+            ${localize("menu.gettingStarted")}
+          </button>
           <button
             class="menu-item"
             @click=${() => {
@@ -3824,6 +3194,7 @@ export class SpatialContextPanel extends LitElement {
           <button
             class="menu-item"
             title=${localize("menu.debugReportHint")}
+            aria-label=${localize("menu.debugReportHint")}
             @click=${() => {
               this._moreOptionsPopoverOpen = false;
               void this._downloadDebugReport();
@@ -3844,316 +3215,328 @@ export class SpatialContextPanel extends LitElement {
         </icon-popover>
       </app-header>
 
-      <div class="main">
-        ${
-          this._versionNotice
-            ? html`<div class="save-error floating-panel" role="status">
-                <ha-icon icon="mdi:update"></ha-icon>
-                <span
-                  >${
-                    this._versionNotice === "restart"
-                      ? localize("panel.versionRestart")
-                      : localize("panel.versionReload")
-                  }</span
-                >
-                <button @click=${() => (this._versionNotice = null)}>
-                  ${localize("panel.dismiss")}
-                </button>
-              </div>`
-            : nothing
-        }
-        ${
-          this._saveError
-            ? html`<div class="save-error floating-panel" role="alert">
-                <ha-icon icon="mdi:alert"></ha-icon>
-                <span
-                  >${localize("errors.saveFailed", {
-                    error: this._saveError,
-                  })}</span
-                >
-                <button @click=${this._onSaveClick}>
-                  ${localize("errors.retry")}
-                </button>
-              </div>`
-            : nothing
-        }
-        ${
-          this._view === "property"
-            ? html`
-                <div
-                  class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
-                  @dragover=${this._onCanvasDragOver}
-                  @dragleave=${this._onCanvasDragLeave}
-                  @drop=${this._onCanvasDrop}
-                >
-                  <property-canvas
-                    .dark=${this._hass?.themes?.darkMode ?? false}
-                    .placements=${this._livePlacements}
-                    .ghosts=${this._placementGhosts}
-                    .hass=${this._hass}
-                    .mapBackground=${this._propertyLayout.map_background ?? null}
-                    @map-adjust=${this._onMapAdjust}
-                    .floorNameById=${this._floorNameById}
-                    .floorIconById=${this._floorIconById}
-                    .backgroundImageUrl=${backgroundImageUrl(
-                      this._propertyLayout.background_image_id,
-                    )}
-                    .backgroundOpacity=${this._propertyLayout.background_opacity}
-                    .backgroundOffsetX=${this._propertyLayout.background_offset_x}
-                    .backgroundOffsetY=${this._propertyLayout.background_offset_y}
-                    .backgroundScale=${this._propertyLayout.background_scale}
-                    .initialViewBox=${this._propertyLayout.view_box}
-                    .mode=${this._propertyMode}
-                    .selectedPlacementId=${this._selectedPlacementId}
-                    .pins=${this._propertyLayout.pins}
-                    .selectedPinId=${this._selectedOutdoorPinId}
-                    .entityLookup=${this._entityLookup}
-                    .meshLinks=${this._propertyMeshLinks}
-                    .selectedMeshLinkKey=${this._selectedPropertyMeshLinkKey}
-                    @outdoor-pin-place=${this._onOutdoorPinPlace}
-                    @property-gesture-start=${() =>
-                      (this._propertyDragStart = this._propertyLayout)}
-                    @outdoor-pin-move=${this._onOutdoorPinMove}
-                    @outdoor-pin-select=${this._onOutdoorPinSelect}
-                    @property-mesh-link-select=${this._onPropertyMeshLinkSelect}
-                    @placement-place=${this._onPlacementPlace}
-                    @placement-move=${this._onPlacementMove}
-                    @placement-resize=${this._onPlacementResize}
-                    @placement-rotate=${this._onPlacementRotate}
-                    @placement-select=${this._onPlacementSelect}
-                  ></property-canvas>
-                  <property-overlay
-                    .dirty=${this._propertyDirty}
-                    .saving=${this._propertySaving}
-                    .canUndo=${this._canUndo}
-                    .canRedo=${this._canRedo}
-                    @undo-click=${this._onUndo}
-                    @redo-click=${this._onRedo}
-                    @save-click=${this._onSaveClick}
-                    .meshLegend=${this._networkType !== null}
-                    .mode=${this._propertyMode}
-                    .buildings=${this._buildings}
-                    .scaleReadout=${this._propertyScaleReadout}
-                    .scaleWarning=${
-                      this._propertyScale?.disagree
-                        ? localize("panel.scaleDisagree")
-                        : null
-                    }
-                    .armedBuildingKey=${this._armedBuildingKey}
-                    .selectedPlacement=${this._selectedPlacement}
-                    .selectedPinLabel=${
-                      this._selectedOutdoorPin
-                        ? this._pinLabel(this._selectedOutdoorPin)
-                        : null
-                    }
-                    .selectedMeshLink=${this._selectedPropertyMeshLink}
-                    .selectedPinDefaultLabel=${
-                      this._selectedOutdoorPin
-                        ? pinDisplayLabel(
-                            this._selectedOutdoorPin.device_id,
-                            this._entityLookup.values(),
-                          )
-                        : null
-                    }
-                    .selectedPinOverride=${this._selectedOutdoorPin?.label_override ?? null}
-                    .selectedPinDeviceId=${this._selectedOutdoorPin?.device_id ?? null}
-                    .meshLinks=${this._propertyMeshLinks}
-                    .networkLabel=${this._networkLabel}
-                    .floorNameById=${this._floorNameById}
-                    @outdoor-pin-label-change=${this._onOutdoorPinLabelChange}
-                    @selection-clear=${this._onPropertySelectionClear}
-                    @outdoor-pin-icon-click=${this._onOutdoorPinIcon}
-                    @outdoor-pin-delete-click=${this._onOutdoorPinDelete}
-                    @property-mesh-goto-floor-click=${this._onPropertyMeshGotoFloor}
-                    @property-mode-change=${this._onPropertyModeChange}
-                    @map-rotation-set=${this._onMapRotationSet}
-                    @map-zoom-step=${this._onMapZoomStep}
-                    .mapActive=${!!this._propertyLayout.map_background}
-                    .mapRotation=${this._propertyLayout.map_background?.rotation_deg ?? 0}
-                    @placement-arm=${this._onPlacementArm}
-                    @placement-label-change=${this._onPlacementLabelChange}
-                    @placement-delete-click=${this._onPlacementDeleteClick}
-                    @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
-                    >${this._renderBackgroundPopover()}</property-overlay
-                  >
-                </div>
-                ${
-                  this._propertyMode === "place-pin"
-                    ? html`<entity-picker-sidebar
-                        @picker-close=${this._onPickerClose}
-                        .entities=${this._entities}
-                        .placedDeviceIds=${this._placedDeviceIds}
-                        .armedEntityId=${this._armedEntityId}
-                        .floors=${this._floors}
-                        .areas=${this._areas}
-                        .currentFloorId=${PROPERTY_LOCATION_ID}
-                        @entity-armed=${this._onEntityArmed}
-                        @clear-all-pins=${this._onClearAllOutdoorPins}
-                      ></entity-picker-sidebar>`
-                    : nothing
-                }
-              `
-            : html`
-                <div
-                  class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
-                  @dragover=${this._onCanvasDragOver}
-                  @dragleave=${this._onCanvasDragLeave}
-                  @drop=${this._onCanvasDrop}
-                >
-                  <floorplan-canvas
-                    @calibrate-scale-click=${this._onCalibrateScaleClick}
-                    .dark=${this._hass?.themes?.darkMode ?? false}
-                    .rooms=${this._layout.rooms}
-                    .pins=${this._layout.pins}
-                    .walls=${this._layout.walls}
-                    .openings=${this._layout.openings}
-                    .scale=${this._layout.scale}
-                    .unitSystem=${this._settings.unit_system}
-                    .meshLinks=${this._meshLinksForCurrentFloor}
-                    .meshStubs=${this._meshStubsForCurrentFloor}
-                    .entityLookup=${this._entityLookup}
-                    .backgroundImageUrl=${backgroundImageUrl(this._layout.background_image_id)}
-                    .backgroundOpacity=${this._layout.background_opacity}
-                    .backgroundOffsetX=${this._layout.background_offset_x}
-                    .backgroundOffsetY=${this._layout.background_offset_y}
-                    .backgroundScale=${this._layout.background_scale}
-                    .alignOverlay=${this._alignOverlay}
-                    .initialViewBox=${this._layout.view_box}
-                    .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
-                    .mode=${this._mode}
-                    .snapMode=${this._snapMode}
-                    .armedEntityId=${this._armedEntityId}
-                    .armedOpeningType=${this._armedOpeningType}
-                    .selectedRoomId=${this._selectedRoomId}
-                    .editingRoomId=${this._editingRoomId}
-                    .selectedPinId=${this._selectedPinId}
-                    .multiPinIds=${this._multiPinIds}
-                    .selectedWallId=${this._selectedWallId}
-                    .editingWallId=${this._editingWallId}
-                    .selectedOpeningId=${this._selectedOpeningId}
-                    .selectedMeshLinkKey=${this._selectedMeshLinkKey}
-                    .selectedMeshStubKey=${this._selectedMeshStubKey}
-                    @room-trace-complete=${this._onRoomTraceComplete}
-                    @room-vertex-changed=${this._onRoomVertexChanged}
-                    @room-label-moved=${this._onRoomLabelMoved}
-                    @room-move=${this._onRoomMove}
-                    @room-select=${this._onRoomSelect}
-                    @wall-trace-complete=${this._onWallTraceComplete}
-                    @wall-vertex-changed=${this._onWallVertexChanged}
-                    @wall-select=${this._onWallSelect}
-                    @opening-place=${this._onOpeningPlace}
-                    @opening-select=${this._onOpeningSelect}
-                    @opening-update=${this._onOpeningUpdate}
-                    @pin-place=${this._onPinPlace}
-                    @pin-move=${this._onPinMove}
-                    @pin-select=${this._onPinSelect}
-                    @pin-multi-toggle=${this._onPinMultiToggle}
-                    @pins-select-box=${this._onPinsSelectBox}
-                    @pins-move=${this._onPinsMove}
-                    @pin-stack-select=${this._onPinStackSelect}
-                    @mesh-link-select=${this._onMeshLinkSelect}
-                    @mesh-stub-select=${this._onMeshStubSelect}
-                    @scale-line-complete=${this._onScaleLineComplete}
-                    @pending-changed=${this._onPendingChanged}
-                    @align-drag=${this._onAlignDrag}
-                  ></floorplan-canvas>
+      ${
+        this._settingsOpen
+          ? html`<settings-page
+              .settings=${this._settings}
+              .coordinatorChoices=${this._placedDeviceChoices}
+              @settings-change=${this._onSettingsChange}
+            ></settings-page>`
+          : html`<div class="main">
+              ${
+                this._versionNotice
+                  ? html`<div class="save-error floating-panel" role="status">
+                      <ha-icon icon="mdi:update"></ha-icon>
+                      <span
+                        >${
+                          this._versionNotice === "restart"
+                            ? localize("panel.versionRestart")
+                            : localize("panel.versionReload")
+                        }</span
+                      >
+                      <button @click=${() => (this._versionNotice = null)}>
+                        ${localize("panel.dismiss")}
+                      </button>
+                    </div>`
+                  : nothing
+              }
+              ${
+                this._saveError
+                  ? html`<div class="save-error floating-panel" role="alert">
+                      <ha-icon icon="mdi:alert"></ha-icon>
+                      <span
+                        >${localize("errors.saveFailed", {
+                          error: this._saveError,
+                        })}</span
+                      >
+                      <button @click=${this._onSaveClick}>
+                        ${localize("errors.retry")}
+                      </button>
+                    </div>`
+                  : nothing
+              }
+              ${
+                this._view === "property"
+                  ? html`
+                      <div
+                        class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
+                        @dragover=${this._onCanvasDragOver}
+                        @dragleave=${this._onCanvasDragLeave}
+                        @drop=${this._onCanvasDrop}
+                      >
+                        <property-canvas
+                          .dark=${this._hass?.themes?.darkMode ?? false}
+                          .placements=${this._livePlacements}
+                          .ghosts=${this._placementGhosts}
+                          .hass=${this._hass}
+                          .mapBackground=${this._propertyLayout.map_background ?? null}
+                          @map-adjust=${this._onMapAdjust}
+                          .floorNameById=${this._floorNameById}
+                          .floorIconById=${this._floorIconById}
+                          .backgroundImageUrl=${backgroundImageUrl(
+                            this._propertyLayout.background_image_id,
+                          )}
+                          .backgroundOpacity=${this._propertyLayout.background_opacity}
+                          .backgroundOffsetX=${this._propertyLayout.background_offset_x}
+                          .backgroundOffsetY=${this._propertyLayout.background_offset_y}
+                          .backgroundScale=${this._propertyLayout.background_scale}
+                          .initialViewBox=${this._propertyLayout.view_box}
+                          .mode=${this._propertyMode}
+                          .selectedPlacementId=${this._selectedPlacementId}
+                          .pins=${this._propertyLayout.pins}
+                          .selectedPinId=${this._selectedOutdoorPinId}
+                          .entityLookup=${this._entityLookup}
+                          .meshLinks=${this._propertyMeshLinks}
+                          .selectedMeshLinkKey=${this._selectedPropertyMeshLinkKey}
+                          @outdoor-pin-place=${this._onOutdoorPinPlace}
+                          @property-gesture-start=${() =>
+                            (this._propertyDragStart = this._propertyLayout)}
+                          @outdoor-pin-move=${this._onOutdoorPinMove}
+                          @outdoor-pin-select=${this._onOutdoorPinSelect}
+                          @property-mesh-link-select=${this._onPropertyMeshLinkSelect}
+                          @placement-place=${this._onPlacementPlace}
+                          @placement-move=${this._onPlacementMove}
+                          @placement-resize=${this._onPlacementResize}
+                          @placement-rotate=${this._onPlacementRotate}
+                          @placement-select=${this._onPlacementSelect}
+                        ></property-canvas>
+                        <property-overlay
+                          .dirty=${this._propertyDirty}
+                          .saving=${this._propertySaving}
+                          .canUndo=${this._canUndo}
+                          .canRedo=${this._canRedo}
+                          @undo-click=${this._onUndo}
+                          @redo-click=${this._onRedo}
+                          @save-click=${this._onSaveClick}
+                          .meshLegend=${this._propertyMeshLegend}
+                          .mode=${this._propertyMode}
+                          .buildings=${this._buildings}
+                          .scaleReadout=${this._propertyScaleReadout}
+                          .scaleWarning=${
+                            this._propertyScale?.disagree
+                              ? localize("panel.scaleDisagree")
+                              : null
+                          }
+                          .armedBuildingKey=${this._armedBuildingKey}
+                          .selectedPlacement=${this._selectedPlacement}
+                          .selectedPinLabel=${
+                            this._selectedOutdoorPin
+                              ? this._pinLabel(this._selectedOutdoorPin)
+                              : null
+                          }
+                          .selectedMeshLink=${this._selectedPropertyMeshLink}
+                          .selectedPinDefaultLabel=${
+                            this._selectedOutdoorPin
+                              ? pinDisplayLabel(
+                                  this._selectedOutdoorPin.device_id,
+                                  this._entityLookup.values(),
+                                )
+                              : null
+                          }
+                          .selectedPinOverride=${this._selectedOutdoorPin?.label_override ?? null}
+                          .selectedPinDeviceId=${this._selectedOutdoorPin?.device_id ?? null}
+                          .meshLinks=${this._propertyMeshLinks}
+                          .networkLabel=${this._networkLabel}
+                          .floorNameById=${this._floorNameById}
+                          @outdoor-pin-label-change=${this._onOutdoorPinLabelChange}
+                          @selection-clear=${this._onPropertySelectionClear}
+                          @outdoor-pin-icon-click=${this._onOutdoorPinIcon}
+                          @outdoor-pin-delete-click=${this._onOutdoorPinDelete}
+                          @property-mesh-goto-floor-click=${this._onPropertyMeshGotoFloor}
+                          @property-mode-change=${this._onPropertyModeChange}
+                          @map-rotation-set=${this._onMapRotationSet}
+                          @map-zoom-step=${this._onMapZoomStep}
+                          .mapActive=${!!this._propertyLayout.map_background}
+                          .mapRotation=${this._propertyLayout.map_background?.rotation_deg ?? 0}
+                          @placement-arm=${this._onPlacementArm}
+                          @placement-label-change=${this._onPlacementLabelChange}
+                          @placement-delete-click=${this._onPlacementDeleteClick}
+                          @placement-goto-floor-click=${this._onPlacementGotoFloorClick}
+                          >${this._renderBackgroundPopover()}</property-overlay
+                        >
+                      </div>
+                      ${
+                        this._propertyMode === "place-pin"
+                          ? html`<entity-picker-sidebar
+                              @picker-close=${this._onPickerClose}
+                              .entities=${this._entities}
+                              .placedDeviceIds=${this._placedDeviceIds}
+                              .armedEntityId=${this._armedEntityId}
+                              .floors=${this._floors}
+                              .areas=${this._areas}
+                              .currentFloorId=${PROPERTY_LOCATION_ID}
+                              @entity-armed=${this._onEntityArmed}
+                              @pin-locate=${this._onPickerPinLocate}
+                              @pin-remove=${this._onPickerPinRemove}
+                              @clear-all-pins=${this._onClearAllOutdoorPins}
+                            ></entity-picker-sidebar>`
+                          : nothing
+                      }
+                    `
+                  : html`
+                      <div
+                        class="canvas-area ${this._dragOverCanvas ? "drag-over" : ""}"
+                        @dragover=${this._onCanvasDragOver}
+                        @dragleave=${this._onCanvasDragLeave}
+                        @drop=${this._onCanvasDrop}
+                      >
+                        <floorplan-canvas
+                          @calibrate-scale-click=${this._onCalibrateScaleClick}
+                          .dark=${this._hass?.themes?.darkMode ?? false}
+                          .rooms=${this._layout.rooms}
+                          .pins=${this._layout.pins}
+                          .walls=${this._layout.walls}
+                          .openings=${this._layout.openings}
+                          .scale=${this._layout.scale}
+                          .unitSystem=${this._settings.unit_system}
+                          .meshLinks=${this._meshLinksForCurrentFloor}
+                          .meshStubs=${this._meshStubsForCurrentFloor}
+                          .entityLookup=${this._entityLookup}
+                          .backgroundImageUrl=${backgroundImageUrl(this._layout.background_image_id)}
+                          .backgroundOpacity=${this._layout.background_opacity}
+                          .backgroundOffsetX=${this._layout.background_offset_x}
+                          .backgroundOffsetY=${this._layout.background_offset_y}
+                          .backgroundScale=${this._layout.background_scale}
+                          .alignOverlay=${this._alignOverlay}
+                          .initialViewBox=${this._layout.view_box}
+                          .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
+                          .mode=${this._mode}
+                          .snapMode=${this._snapMode}
+                          .armedEntityId=${this._armedEntityId}
+                          .armedOpeningType=${this._armedOpeningType}
+                          .selectedRoomId=${this._selectedRoomId}
+                          .editingRoomId=${this._editingRoomId}
+                          .selectedPinId=${this._selectedPinId}
+                          .multiPinIds=${this._multiPinIds}
+                          .selectedWallId=${this._selectedWallId}
+                          .editingWallId=${this._editingWallId}
+                          .selectedOpeningId=${this._selectedOpeningId}
+                          .selectedMeshLinkKey=${this._selectedMeshLinkKey}
+                          .selectedMeshStubKey=${this._selectedMeshStubKey}
+                          @room-trace-complete=${this._onRoomTraceComplete}
+                          @room-vertex-changed=${this._onRoomVertexChanged}
+                          @room-label-moved=${this._onRoomLabelMoved}
+                          @room-move=${this._onRoomMove}
+                          @room-select=${this._onRoomSelect}
+                          @wall-trace-complete=${this._onWallTraceComplete}
+                          @wall-vertex-changed=${this._onWallVertexChanged}
+                          @wall-select=${this._onWallSelect}
+                          @opening-place=${this._onOpeningPlace}
+                          @opening-select=${this._onOpeningSelect}
+                          @opening-update=${this._onOpeningUpdate}
+                          @pin-place=${this._onPinPlace}
+                          @pin-move=${this._onPinMove}
+                          @pin-select=${this._onPinSelect}
+                          @pin-multi-toggle=${this._onPinMultiToggle}
+                          @pins-select-box=${this._onPinsSelectBox}
+                          @pins-move=${this._onPinsMove}
+                          @pin-stack-select=${this._onPinStackSelect}
+                          @mesh-link-select=${this._onMeshLinkSelect}
+                          @mesh-stub-select=${this._onMeshStubSelect}
+                          @scale-line-complete=${this._onScaleLineComplete}
+                          @pending-changed=${this._onPendingChanged}
+                          @align-drag=${this._onAlignDrag}
+                        ></floorplan-canvas>
 
-                  <canvas-overlay
-                    .dirty=${this._dirty}
-                    .saving=${this._saving}
-                    .canUndo=${this._canUndo}
-                    .canRedo=${this._canRedo}
-                    @undo-click=${this._onUndo}
-                    @redo-click=${this._onRedo}
-                    @save-click=${this._onSaveClick}
-                    .meshLegend=${this._networkType !== null}
-                    .mode=${this._mode}
-                    .armedOpeningType=${this._armedOpeningType}
-                    .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
-                    .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
-                    .snapMode=${this._snapMode}
-                    .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
-                    .unitSystem=${this._settings.unit_system}
-                    .unitsPerMeter=${this._unitsPerMeter()}
-                    .selectedRoom=${this._selectedRoom}
-                    .editingRoom=${!!this._editingRoomId}
-                    .areas=${this._areasForCurrentFloor}
-                    .selectedPin=${this._selectedPin}
-                    .multiPinCount=${this._multiPinIds.length}
-                    @multi-pin-clear=${this._onMultiPinClear}
-                    .selectedWall=${this._selectedWall}
-                    .editingWall=${!!this._editingWallId}
-                    .selectedOpening=${this._selectedOpening}
-                    .selectedMeshLink=${this._selectedMeshLink}
-                    .meshLinks=${this._meshLinksForCurrentFloor}
-                    .meshStubs=${this._meshStubsForCurrentFloor}
-                    .networkLabel=${this._networkLabel}
-                    .selectedMeshStub=${this._selectedMeshStub}
-                    .pinStack=${this._pinStack}
-                    .entityLookup=${this._entityLookup}
-                    .otherFloors=${this._otherFloors}
-                    .alignTargetFloorId=${this._alignTargetFloorId}
-                    .alignTargetHasBackground=${
-                      !this._alignTargetLayout ||
-                      !!this._alignTargetLayout.background_image_id
-                    }
-                    @mode-change=${this._onModeChange}
-                    @align-target-change=${this._onAlignTargetChange}
-                    @align-scale-click=${this._onAlignScaleClick}
-                    @align-apply-click=${this._onAlignApply}
-                    @align-cancel-click=${this._onAlignCancel}
-                    @add-opening-click=${this._onAddOpeningClick}
-                    @cancel-pending-click=${this._onCancelPending}
-                    @finish-wall-click=${this._onFinishWall}
-                    @snap-mode-change=${this._onSnapModeChange}
-                    @room-name-change=${this._onRoomNameChange}
-                    @room-area-change=${this._onRoomAreaChange}
-                    @room-visible-toggle=${this._onRoomVisibleToggle}
-                    @room-fill-color-change=${this._onRoomFillColorChange}
-                    @room-fill-opacity-change=${this._onRoomFillOpacityChange}
-                    @room-border-opacity-change=${
-                      this._onRoomBorderOpacityChange
-                    }
-                    @room-edit-vertices-click=${this._onRoomEditVertices}
-                    @room-label-reset-click=${this._onRoomLabelReset}
-                    @room-delete-click=${this._onRoomDelete}
-                    @pin-label-change=${this._onPinLabelChange}
-                    @pin-set-icon-click=${this._onPinSetIcon}
-                    @pin-height-change=${this._onPinHeightChange}
-                    @pin-delete-click=${this._onPinDelete}
-                    @wall-material-change=${this._onWallMaterialChange}
-                    @wall-thickness-change=${this._onWallThicknessChange}
-                    @wall-edit-vertices-click=${this._onWallEditVertices}
-                    @wall-delete-click=${this._onWallDelete}
-                    @opening-width-change=${this._onOpeningWidthChange}
-                    @opening-delete-click=${this._onOpeningDelete}
-                    @pin-stack-choose=${this._onPinStackChoose}
-                    @pin-stack-dismiss=${this._onPinStackDismiss}
-                    @selection-clear=${this._onSelectionClear}
-                    @pin-stack-remove-click=${this._onPinStackRemove}
-                    @mesh-stub-goto-floor-click=${this._onMeshStubGotoFloorClick}
-                    >${this._renderBackgroundPopover()}</canvas-overlay
-                  >
-                </div>
-                ${
-                  this._mode === "place"
-                    ? html`<entity-picker-sidebar
-                        @picker-close=${this._onPickerClose}
-                        .entities=${this._entities}
-                        .placedDeviceIds=${this._placedDeviceIds}
-                        .armedEntityId=${this._armedEntityId}
-                        .floors=${this._floors}
-                        .areas=${this._areas}
-                        .currentFloorId=${this._currentFloorId}
-                        .linkedAreaIds=${this._outdoorAreaIdsOnCurrentFloor}
-                        @entity-armed=${this._onEntityArmed}
-                        @clear-all-pins=${this._onClearAllPins}
-                      ></entity-picker-sidebar>`
-                    : nothing
-                }
-              `
-        }
-      </div>
+                        <canvas-overlay
+                          .dirty=${this._dirty}
+                          .saving=${this._saving}
+                          .canUndo=${this._canUndo}
+                          .canRedo=${this._canRedo}
+                          @undo-click=${this._onUndo}
+                          @redo-click=${this._onRedo}
+                          @save-click=${this._onSaveClick}
+                          .meshLegend=${this._floorMeshLegend}
+                          .mode=${this._mode}
+                          .armedOpeningType=${this._armedOpeningType}
+                          .hasPendingTrace=${this._mode === "trace" && this._pendingCount > 0}
+                          .hasPendingWall=${this._mode === "wall" && this._pendingCount >= 2}
+                          .snapMode=${this._snapMode}
+                          .pendingScaleCount=${this._mode === "scale" ? this._pendingCount : 0}
+                          .unitSystem=${this._settings.unit_system}
+                          .unitsPerMeter=${this._unitsPerMeter()}
+                          .selectedRoom=${this._selectedRoom}
+                          .editingRoom=${!!this._editingRoomId}
+                          .areas=${this._areasForCurrentFloor}
+                          .selectedPin=${this._selectedPin}
+                          .multiPinCount=${this._multiPinIds.length}
+                          @multi-pin-clear=${this._onMultiPinClear}
+                          .selectedWall=${this._selectedWall}
+                          .editingWall=${!!this._editingWallId}
+                          .selectedOpening=${this._selectedOpening}
+                          .selectedMeshLink=${this._selectedMeshLink}
+                          .meshLinks=${this._meshLinksForCurrentFloor}
+                          .meshStubs=${this._meshStubsForCurrentFloor}
+                          .networkLabel=${this._networkLabel}
+                          .selectedMeshStub=${this._selectedMeshStub}
+                          .pinStack=${this._pinStack}
+                          .entityLookup=${this._entityLookup}
+                          .otherFloors=${this._otherFloors}
+                          .alignTargetFloorId=${this._alignTargetFloorId}
+                          .alignTargetHasBackground=${
+                            !this._alignTargetLayout ||
+                            !!this._alignTargetLayout.background_image_id
+                          }
+                          @mode-change=${this._onModeChange}
+                          @align-target-change=${this._onAlignTargetChange}
+                          @align-scale-click=${this._onAlignScaleClick}
+                          @align-apply-click=${this._onAlignApply}
+                          @align-cancel-click=${this._onAlignCancel}
+                          @add-opening-click=${this._onAddOpeningClick}
+                          @cancel-pending-click=${this._onCancelPending}
+                          @finish-wall-click=${this._onFinishWall}
+                          @snap-mode-change=${this._onSnapModeChange}
+                          @room-name-change=${this._onRoomNameChange}
+                          @room-area-change=${this._onRoomAreaChange}
+                          @room-visible-toggle=${this._onRoomVisibleToggle}
+                          @room-fill-color-change=${this._onRoomFillColorChange}
+                          @room-fill-opacity-change=${this._onRoomFillOpacityChange}
+                          @room-border-opacity-change=${
+                            this._onRoomBorderOpacityChange
+                          }
+                          @room-edit-vertices-click=${this._onRoomEditVertices}
+                          @room-label-reset-click=${this._onRoomLabelReset}
+                          @room-delete-click=${this._onRoomDelete}
+                          @pin-label-change=${this._onPinLabelChange}
+                          @pin-set-icon-click=${this._onPinSetIcon}
+                          @pin-height-change=${this._onPinHeightChange}
+                          @pin-delete-click=${this._onPinDelete}
+                          @wall-material-change=${this._onWallMaterialChange}
+                          @wall-thickness-change=${this._onWallThicknessChange}
+                          @wall-edit-vertices-click=${this._onWallEditVertices}
+                          @wall-delete-click=${this._onWallDelete}
+                          @opening-width-change=${this._onOpeningWidthChange}
+                          @opening-delete-click=${this._onOpeningDelete}
+                          @pin-stack-choose=${this._onPinStackChoose}
+                          @pin-stack-dismiss=${this._onPinStackDismiss}
+                          @selection-clear=${this._onSelectionClear}
+                          @pin-stack-remove-click=${this._onPinStackRemove}
+                          @mesh-stub-goto-floor-click=${this._onMeshStubGotoFloorClick}
+                          >${this._renderBackgroundPopover()}</canvas-overlay
+                        >
+                      </div>
+                      ${
+                        this._mode === "place"
+                          ? html`<entity-picker-sidebar
+                              @picker-close=${this._onPickerClose}
+                              .entities=${this._entities}
+                              .placedDeviceIds=${this._placedDeviceIds}
+                              .armedEntityId=${this._armedEntityId}
+                              .floors=${this._floors}
+                              .areas=${this._areas}
+                              .currentFloorId=${this._currentFloorId}
+                              .linkedAreaIds=${this._outdoorAreaIdsOnCurrentFloor}
+                              @entity-armed=${this._onEntityArmed}
+                              @pin-locate=${this._onPickerPinLocate}
+                              @pin-remove=${this._onPickerPinRemove}
+                              @clear-all-pins=${this._onClearAllPins}
+                            ></entity-picker-sidebar>`
+                          : nothing
+                      }
+                    `
+              }
+            </div>`
+      }
       <sc-dialog></sc-dialog>
       ${
         this._iconPickerPin

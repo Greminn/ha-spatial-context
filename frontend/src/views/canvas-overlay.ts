@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing, type PropertyValues } from "lit";
+import { LitElement, html, nothing, type PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type {
@@ -14,6 +14,7 @@ import type {
   SnapMode,
   UnitSystem,
   Wall,
+  MeshLegendInfo,
 } from "../types";
 import {
   DEFAULT_ROOM_BORDER_OPACITY,
@@ -57,6 +58,7 @@ import {
   toolRowStyles,
 } from "../styles";
 import { localize } from "../i18n";
+import { canvasOverlayStyles } from "./canvas-overlay-styles";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
  * pushing it down: the drawing-mode toolbar (top-left), the scale readout
@@ -73,146 +75,7 @@ export class CanvasOverlay extends LitElement {
     switchStyles,
     toolRowStyles,
     meshLegendStyles,
-    css`
-      :host {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-      .mode-toolbar {
-        pointer-events: auto;
-      }
-      .mode-toolbar button {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-1, 4px);
-        padding: 6px 10px;
-        border-radius: 10px;
-      }
-      /* A thin divider between tool groups: view, draw, place/align. */
-      .tool-divider {
-        align-self: stretch;
-        width: 1px;
-        margin: 6px var(--ha-space-1, 4px);
-        background: var(--sc-divider);
-      }
-      .mode-toolbar ha-icon {
-        --mdc-icon-size: 20px;
-      }
-      /* Tonal active state, like HA's selected chips and tabs: the primary
-       * colour at low strength behind a primary icon. */
-      .mode-toolbar button.active {
-        background: color-mix(in srgb, var(--sc-accent) 22%, transparent);
-        color: var(--sc-accent);
-      }
-      .mode-toolbar button.active ha-icon {
-        color: var(--sc-accent);
-      }
-      .hint-bar {
-        position: absolute;
-        top: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-2, 8px);
-        pointer-events: auto;
-      }
-      .snap-select {
-        padding: var(--ha-space-1, 4px);
-      }
-      .hint {
-        font-size: var(--sc-fs-small);
-        color: var(--sc-fg-secondary);
-      }
-      .color-field {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-2, 8px);
-        height: var(--sc-h-field);
-        padding: 0 var(--ha-space-2, 8px) 0 10px;
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--sc-r-control);
-        background: var(--sc-panel-bg);
-        font-size: var(--sc-fs-body);
-      }
-      .swatch {
-        flex: none;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 1px solid color-mix(in srgb, var(--sc-fg) 25%, transparent);
-      }
-      .custom-swatch {
-        background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
-      }
-      .color-list {
-        max-height: 260px;
-        overflow-y: auto;
-        margin: 0 var(--ha-space-2, 8px) var(--ha-space-1, 4px);
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--ha-border-radius-xl, 16px);
-        background: var(--sc-panel-bg);
-      }
-      .color-item {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-3, 12px);
-        width: 100%;
-        min-height: 44px;
-        padding: 6px 14px;
-        border-radius: 0;
-        font-size: var(--sc-fs-row);
-        text-align: start;
-        justify-content: flex-start;
-        cursor: pointer;
-      }
-      .color-item:hover {
-        background: var(--sc-hover);
-      }
-      .color-item.selected {
-        color: var(--sc-accent);
-      }
-      .color-item .grow {
-        flex: 1;
-        min-width: 0;
-      }
-      .color-item ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--sc-accent);
-      }
-      .color-item .room-fill-color {
-        width: 36px;
-        height: 24px;
-      }
-      .small-unit-select {
-        width: auto;
-      }
-      .room-fill-color {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 44px;
-        height: 32px;
-        padding: 0;
-        border: 1px solid var(--sc-divider);
-        border-radius: 10px;
-        background: none;
-        cursor: pointer;
-        overflow: hidden;
-      }
-      .room-fill-color::-webkit-color-swatch-wrapper {
-        padding: 0;
-      }
-      .room-fill-color::-webkit-color-swatch {
-        border: none;
-      }
-      .room-fill-color::-moz-color-swatch {
-        border: none;
-      }
-      .room-opacity {
-        width: 140px;
-      }
-    `,
+    canvasOverlayStyles,
   ];
 
   @property({ attribute: false }) mode: CanvasMode = "select";
@@ -247,7 +110,7 @@ export class CanvasOverlay extends LitElement {
   @property({ type: Boolean }) saving = false;
   @property({ type: Boolean }) canUndo = false;
   @property({ type: Boolean }) canRedo = false;
-  @property({ type: Boolean }) meshLegend = false;
+  @property({ attribute: false }) meshLegend: MeshLegendInfo | null = null;
   /** The links drawn on this floor, and the active network layer's name
    * (null when none is on) — the device card lists the selected device's. */
   @property({ attribute: false }) meshLinks: ResolvedMeshLink[] = [];
@@ -347,6 +210,7 @@ export class CanvasOverlay extends LitElement {
     return html`<button
       class=${this.mode === mode ? "active" : ""}
       title=${label}
+      aria-label=${label}
       @click=${() => this._fire("mode-change", { mode })}
     >
       <ha-icon icon=${icon}></ha-icon>
@@ -363,6 +227,7 @@ export class CanvasOverlay extends LitElement {
     return html`<button
       class=${active ? "active" : ""}
       title=${label}
+      aria-label=${label}
       @click=${() => this._fire("add-opening-click", { openingType })}
     >
       <ha-icon icon=${icon}></ha-icon>
@@ -543,12 +408,14 @@ export class CanvasOverlay extends LitElement {
       <span class="hint">${localize("canvas.hint.alignDrag")}</span>
       <button
         title=${localize("canvas.align.shrink")}
+        aria-label=${localize("canvas.align.shrink")}
         @click=${() => this._fire("align-scale-click", { factor: 0.995 })}
       >
         −
       </button>
       <button
         title=${localize("canvas.align.grow")}
+        aria-label=${localize("canvas.align.grow")}
         @click=${() => this._fire("align-scale-click", { factor: 1.0050251 })}
       >
         +
@@ -746,6 +613,18 @@ export class CanvasOverlay extends LitElement {
                 }}
               />`,
             )}
+            ${
+              area && area.name !== room.name
+                ? this._actionRow(
+                    "mdi:home-edit-outline",
+                    localize("canvas.room.useAreaName", { name: area.name }),
+                    () =>
+                      this._fire("room-area-change", {
+                        areaId: area.area_id,
+                      }),
+                  )
+                : nothing
+            }
             ${this._actionRow(
               "mdi:vector-polygon",
               this.editingRoom
@@ -1080,6 +959,7 @@ export class CanvasOverlay extends LitElement {
               <button
                 class="stack-remove"
                 title=${localize("canvas.pin.removeFromSpot")}
+                aria-label=${localize("canvas.pin.removeFromSpot")}
                 @click=${() =>
                   this._fire("pin-stack-remove-click", { pinId: pin.id })}
               >
@@ -1104,7 +984,7 @@ export class CanvasOverlay extends LitElement {
           .canRedo=${this.canRedo}
         ></row-actions>
       </div>
-      ${this.meshLegend ? renderMeshLegend() : nothing}
+      ${this.meshLegend ? renderMeshLegend(this.meshLegend) : nothing}
       ${this.pinStack ? this._renderPinStack() : this._renderSelectionPanel()}
     `;
   }

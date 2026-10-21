@@ -450,6 +450,23 @@ export interface ResolvedMeshLink {
   toPin: Pin;
   quality: "strong" | "medium" | "weak" | "unknown";
   detail?: string;
+  /** The reading the quality was graded from (LQI or dBm), when the network
+   * reports one. */
+  value?: number;
+}
+
+/** What the Connectivity Map legend shows for the picked layer: always the
+ * weak-to-strong colour scale, plus a key for dashed lines and for grey
+ * "unknown" links only when the current view actually draws them. */
+export interface MeshLegendInfo {
+  network: NetworkType;
+  /** What a dashed line means in this view, or null when none is drawn. */
+  dashed: "floor" | "property" | null;
+  unknown: boolean;
+  /** The weakest and strongest readings among the links drawn in this view,
+   * for the ends of the colour scale. Null when the network reports none
+   * (Matter), or the drawn links all read the same. */
+  range: { min: number; max: number; unit: "lqi" | "dbm" } | null;
 }
 
 /** One end of a mesh link drawn on the Property tab, in site-photo
@@ -471,6 +488,7 @@ export interface PropertyMeshLink {
   to: PropertyMeshEnd;
   quality: "strong" | "medium" | "weak" | "unknown";
   detail?: string;
+  value?: number;
 }
 
 /** A mesh link where exactly one end is placed on the *currently viewed*
@@ -492,6 +510,7 @@ export interface ResolvedMeshStub {
   targetLabel: string;
   quality: "strong" | "medium" | "weak" | "unknown";
   detail?: string;
+  value?: number;
 }
 
 /** The slice of `hass` this panel actually touches. */

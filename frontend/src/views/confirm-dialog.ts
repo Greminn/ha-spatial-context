@@ -33,7 +33,7 @@ export class ScDialog extends LitElement {
         background: var(--card-background-color, var(--sc-bg));
         color: var(--sc-fg);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        width: 380px;
+        width: 480px;
         max-width: calc(100vw - 32px);
       }
       dialog::backdrop {
@@ -44,7 +44,7 @@ export class ScDialog extends LitElement {
       }
       h2 {
         margin: 0 0 var(--ha-space-4, 16px);
-        font-size: var(--ha-font-size-xl, 20px);
+        font-size: var(--ha-font-size-2xl, 24px);
         font-weight: var(--ha-font-weight-normal, 400);
         line-height: 1.3;
       }
@@ -52,7 +52,6 @@ export class ScDialog extends LitElement {
         margin: 0;
         font-size: var(--ha-font-size-m, 14px);
         line-height: 1.5;
-        color: var(--sc-fg-secondary);
         white-space: pre-line;
       }
       input {

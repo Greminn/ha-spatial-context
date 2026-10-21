@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from "lit";
+import { LitElement, html, nothing, type PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import { PROPERTY_LOCATION_ID } from "../types";
@@ -6,6 +6,7 @@ import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
 import { localize } from "../i18n";
 import { selectStyles, sharedStyles } from "../styles";
+import { entityPickerSidebarStyles } from "./entity-picker-sidebar-styles";
 
 /** Fallback row icon when a device's integration has no brand logo on
  * brands.home-assistant.io (see the `<img>`/`@error` pair below) — one
@@ -30,220 +31,7 @@ export class EntityPickerSidebar extends LitElement {
   static override styles = [
     sharedStyles,
     selectStyles,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        width: var(--sc-picker-width, 300px);
-        min-width: 240px;
-        max-width: 600px;
-        border-inline-start: 1px solid var(--sc-divider);
-        background: var(--sc-panel-bg);
-        height: 100%;
-        overflow: hidden;
-      }
-      .picker-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--ha-space-2, 8px) var(--ha-space-2, 8px) 0
-          var(--ha-space-4, 16px);
-      }
-      .picker-title {
-        font-size: var(--sc-fs-title);
-      }
-      .picker-close {
-        display: grid;
-        place-items: center;
-        width: 40px;
-        height: 40px;
-        padding: 0;
-        border-radius: 50%;
-      }
-      /* Phones: a sheet under the canvas, not a column beside it. */
-      @media (max-width: 700px) {
-        :host {
-          flex: 0 0 45%;
-          width: 100%;
-          min-width: 0;
-          max-width: none;
-          height: auto;
-          border-inline-start: none;
-          border-top: 1px solid var(--sc-divider);
-        }
-        .resize-handle {
-          display: none;
-        }
-      }
-      .resize-handle {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 6px;
-        height: 100%;
-        cursor: ew-resize;
-        z-index: 1;
-      }
-      .search {
-        padding: var(--ha-space-3, 12px);
-      }
-      .more-button {
-        flex: none;
-        display: grid;
-        place-items: center;
-        width: 36px;
-        height: var(--sc-h-field);
-        padding: 0;
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--sc-r-control);
-        color: var(--sc-fg-secondary);
-      }
-      .more-menu {
-        position: absolute;
-        right: 12px;
-        z-index: 5;
-        margin-top: var(--ha-space-1, 4px);
-        min-width: 220px;
-        padding: 6px;
-      }
-      .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-2, 8px);
-        height: var(--sc-h-control);
-        padding: 0 var(--ha-space-3, 12px);
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--sc-r-control);
-        background: var(--sc-bg);
-      }
-      .search-box:focus-within {
-        border-color: var(--sc-accent);
-      }
-      .search-box .clear {
-        display: grid;
-        place-items: center;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        border-radius: 50%;
-        color: var(--sc-fg-secondary);
-      }
-      .search-box ha-icon {
-        --mdc-icon-size: 18px;
-        color: var(--sc-fg-secondary);
-        flex-shrink: 0;
-      }
-      .search-box input {
-        flex: 1;
-        min-width: 0;
-        border: none;
-        outline: none;
-        background: transparent;
-        font-size: var(--sc-fs-body);
-        color: var(--sc-fg);
-      }
-      .filters {
-        display: flex;
-        gap: var(--ha-space-2, 8px);
-        margin-top: var(--ha-space-2, 8px);
-      }
-      .filters .select-wrap {
-        flex: 1;
-      }
-      .filters select {
-        flex: 1;
-        min-width: 0;
-        height: var(--sc-h-field);
-        padding: 0 var(--ha-space-3, 12px);
-        border: 1px solid var(--sc-divider);
-        border-radius: var(--sc-r-control);
-        background: var(--sc-bg);
-        color: var(--sc-fg);
-        font-size: var(--sc-fs-small);
-      }
-      .list {
-        overflow-y: auto;
-        flex: 1;
-        border-top: 1px solid var(--sc-divider);
-      }
-      .item {
-        display: flex;
-        align-items: center;
-        gap: var(--ha-space-3, 12px);
-        min-height: 60px;
-        padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px);
-        cursor: pointer;
-        border-bottom: 1px solid var(--sc-divider);
-      }
-      .item:hover {
-        background: var(--sc-hover);
-      }
-      .item.armed {
-        background: color-mix(in srgb, var(--sc-accent) 18%, transparent);
-        color: var(--sc-accent);
-      }
-      .item.armed .meta {
-        color: var(--sc-fg-secondary);
-      }
-      .item.placed {
-        opacity: 0.55;
-      }
-      .item.blocked {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-      .item.blocked:hover {
-        background: transparent;
-      }
-      .item .avatar {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: var(--sc-h-field);
-        border-radius: 50%;
-        background: rgba(127, 127, 127, 0.2);
-        flex-shrink: 0;
-      }
-      .item .avatar ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--sc-fg-secondary);
-      }
-      .item .avatar img {
-        width: 24px;
-        height: 24px;
-        object-fit: contain;
-      }
-      .item .avatar ha-icon.hidden {
-        display: none;
-      }
-      .item .text {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .item .name {
-        font-size: var(--sc-fs-body);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .item .meta {
-        font-size: var(--sc-fs-caption);
-        color: var(--sc-fg-secondary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .empty {
-        padding: var(--ha-space-4, 16px);
-        color: var(--sc-fg-secondary);
-        font-size: var(--sc-fs-body);
-      }
-    `,
+    entityPickerSidebarStyles,
   ];
 
   @state() private _menuOpen = false;
@@ -265,6 +53,7 @@ export class EntityPickerSidebar extends LitElement {
    * from the dropdown, overriding the follow-current-floor default. */
   @state() private _floorFilter: string | "all" | null = null;
   @state() private _areaFilter: string | null = null;
+  @state() private _placedFilter: "all" | "unplaced" | "placed" = "all";
 
   // --- resizable width (per-browser, not shared — see #22) --------------
 
@@ -272,6 +61,32 @@ export class EntityPickerSidebar extends LitElement {
     "spatial-context.entityPickerSidebarWidth";
   private static readonly MIN_WIDTH = 240;
   private static readonly MAX_WIDTH = 600;
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener("pointerdown", this._onOutsidePress, true);
+  }
+
+  override updated(changed: PropertyValues): void {
+    if (!changed.has("_menuOpen")) return;
+    document.removeEventListener("pointerdown", this._onOutsidePress, true);
+    if (this._menuOpen) {
+      document.addEventListener("pointerdown", this._onOutsidePress, true);
+    }
+  }
+
+  /** The more menu closes on a press anywhere outside it and its button. */
+  private _onOutsidePress = (event: PointerEvent) => {
+    const inside = event
+      .composedPath()
+      .some(
+        (el) =>
+          el instanceof HTMLElement &&
+          (el.classList.contains("more-menu") ||
+            el.classList.contains("more-button")),
+      );
+    if (!inside) this._menuOpen = false;
+  };
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -440,6 +255,10 @@ export class EntityPickerSidebar extends LitElement {
         const area = this.areas.find((a) => a.area_id === d.areaId);
         if (!area || !this._areaIsOnFloor(area, floorId)) return false;
       }
+      if (this._placedFilter !== "all") {
+        const placed = this.placedDeviceIds.has(d.deviceId);
+        if (placed !== (this._placedFilter === "placed")) return false;
+      }
       if (!q) return true;
       return (
         d.deviceName.toLowerCase().includes(q) ||
@@ -447,6 +266,18 @@ export class EntityPickerSidebar extends LitElement {
         d.entities.some((e) => e.entity_id.toLowerCase().includes(q))
       );
     });
+  }
+
+  /** A row button: act on that device's pin without arming the row. */
+  private _emitForDevice(event: Event, name: string, deviceId: string): void {
+    event.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent(name, {
+        detail: { deviceId },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   override render() {
@@ -461,6 +292,7 @@ export class EntityPickerSidebar extends LitElement {
         <button
           class="picker-close"
           title=${localize("canvas.button.close")}
+          aria-label=${localize("canvas.button.close")}
           @click=${() =>
             this.dispatchEvent(
               new CustomEvent("picker-close", {
@@ -486,6 +318,7 @@ export class EntityPickerSidebar extends LitElement {
               ? html`<button
                   class="clear"
                   title=${localize("picker.clearSearch")}
+                  aria-label=${localize("picker.clearSearch")}
                   @click=${() => (this._search = "")}
                 >
                   <ha-icon icon="mdi:close"></ha-icon>
@@ -541,12 +374,39 @@ export class EntityPickerSidebar extends LitElement {
               ? html`<button
                   class="more-button"
                   title=${localize("picker.more")}
+                  aria-label=${localize("picker.more")}
                   @click=${() => (this._menuOpen = !this._menuOpen)}
                 >
                   <ha-icon icon="mdi:dots-vertical"></ha-icon>
                 </button>`
               : nothing
           }
+        </div>
+        <div class="filters">
+          <span class="select-wrap"
+            ><select
+              aria-label=${localize("picker.showAll")}
+              @change=${(e: Event) =>
+                (this._placedFilter = (e.target as HTMLSelectElement)
+                  .value as typeof this._placedFilter)}
+            >
+              <option value="all" ?selected=${this._placedFilter === "all"}>
+                ${localize("picker.showAll")}
+              </option>
+              <option
+                value="unplaced"
+                ?selected=${this._placedFilter === "unplaced"}
+              >
+                ${localize("picker.showUnplaced")}
+              </option>
+              <option
+                value="placed"
+                ?selected=${this._placedFilter === "placed"}
+              >
+                ${localize("picker.showPlaced")}
+              </option></select
+            ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
+          ></span>
         </div>
         ${
           this._menuOpen && this.placedDeviceIds.size > 0
@@ -640,6 +500,36 @@ export class EntityPickerSidebar extends LitElement {
                       }
                       ${placed ? html`<span class="meta">${localize("picker.placed")}</span>` : nothing}
                     </span>
+                    ${
+                      placed
+                        ? html`<span class="row-actions">
+                            <button
+                              title=${localize("picker.locate")}
+                              aria-label=${localize("picker.locate")}
+                              @click=${(e: Event) =>
+                                this._emitForDevice(
+                                  e,
+                                  "pin-locate",
+                                  device.deviceId,
+                                )}
+                            >
+                              <ha-icon icon="mdi:crosshairs-gps"></ha-icon>
+                            </button>
+                            <button
+                              title=${localize("picker.remove")}
+                              aria-label=${localize("picker.remove")}
+                              @click=${(e: Event) =>
+                                this._emitForDevice(
+                                  e,
+                                  "pin-remove",
+                                  device.deviceId,
+                                )}
+                            >
+                              <ha-icon icon="mdi:delete-outline"></ha-icon>
+                            </button>
+                          </span>`
+                        : nothing
+                    }
                   </div>
                 `;
               })

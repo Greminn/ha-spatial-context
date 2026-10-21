@@ -1,7 +1,11 @@
 import { LitElement, html, css, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
-import type { PropertyMeshLink, PropertyPlacement } from "../types";
+import type {
+  PropertyMeshLink,
+  PropertyPlacement,
+  MeshLegendInfo,
+} from "../types";
 import { qualityColor } from "../canvas/mesh-colors";
 import {
   selectStyles,
@@ -121,7 +125,7 @@ export class PropertyOverlay extends LitElement {
   @property({ type: Boolean }) saving = false;
   @property({ type: Boolean }) canUndo = false;
   @property({ type: Boolean }) canRedo = false;
-  @property({ type: Boolean }) meshLegend = false;
+  @property({ attribute: false }) meshLegend: MeshLegendInfo | null = null;
   @property({ attribute: false }) selectedMeshLink: PropertyMeshLink | null =
     null;
   @property({ attribute: false }) buildings: PropertyBuilding[] = [];
@@ -222,12 +226,14 @@ export class PropertyOverlay extends LitElement {
           <span class="hint">${localize("mapBackground.adjustHint")}</span>
           <button
             title=${localize("mapBackground.zoomOut")}
+            aria-label=${localize("mapBackground.zoomOut")}
             @click=${() => this._fire("map-zoom-step", { factor: 1 / 1.1 })}
           >
             <ha-icon icon="mdi:magnify-minus-outline"></ha-icon>
           </button>
           <button
             title=${localize("mapBackground.zoomIn")}
+            aria-label=${localize("mapBackground.zoomIn")}
             @click=${() => this._fire("map-zoom-step", { factor: 1.1 })}
           >
             <ha-icon icon="mdi:magnify-plus-outline"></ha-icon>
@@ -256,6 +262,7 @@ export class PropertyOverlay extends LitElement {
           />°
           <button
             title=${localize("mapBackground.resetRotation")}
+            aria-label=${localize("mapBackground.resetRotation")}
             @click=${() => setRotation(0)}
           >
             <ha-icon icon="mdi:compass-outline"></ha-icon>
@@ -366,6 +373,7 @@ export class PropertyOverlay extends LitElement {
           <button
             class=${this.mode === "select" ? "active" : ""}
             title=${localize("property.select")}
+            aria-label=${localize("property.select")}
             @click=${() => this._fire("property-mode-change", { mode: "select" })}
           >
             <ha-icon icon="mdi:cursor-default-click"></ha-icon>
@@ -373,6 +381,7 @@ export class PropertyOverlay extends LitElement {
           <button
             class=${this.mode === "place-pin" ? "active" : ""}
             title=${localize("property.placeOutdoor")}
+            aria-label=${localize("property.placeOutdoor")}
             @click=${() =>
               this._fire("property-mode-change", {
                 mode: this.mode === "place-pin" ? "select" : "place-pin",
@@ -385,6 +394,7 @@ export class PropertyOverlay extends LitElement {
               ? html`<button
                   class=${this.mode === "map" ? "active" : ""}
                   title=${localize("mapBackground.adjust")}
+                  aria-label=${localize("mapBackground.adjust")}
                   @click=${() =>
                     this._fire("property-mode-change", {
                       mode: this.mode === "map" ? "select" : "map",
@@ -423,7 +433,7 @@ export class PropertyOverlay extends LitElement {
       </div>
 
       ${this._renderMapPanel()} ${this._renderScaleNotice()}
-      ${this.meshLegend && this.mode !== "map" ? renderMeshLegend() : nothing}
+      ${this.meshLegend && this.mode !== "map" ? renderMeshLegend(this.meshLegend) : nothing}
       ${this._renderPinPanel()} ${this._renderMeshLinkPanel()}
       ${this._renderPlacementPanel()}
     `;

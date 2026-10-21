@@ -1,4 +1,4 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
 import type { FloorMeta } from "../types";
@@ -24,6 +24,13 @@ export class AppHeader extends LitElement {
     sharedStyles,
     css`
       :host {
+        /* The brand mark's blue: a touch brighter on a dark theme. */
+        --sc-brand: #03a9f4;
+      }
+      :host([light]) {
+        --sc-brand: #039be5;
+      }
+      :host {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
@@ -44,6 +51,24 @@ export class AppHeader extends LitElement {
         width: 40px;
         height: var(--sc-h-control);
         margin-inline-end: -4px;
+      }
+      .identity .brand-mark {
+        flex: none;
+        width: 24px;
+        height: 24px;
+        margin-inline-start: var(--ha-space-4, 16px);
+        background: var(--sc-brand, #03a9f4);
+        -webkit-mask: url(/spatial_context/spatial-context-mark.svg) center /
+          contain no-repeat;
+        mask: url(/spatial_context/spatial-context-mark.svg) center / contain
+          no-repeat;
+      }
+      .identity .menu-button + .brand-mark {
+        margin-inline-start: 0;
+      }
+      .identity h1.crumb {
+        font-size: var(--sc-fs-title);
+        font-weight: 500;
       }
       .identity h1 {
         margin: 0;
@@ -97,9 +122,10 @@ export class AppHeader extends LitElement {
           height: var(--sc-h-control);
         }
       }
-      @media (max-width: 480px) {
-        .identity h1 {
-          font-size: var(--sc-fs-title);
+      @media (max-width: 600px) {
+        /* On a phone only the mark shows (the name would crowd the icons). */
+        .identity h1:not(.crumb) {
+          display: none;
         }
       }
       .actions {
@@ -130,6 +156,11 @@ export class AppHeader extends LitElement {
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) selectedFloorId: string | null = null;
   @property({ type: Boolean }) propertySelected = false;
+  @property({ type: Boolean }) narrow = false;
+  /** A page other than the map ("settings"): the header shows a back
+   * arrow and the page's name instead of the menu, brand and floor tabs. */
+  @property() page = "";
+  @property({ type: Boolean, reflect: true }) light = false;
 
   private _fire(name: string, detail?: unknown) {
     this.dispatchEvent(
@@ -138,15 +169,36 @@ export class AppHeader extends LitElement {
   }
 
   override render() {
+    if (this.page) {
+      return html`
+        <div class="identity">
+          <button
+            class="icon-button"
+            title=${localize("appHeader.back")}
+            aria-label=${localize("appHeader.back")}
+            @click=${() => this._fire("page-back")}
+          >
+            <ha-icon icon="mdi:arrow-left"></ha-icon>
+          </button>
+          <h1 class="crumb">${localize(`appHeader.${this.page}`)}</h1>
+        </div>
+      `;
+    }
     return html`
       <div class="identity">
-        <button
-          class="icon-button menu-button"
-          title=${localize("appHeader.menu")}
-          @click=${() => this._fire("hass-toggle-menu")}
-        >
-          <ha-icon icon="mdi:menu"></ha-icon>
-        </button>
+        ${
+          this.narrow
+            ? html` <button
+                class="icon-button menu-button"
+                title=${localize("appHeader.menu")}
+                aria-label=${localize("appHeader.menu")}
+                @click=${() => this._fire("hass-toggle-menu")}
+              >
+                <ha-icon icon="mdi:menu"></ha-icon>
+              </button>`
+            : nothing
+        }
+        <span class="brand-mark" aria-hidden="true"></span>
         <h1>Spatial Context</h1>
       </div>
       <floor-tabs
@@ -156,6 +208,14 @@ export class AppHeader extends LitElement {
       ></floor-tabs>
       <div class="actions">
         <slot></slot>
+        <button
+          class="icon-button"
+          title=${localize("menu.settings")}
+          aria-label=${localize("menu.settings")}
+          @click=${() => this._fire("open-settings")}
+        >
+          <ha-icon icon="mdi:cog"></ha-icon>
+        </button>
         <slot name="end"></slot>
       </div>
     `;

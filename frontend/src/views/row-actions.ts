@@ -61,6 +61,7 @@ export class RowActions extends LitElement {
     return html`
       <button
         title=${localize("rowActions.undo")}
+        aria-label=${localize("rowActions.undo")}
         ?disabled=${!this.canUndo}
         @click=${() => this._fire("undo-click")}
       >
@@ -68,6 +69,7 @@ export class RowActions extends LitElement {
       </button>
       <button
         title=${localize("rowActions.redo")}
+        aria-label=${localize("rowActions.redo")}
         ?disabled=${!this.canRedo}
         @click=${() => this._fire("redo-click")}
       >
@@ -75,6 +77,11 @@ export class RowActions extends LitElement {
       </button>
       <button
         title=${
+          this.saving
+            ? localize("appHeader.saving")
+            : localize("appHeader.save")
+        }
+        aria-label=${
           this.saving
             ? localize("appHeader.saving")
             : localize("appHeader.save")
