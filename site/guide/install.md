@@ -85,6 +85,20 @@ The panel compares itself with the installed version each time it opens and when
 | Restart Home Assistant | Home Assistant has not restarted since the update. Some changes cannot be saved until it does. |
 | Reload the page | The browser is running an older copy of the panel. |
 
+## Try a Pre-release
+
+HACS offers stable releases by default. When a fix or feature needs testing first, it is published as a pre-release, named like `1.0.1-beta.1`. Pre-releases are optional and never install on their own.
+
+To try one:
+
+1. In HACS, open **Spatial Context**.
+2. Select **⋮ → Redownload**, turn on **Show beta versions**, and choose the pre-release.
+3. Restart Home Assistant.
+
+The notes for each pre-release say what changed and what to test. Tell us how it went on the issue the notes name.
+
+**Show beta versions** stays on until you turn it off, so later pre-releases keep appearing. To see only stable releases again, turn it off.
+
 ## Troubleshooting
 
 | Symptom | Fix |

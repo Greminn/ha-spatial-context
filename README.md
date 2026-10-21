@@ -42,6 +42,8 @@ Needs **Home Assistant 2024.10** or newer, with your floors set up in **Settings
 
 Prefer to copy files by hand? Put `custom_components/spatial_context/` into your `/config/custom_components/`. The [install guide](https://greminn.github.io/ha-spatial-context/guide/install) has the details.
 
+**Stable releases and pre-releases.** HACS offers stable releases. When a fix or feature needs testing first, it may appear as a pre-release such as `1.0.1-beta.1`. A pre-release only shows up if you turn on **Show beta versions** for Spatial Context in HACS, so it never installs on its own. Pre-releases are for people happy to test and report back on the issue. Everyone else can ignore them.
+
 ## Quick start
 
 1. Open **Spatial Context** from the sidebar and pick a floor tab.
