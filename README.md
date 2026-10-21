@@ -3,13 +3,14 @@
   <img alt="Spatial Context: give your AI assistant a floor plan of your home." src="brand/extras/social-preview-1280x640.png">
 </picture>
 
-![Beta](https://img.shields.io/badge/status-beta-orange)
-
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-![Spatial Context showing the Top Floor with the Zigbee mesh layer on](site/public/screenshots/screenshot-main-v3.jpeg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/public/screenshots/hero-dark.png">
+  <img alt="An AI assistant answering questions about the home from the floor plan, beside the Zigbee mesh on the Top Floor" src="site/public/screenshots/hero-light.jpeg">
+</picture>
 
-*The Top Floor with the Zigbee mesh layer on. Every link is coloured by signal quality, the selected device's card lists its links with their LQI, and the key along the bottom explains the lines.*
+*An AI assistant answering questions about the home from its floor plan, beside the Top Floor with the Zigbee mesh layer on. The conversations are illustrations of what the map makes possible.*
 
 ## What you get
 
@@ -33,12 +34,12 @@ The full guide is at **<https://greminn.github.io/ha-spatial-context/>**:
 
 ## Installation
 
-Needs **Home Assistant 2024.10** or newer, with your floors set up in **Settings → Areas → Floors**. Spatial Context is a **beta** and isn't in the HACS default repository yet, so it's added as a custom repository.
+Needs **Home Assistant 2024.10** or newer, with your floors set up in **Settings → Areas → Floors**. Spatial Context isn't in the HACS default repository yet, so it's added as a custom repository. A submission to HACS is planned.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
 
 1. Click the button above, or in HACS choose **⋮ → Custom repositories**, paste `https://github.com/Greminn/ha-spatial-context` and set **Type** to **Integration**.
-2. Install **Spatial Context** (turn on **Show beta versions** if you don't see it).
+2. Install **Spatial Context**.
 3. Restart Home Assistant, then **Settings → Devices & Services → Add Integration → Spatial Context**.
 
 Prefer to copy files by hand? Put `custom_components/spatial_context/` into your `/config/custom_components/`. The [install guide](https://greminn.github.io/ha-spatial-context/guide/install) has the details.
@@ -70,9 +71,7 @@ Spatial Context is a personal project, free and shared as is. If it's useful to 
 
 <a href="https://buymeacoffee.com/greminn"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20an%20espresso&emoji=&slug=greminn&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me an espresso" height="50"></a>
 
-## Status
-
-**Beta.** Used daily on the author's own multi-floor home, but the interface may still change between releases, and it hasn't yet been tested against the wide variety of Home Assistant setups a stable release should handle.
+## Feedback
 
 Found a bug, or have an idea? Please [open an issue](https://github.com/Greminn/ha-spatial-context/issues). Problems and feature ideas are equally welcome, not just polished bug reports.
 
