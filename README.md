@@ -24,8 +24,6 @@ Home Assistant knows your devices by name and area, but not where anything actua
 
 The full guide is at **<https://greminn.github.io/ha-spatial-context/>**:
 
-> **Note:** the guide goes live when V1 is published. Until then these links won't open.
-
 - [What is Spatial Context?](https://greminn.github.io/ha-spatial-context/guide/what-is-spatial-context) and [your first floor plan](https://greminn.github.io/ha-spatial-context/guide/first-floor-plan)
 - [Using the panel](https://greminn.github.io/ha-spatial-context/guide/using-the-panel), [placing devices](https://greminn.github.io/ha-spatial-context/guide/placing-devices) and [wall materials](https://greminn.github.io/ha-spatial-context/guide/wall-materials)
 - [Connectivity Map](https://greminn.github.io/ha-spatial-context/guide/connectivity-map) (what each layer needs), the [Property tab](https://greminn.github.io/ha-spatial-context/guide/property-tab) and [Settings](https://greminn.github.io/ha-spatial-context/guide/settings)
