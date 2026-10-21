@@ -1,0 +1,75 @@
+name: Validate
+
+# Checks that run on every push and pull request: the panel type-checks, lints, is formatted and builds, the
+# versions agree, the Python is valid and tested, and Home Assistant's own validators (hassfest) and HACS's are happy.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  panel:
+    name: Panel builds
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      # The built panel is committed (Home Assistant loads it straight from the integration). Its build id changes on
+      # every build, so the bundle can't be diffed; check that the versions it was built from agree instead.
+      - name: Versions agree (manifest, package, committed build)
+        working-directory: .
+        run: |
+          python3 - <<'PY'
+          import json
+          manifest = json.load(open("custom_components/spatial_context/manifest.json"))["version"]
+          package = json.load(open("frontend/package.json"))["version"]
+          build = json.load(open("custom_components/spatial_context/www/spatial-context-panel.build.json"))["version"]
+          assert manifest == package == build, (manifest, package, build)
+          PY
+
+  python:
+    name: Python is valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile everything
+        run: python -m compileall -q custom_components tests
+      # voluptuous is a Home Assistant dependency; without it the save-limit tests are skipped.
+      - run: pip install voluptuous
+      - name: Tests (export, ZHA, storage, backup, debug log, WebSocket API)
+        run: ./tests/run_all.sh
+
+  hassfest:
+    name: Home Assistant hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
