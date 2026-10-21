@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -43,13 +44,28 @@ _LOADED_VERSION_KEY = "loaded_version"
 LOG_FILENAME = "spatial_context_debug.log"
 _LOG_MAX_BYTES = 1024 * 1024
 _REPORT_TAIL_LINES = 300
+_MAX_LINE_CHARS = 8192
+
+# The report is meant for public issues, but a browser stack trace carries the
+# address Home Assistant was opened at, and error text can carry an IP. Both
+# are removed when a line is written and again when the report is built.
+_ORIGIN = re.compile(r"\b(?:https?|wss?)://[^/\s)'\"\\]+")
+# Not after "/" or "." so a browser version such as Chrome/120.0.0.0 survives.
+_IPV4 = re.compile(r"(?<![/\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.])")
 
 
-async def async_record_loaded_version(hass: HomeAssistant) -> None:
+def _scrub(text: str) -> str:
+    return _IPV4.sub("<ip>", _ORIGIN.sub("<origin>", text))
+
+
+async def async_record_loaded_version(hass: HomeAssistant) -> str:
     """Remember the version HA loaded at startup — the backend's real
-    version until the next restart, whatever is on disk by then."""
+    version until the next restart, whatever is on disk by then — and
+    return it."""
     integration = await async_get_integration(hass, DOMAIN)
-    hass.data.setdefault(DOMAIN, {})[_LOADED_VERSION_KEY] = str(integration.version)
+    version = str(integration.version)
+    hass.data.setdefault(DOMAIN, {})[_LOADED_VERSION_KEY] = version
+    return version
 
 
 def _read_disk_versions() -> dict[str, str | None]:
@@ -98,10 +114,18 @@ async def async_append_debug_entries(
     if not (await async_get_settings(hass)).get("debug_logging"):
         return
     received = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
-    lines = [
-        json.dumps({"received": received, **entry}, separators=(",", ":"), default=str)
-        for entry in entries
-    ]
+    lines = []
+    for entry in entries:
+        line = _scrub(
+            json.dumps({"received": received, **entry}, separators=(",", ":"), default=str)
+        )
+        if len(line) > _MAX_LINE_CHARS:
+            line = json.dumps(
+                {"received": received, "event": entry.get("event"), "truncated": True},
+                separators=(",", ":"),
+                default=str,
+            )
+        lines.append(line)
     await hass.async_add_executor_job(_append_lines, _log_path(hass), lines)
 
 
@@ -150,6 +174,7 @@ async def async_build_debug_report(hass: HomeAssistant) -> dict[str, Any]:
 def _parse_lines(lines: list[str]) -> list[Any]:
     parsed: list[Any] = []
     for line in lines:
+        line = _scrub(line)
         try:
             parsed.append(json.loads(line))
         except ValueError:

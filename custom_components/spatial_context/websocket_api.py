@@ -1,11 +1,13 @@
 """WebSocket API for Spatial Context.
 
-Follows the same @websocket_api.websocket_command /
-@websocket_api.async_response shape used throughout voice_satellite's
-__init__.py.
+Every command except `version` requires an admin account: the panel is
+admin-only, but websocket commands can be called by any logged-in user
+whatever the sidebar shows, so each one checks for itself.
 """
 
 from __future__ import annotations
+
+import logging
 
 import voluptuous as vol
 
@@ -25,6 +27,29 @@ from .storage import (
 )
 
 
+_LOGGER = logging.getLogger(__name__)
+
+# Upper bounds on what a save may contain. A real home is nowhere near these;
+# they only stop one oversized message writing an unbounded document.
+_TEXT = vol.All(str, vol.Length(max=256))
+_POINTS = vol.All([[vol.Coerce(float)]], vol.Length(max=10000))
+_MAX_ITEMS = 5000
+
+
+def _items(schema: dict) -> vol.All:
+    return vol.All([schema], vol.Length(max=_MAX_ITEMS))
+
+
+def _client_error(err: Exception, what: str) -> str:
+    """A short, fixed message for the browser. The detail (which can carry
+    entity ids or IEEE addresses) goes to the Home Assistant log instead."""
+    _LOGGER.warning("%s failed", what, exc_info=err)
+    if isinstance(err, TimeoutError):
+        return f"{what} timed out"
+    return f"{what} failed. See the Home Assistant log for details."
+
+
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/list_floors"})
 @websocket_api.async_response
 async def ws_list_floors(
@@ -37,10 +62,11 @@ async def ws_list_floors(
     connection.send_result(msg["id"], {"floors": floors})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/get_layout",
-        vol.Required("floor_id"): str,
+        vol.Required("floor_id"): _TEXT,
     }
 )
 @websocket_api.async_response
@@ -55,10 +81,10 @@ async def ws_get_layout(
 
 
 _ROOM_SCHEMA = {
-    vol.Required("id"): str,
-    vol.Required("name"): str,
-    vol.Optional("area_id"): vol.Any(str, None),
-    vol.Required("points"): [[vol.Coerce(float)]],
+    vol.Required("id"): _TEXT,
+    vol.Required("name"): _TEXT,
+    vol.Optional("area_id"): vol.Any(_TEXT, None),
+    vol.Required("points"): _POINTS,
     # Per-room overlay styling (see floorplan-canvas.ts's .room-poly) —
     # each room's own look, not an app-wide preference. Optional/nullable
     # so an existing room with none of these set keeps today's baked-in
@@ -74,7 +100,7 @@ _ROOM_SCHEMA = {
 }
 
 _PIN_SCHEMA = {
-    vol.Required("id"): str,
+    vol.Required("id"): _TEXT,
     # The pin's whole identity — deliberately no entity_id: a human placing
     # a device never chooses or sees which HA entity represents it, only
     # the device (see types.ts's Pin doc comment). Optional/nullable: an
@@ -82,30 +108,30 @@ _PIN_SCHEMA = {
     # startup (async_migrate_pin_device_ids below), but an entity that no
     # longer resolves to any device (deleted integration, orphaned
     # registry entry) legitimately has none — never guessed at.
-    vol.Optional("device_id"): vol.Any(str, None),
+    vol.Optional("device_id"): vol.Any(_TEXT, None),
     vol.Required("x"): vol.Coerce(float),
     vol.Required("y"): vol.Coerce(float),
-    vol.Optional("room_id"): vol.Any(str, None),
-    vol.Optional("icon_override"): vol.Any(str, None),
-    vol.Optional("label_override"): vol.Any(str, None),
+    vol.Optional("room_id"): vol.Any(_TEXT, None),
+    vol.Optional("icon_override"): vol.Any(_TEXT, None),
+    vol.Optional("label_override"): vol.Any(_TEXT, None),
     # Mounting height in metres above floor level — matters for e.g. mmWave
     # presence sensors, where low/high placement changes the detection cone.
     vol.Optional("height_m"): vol.Any(vol.Coerce(float), None),
 }
 
 _WALL_SCHEMA = {
-    vol.Required("id"): str,
-    vol.Required("material"): str,
+    vol.Required("id"): _TEXT,
+    vol.Required("material"): _TEXT,
     # Optional, not Required — a wall saved before this field existed and
     # never individually re-edited since would round-trip through a save
     # without one, and that must not fail validation.
     vol.Optional("thickness_cm"): vol.Any(vol.Coerce(float), None),
-    vol.Required("points"): [[vol.Coerce(float)]],
+    vol.Required("points"): _POINTS,
 }
 
 _OPENING_SCHEMA = {
-    vol.Required("id"): str,
-    vol.Required("wallId"): str,
+    vol.Required("id"): _TEXT,
+    vol.Required("wallId"): _TEXT,
     vol.Required("type"): vol.In(["door", "window"]),
     vol.Required("x"): vol.Coerce(float),
     vol.Required("y"): vol.Coerce(float),
@@ -114,7 +140,7 @@ _OPENING_SCHEMA = {
 
 _SCALE_SCHEMA = vol.Any(
     {
-        vol.Required("points"): [[vol.Coerce(float)]],
+        vol.Required("points"): _POINTS,
         vol.Required("meters"): vol.Coerce(float),
     },
     None,
@@ -145,13 +171,13 @@ _VIEW_BOX_SCHEMA = vol.Any(
 )
 
 _PLACEMENT_SCHEMA = {
-    vol.Required("id"): str,
+    vol.Required("id"): _TEXT,
     # None for a standalone floor acting as its own building (never
     # aligned to anything, e.g. a detached Garage) — mirrors
     # FloorLayout.building_id.
-    vol.Optional("building_id"): vol.Any(str, None),
-    vol.Required("floor_id"): str,
-    vol.Optional("label_override"): vol.Any(str, None),
+    vol.Optional("building_id"): vol.Any(_TEXT, None),
+    vol.Required("floor_id"): _TEXT,
+    vol.Optional("label_override"): vol.Any(_TEXT, None),
     vol.Required("x"): vol.Coerce(float),
     vol.Required("y"): vol.Coerce(float),
     vol.Required("width"): vol.Coerce(float),
@@ -176,21 +202,22 @@ _PLACEMENT_SCHEMA = {
 }
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/save_layout",
-        vol.Required("floor_id"): str,
-        vol.Required("background_image_id"): vol.Any(str, None),
+        vol.Required("floor_id"): _TEXT,
+        vol.Required("background_image_id"): vol.Any(_TEXT, None),
         vol.Required("background_opacity"): vol.Coerce(float),
         vol.Required("background_offset_x"): vol.Coerce(float),
         vol.Required("background_offset_y"): vol.Coerce(float),
         vol.Required("background_scale"): vol.Coerce(float),
-        vol.Required("building_id"): vol.Any(str, None),
+        vol.Required("building_id"): vol.Any(_TEXT, None),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
-        vol.Required("rooms"): [_ROOM_SCHEMA],
-        vol.Required("pins"): [_PIN_SCHEMA],
-        vol.Required("walls"): [_WALL_SCHEMA],
-        vol.Required("openings"): [_OPENING_SCHEMA],
+        vol.Required("rooms"): _items(_ROOM_SCHEMA),
+        vol.Required("pins"): _items(_PIN_SCHEMA),
+        vol.Required("walls"): _items(_WALL_SCHEMA),
+        vol.Required("openings"): _items(_OPENING_SCHEMA),
         vol.Required("scale"): _SCALE_SCHEMA,
     }
 )
@@ -221,11 +248,12 @@ async def ws_save_layout(
     connection.send_result(msg["id"], {"success": True})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/set_building_id",
-        vol.Required("floor_id"): str,
-        vol.Required("building_id"): vol.Any(str, None),
+        vol.Required("floor_id"): _TEXT,
+        vol.Required("building_id"): vol.Any(_TEXT, None),
     }
 )
 @websocket_api.async_response
@@ -241,6 +269,7 @@ async def ws_set_building_id(
     connection.send_result(msg["id"], {"success": True})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/get_property_layout"}
 )
@@ -256,19 +285,20 @@ async def ws_get_property_layout(
     connection.send_result(msg["id"], layout)
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/save_property_layout",
-        vol.Required("background_image_id"): vol.Any(str, None),
+        vol.Required("background_image_id"): vol.Any(_TEXT, None),
         vol.Required("background_opacity"): vol.Coerce(float),
         vol.Required("background_offset_x"): vol.Coerce(float),
         vol.Required("background_offset_y"): vol.Coerce(float),
         vol.Required("background_scale"): vol.Coerce(float),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
-        vol.Required("placements"): [_PLACEMENT_SCHEMA],
+        vol.Required("placements"): _items(_PLACEMENT_SCHEMA),
         # Outdoor device pins — Optional so an older panel bundle's save
         # (which never sends them) still validates.
-        vol.Optional("pins"): [_PIN_SCHEMA],
+        vol.Optional("pins"): _items(_PIN_SCHEMA),
         # Likewise Optional: an older bundle never sends the map.
         vol.Optional("map_background"): _MAP_BACKGROUND_SCHEMA,
     }
@@ -332,6 +362,7 @@ _SETTINGS_SCHEMA = {
 }
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/get_settings"})
 @websocket_api.async_response
 async def ws_get_settings(
@@ -345,6 +376,7 @@ async def ws_get_settings(
     connection.send_result(msg["id"], settings)
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/save_settings",
@@ -366,6 +398,7 @@ async def ws_save_settings(
     connection.send_result(msg["id"], {"success": True})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/list_areas"})
 @websocket_api.async_response
 async def ws_list_areas(
@@ -377,6 +410,7 @@ async def ws_list_areas(
     connection.send_result(msg["id"], {"areas": registry_snapshot.async_list_areas(hass)})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/list_placeable_entities"}
 )
@@ -391,6 +425,7 @@ async def ws_list_placeable_entities(
     connection.send_result(msg["id"], {"entities": entities})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/export_snapshot"}
 )
@@ -414,6 +449,7 @@ async def ws_export_snapshot(
     )
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/get_zigbee_mesh",
@@ -432,7 +468,7 @@ async def ws_get_zigbee_mesh(
     Global/floor-agnostic, like list_areas/list_placeable_entities — the
     frontend cross-references against the current floor's placed pins.
     A cache hit (force_refresh=False, the default) returns near-instantly;
-    a real scan (force_refresh=True, or no cache yet) can take 1-2 minutes
+    a real scan (force_refresh=True, or no cache yet) can take 1–2 minutes
     or more on a large mesh — the frontend only ever passes force_refresh
     on an explicit user "Refresh Mesh" click, never on panel load.
     cache_only=True returns the cached result or null, never scanning —
@@ -446,11 +482,14 @@ async def ws_get_zigbee_mesh(
             hass, force_refresh=msg["force_refresh"]
         )
     except Exception as err:  # noqa: BLE001 - surface any failure to the frontend, not an unhandled rejection
-        connection.send_error(msg["id"], "zigbee_mesh_failed", str(err))
+        connection.send_error(
+            msg["id"], "zigbee_mesh_failed", _client_error(err, "Zigbee mesh scan")
+        )
         return
     connection.send_result(msg["id"], mesh)
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/get_wifi_mesh"})
 @websocket_api.async_response
 async def ws_get_wifi_mesh(
@@ -467,11 +506,14 @@ async def ws_get_wifi_mesh(
     try:
         mesh = wifi_mesh.async_get_wifi_mesh(hass)
     except Exception as err:  # noqa: BLE001 - surface any failure to the frontend, not an unhandled rejection
-        connection.send_error(msg["id"], "wifi_mesh_failed", str(err))
+        connection.send_error(
+            msg["id"], "wifi_mesh_failed", _client_error(err, "Wi-Fi mesh lookup")
+        )
         return
     connection.send_result(msg["id"], mesh)
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/get_bluetooth_devices"}
 )
@@ -500,11 +542,12 @@ async def ws_version(
     connection.send_result(msg["id"], await debug.async_get_version_info(hass))
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "spatial_context/debug_log",
         vol.Required("entries"): vol.All(
-            [{vol.Required("event"): str, vol.Optional("t"): str, vol.Extra: object}],
+            [{vol.Required("event"): _TEXT, vol.Optional("t"): _TEXT, vol.Extra: object}],
             vol.Length(max=200),
         ),
     }
@@ -520,6 +563,7 @@ async def ws_debug_log(
     connection.send_result(msg["id"], {"success": True})
 
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): "spatial_context/debug_report"})
 @websocket_api.async_response
 async def ws_debug_report(

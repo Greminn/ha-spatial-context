@@ -30,7 +30,7 @@ def async_get_bluetooth_devices(hass: HomeAssistant) -> dict[str, Any]:
     (as advertisements report them)."""
     device_registry = dr.async_get(hass)
     devices: dict[str, list[str]] = {}
-    for device in device_registry.devices.values():
+    for device in device_registry.devices:
         for connection_type, value in device.connections:
             if connection_type != dr.CONNECTION_BLUETOOTH:
                 continue

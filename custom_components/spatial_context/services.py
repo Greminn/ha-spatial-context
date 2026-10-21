@@ -25,7 +25,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def refresh_zigbee_mesh_service(call: ServiceCall) -> None:
         """Force a fresh Zigbee mesh scan and populate the cache — meant to
-        run from an automation (e.g. overnight) so the panel's own Load Mesh
+        run from an automation (e.g. overnight) so the panel's own Load mesh
         click can serve an instant, pre-warmed cache instead of blocking for
         the 1-2+ minutes a real scan takes on a large mesh."""
         await async_get_network_map(hass, force_refresh=True)

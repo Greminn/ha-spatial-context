@@ -20,6 +20,7 @@ from .frontend import (
 )
 from .registry_snapshot import async_migrate_pin_device_ids
 from .services import async_setup_services
+from .storage import async_backup_layout
 from .websocket_api import async_register_commands
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up integration-wide resources: WebSocket commands + frontend panel."""
-    await async_record_loaded_version(hass)
+    version = await async_record_loaded_version(hass)
+    # Before anything can read and rewrite the layout: keep this version's copy.
+    await async_backup_layout(hass, version)
     async_register_commands(hass)
     await async_setup_services(hass)
     await async_migrate_pin_device_ids(hass)

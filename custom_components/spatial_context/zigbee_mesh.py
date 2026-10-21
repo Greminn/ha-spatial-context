@@ -47,7 +47,7 @@ def _cache(hass: HomeAssistant) -> _ZigbeeMeshCache:
 def get_cached_network_map(hass: HomeAssistant) -> dict[str, Any] | None:
     """The last successful result, or None — never triggers a scan. Lets the
     panel show a warm cache the moment the Zigbee layer is picked, without
-    risking a 1-2 minute MQTT round trip nobody asked for."""
+    risking a 1–2 minute MQTT round trip nobody asked for."""
     cache = _cache(hass)
     if cache.mesh is None:
         return None
@@ -114,7 +114,9 @@ async def async_get_network_map(
         unsubscribe()
 
     if payload.get("status") != "ok":
-        raise RuntimeError(f"Zigbee2MQTT networkmap request failed: {payload}")
+        raise RuntimeError(
+            f"Zigbee2MQTT networkmap request failed: {payload.get('error', payload.get('status'))}"
+        )
 
     value = payload["data"]["value"]
     nodes = value.get("nodes", [])

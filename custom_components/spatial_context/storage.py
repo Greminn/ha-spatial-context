@@ -1,19 +1,20 @@
 """Persistent layout storage for Spatial Context.
 
-Follows the same Store-wrapped-in-a-lock pattern as voice_satellite's
-settings_store.py: a single JSON document at
-/config/.storage/spatial_context.storage, keyed by floor_id.
+A single JSON document at /config/.storage/spatial_context.layout (a Store
+wrapped in a lock), with the floors keyed by floor_id.
 """
 
 from __future__ import annotations
 
 import asyncio
 import math
+from pathlib import Path
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from .backup import backup_before_upgrade
 from .const import DOMAIN
 
 _STORE_VERSION = 1
@@ -26,8 +27,35 @@ _STORE_KEY = f"{DOMAIN}.layout"
 PROPERTY_LOCATION_ID = "__property__"
 
 
+class _LayoutStore(Store[dict[str, Any]]):
+    """The layout store. Every stored document so far is version 1, so there is
+    nothing to migrate; a document from a newer version is refused outright,
+    never read and written back by code that doesn't understand it (the backup
+    copies in backup.py are the way back from a bad upgrade)."""
+
+    async def _async_migrate_func(
+        self, old_major_version: int, old_minor_version: int, old_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        if old_major_version == _STORE_VERSION:
+            return old_data
+        raise NotImplementedError(
+            f"The Spatial Context layout is storage version {old_major_version}, "
+            f"newer than this install understands (version {_STORE_VERSION}). "
+            "Update Spatial Context; nothing has been changed."
+        )
+
+
 def _store(hass: HomeAssistant) -> Store[dict[str, Any]]:
-    return Store(hass, _STORE_VERSION, _STORE_KEY)
+    return _LayoutStore(hass, _STORE_VERSION, _STORE_KEY)
+
+
+async def async_backup_layout(hass: HomeAssistant, version: str) -> None:
+    """Copy the layout file once per installed version (see backup.py)."""
+    await hass.async_add_executor_job(
+        backup_before_upgrade,
+        Path(hass.config.path(".storage", _STORE_KEY)),
+        version,
+    )
 
 
 def _lock(hass: HomeAssistant) -> asyncio.Lock:

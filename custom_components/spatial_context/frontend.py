@@ -1,8 +1,7 @@
 """Frontend static path + sidebar panel registration for Spatial Context.
 
-Mirrors voice_satellite/frontend.py's sidebar-panel half (the
-"browser_mod pattern") — Spatial Context has no Lovelace card, only a
-full-page panel, so the Lovelace-resource half of that file doesn't apply.
+Registers a full-page custom panel (the "browser_mod pattern"). There is no
+Lovelace card, so there is no Lovelace resource to register.
 """
 
 from __future__ import annotations
@@ -94,7 +93,9 @@ def async_register_sidebar_panel(hass: HomeAssistant) -> None:
         sidebar_title=SIDEBAR_TITLE,
         sidebar_icon=SIDEBAR_ICON,
         frontend_url_path=FRONTEND_URL_PATH,
-        require_admin=False,
+        # A floor-plan editor that also exposes device ids and positions:
+        # admin-only, matching the websocket commands (see websocket_api.py).
+        require_admin=True,
         config={
             "_panel_custom": {
                 "name": "spatial-context-panel",

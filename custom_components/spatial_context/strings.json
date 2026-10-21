@@ -17,7 +17,7 @@
     },
     "refresh_zigbee_mesh": {
       "name": "Refresh Zigbee mesh",
-      "description": "Forces a fresh Zigbee2MQTT network scan and caches the result, so the panel's own \"Load Mesh\" can serve it instantly. Intended for a scheduled/overnight automation, not interactive use (a scan can take 1-2 minutes)."
+      "description": "Forces a fresh Zigbee2MQTT network scan and caches the result, so the panel's own \"Load Mesh\" can serve it instantly. Intended for a scheduled/overnight automation, not interactive use (a scan can take 1–2 minutes)."
     }
   }
 }
