@@ -8,7 +8,7 @@
 |---|---|
 | `custom_components/spatial_context/` | The integration (domain `spatial_context`): `storage.py` (layouts), `websocket_api.py` (what the panel calls), `services.py` (`get_map`, `refresh_zigbee_mesh`), `export.py` (the map export), `zigbee_mesh.py` / `zha_mesh.py` / `wifi_mesh.py` / `bluetooth_mesh.py` (Connectivity Map sources), `frontend.py` (registers the panel), `www/spatial-context-panel.js` (the built panel, committed) |
 | `frontend/` | The Lit + TypeScript panel (`src/`), rollup build, `scripts/dev/push.mjs` (rsync to a dev Home Assistant) |
-| `tests/` | The Python tests, plus `run_all.sh` |
+| `tests/` | The Python tests, plus `run_all.sh` (the panel's own tests sit beside its source as `frontend/src/**/*.test.ts`) |
 | `site/` | The documentation site (VitePress), published to GitHub Pages |
 | `brand/` | The brand pack (SVG masters, favicons, avatars, social previews); the integration's own images are in `custom_components/spatial_context/brand/` |
 | `docs/` | This file and the README screenshots |
@@ -18,9 +18,10 @@
 
 ```sh
 cd frontend && npm install     # once
-npm run check                  # typecheck, lint, format check and build
+npm run check                  # typecheck, lint, format check, tests and build
+npm test                       # just the panel tests (vitest)
 npm run dev                    # build on save and rsync to your Home Assistant (needs frontend/.env)
-./tests/run_all.sh             # the Python tests; prints fail=0 or the failures
+./tests/run_all.sh             # the Python tests; prints fail=0 or the failures (pip install voluptuous first, or the save-limit tests are skipped)
 ```
 
 - The build writes `www/spatial-context-panel.js`, `spatial-context-panel.build.json`, `mdi-index.json` and `map/`. They go together and are all committed.
