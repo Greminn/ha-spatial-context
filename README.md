@@ -73,6 +73,10 @@ Spatial Context is a personal project, free and shared as is. If it's useful to 
 
 Found a bug, or have an idea? Please [open an issue](https://github.com/Greminn/ha-spatial-context/issues). Problems and feature ideas are equally welcome, not just polished bug reports.
 
+## Also from me
+
+**Home Desk**: a place for everything that needs your attention in your smart home. Coming soon.
+
 ## Development and licence
 
 Building, testing and deploying are covered in [docs/development.md](docs/development.md). The panel is built from `frontend/` (Lit and TypeScript) and the output is committed, so HACS and a manual copy need no build step.
