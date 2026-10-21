@@ -8,7 +8,7 @@ hero:
     light: /screenshots/hero-light.jpeg
     dark: /screenshots/hero-dark.png
     alt: An AI assistant answering questions about the home from the floor plan, beside the Zigbee mesh on the Top Floor
-  tagline: Trace your floor plans, place your devices on them and see how they are all connected, with Zigbee, Wi-Fi, Matter, Thread and Bluetooth links laid over your real home. Export the result as measured data (distances, and the walls between devices) for AI agents, automations and scripts.
+  tagline: Trace your floor plans, place your devices on them and see how it all connects. Measured data for AI agents, automations and scripts.
   actions:
     - { theme: brand, text: What Is Spatial Context?, link: /guide/what-is-spatial-context }
     - { theme: alt, text: Install, link: /guide/install }
