@@ -1,6 +1,6 @@
 {
   "name": "spatial-context-panel",
-  "version": "0.16.0-beta.2",
+  "version": "1.0.0",
   "description": "Sidebar panel frontend for the Spatial Context Home Assistant integration",
   "author": "Greminn",
   "license": "MIT",

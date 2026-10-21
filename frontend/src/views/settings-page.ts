@@ -6,6 +6,7 @@ import { localize } from "../i18n";
 import { selectStyles, sharedStyles, switchStyles } from "../styles";
 
 const REPO = "https://github.com/Greminn/ha-spatial-context";
+const DOCS = "https://greminn.github.io/ha-spatial-context/";
 const SUPPORT = "https://buymeacoffee.com/greminn";
 
 /** The Settings page: a card per topic (HA's settings layout), rows, label (and an optional
@@ -433,7 +434,7 @@ export class SettingsPage extends LitElement {
           "mdi:book-open-variant",
           localize("settings.documentation"),
           localize("settings.documentationHint"),
-          `${REPO}#readme`,
+          DOCS,
         )}
         ${this._linkRow(
           "mdi:bug-outline",

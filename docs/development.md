@@ -40,13 +40,15 @@ Pushing to `main` with changes under `site/` publishes to <https://greminn.githu
 
 ## 4. Releasing
 
-A fixes-only release bumps `beta.N` on the current version; a new feature bumps the MINOR and resets to `beta.1`. The version lives in four places, and CI checks they agree:
+A release that only fixes things bumps the PATCH number (1.0.0 to 1.0.1). A release that adds something bumps the MINOR number (1.0.0 to 1.1.0). A change that breaks existing layouts or the `get_map` data bumps the MAJOR number. Versions are compared part by part as numbers, so 1.10.0 is newer than 1.9.0.
+
+The version lives in four places, and CI checks they agree:
 
 - `custom_components/spatial_context/manifest.json`
 - `frontend/package.json` and `frontend/package-lock.json`
 - `custom_components/spatial_context/www/spatial-context-panel.build.json` (written by the build, so rebuild after bumping)
 
-Then commit `vX.Y.Z-beta.N`, fast-forward `main` to `dev`, and create a pre-release with "Fixed" / "Changed" notes. Before every push, sweep the diff, the built bundle and the notes for secrets, LAN addresses or hostnames, IEEE addresses and personal device names.
+Then add a section to `CHANGELOG.md`, commit `vX.Y.Z`, fast-forward `main` to `dev`, and create a release with "Added" / "Changed" / "Fixed" notes. HACS only offers GitHub releases, so tag the release. Before every push, sweep the diff, the built bundle and the notes for secrets, LAN addresses or hostnames, IEEE addresses and personal device names.
 
 ## 5. Gotchas
 
