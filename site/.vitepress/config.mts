@@ -9,11 +9,11 @@ export default defineConfig({
   lastUpdated: false,
   head: [["link", { rel: "icon", href: "/ha-spatial-context/favicon.ico" }]],
   themeConfig: {
-    logo: { light: "/spatial-context-icon-black-512.png", dark: "/spatial-context-icon-white-512.png" },
+    logo: { light: "/spatial-context-icon.svg", dark: "/spatial-context-icon-dark.svg" },
     nav: [
-      { text: "Install", link: "/guide/install" },
-      { text: "Using Spatial Context", link: "/guide/using-the-panel" },
-      { text: "AI Agents", link: "/ai/using-ai" },
+      { text: "Getting Started", link: "/guide/what-is-spatial-context", activeMatch: "/guide/(what-is-spatial-context|install|first-floor-plan)" },
+      { text: "Using Spatial Context", link: "/guide/using-the-panel", activeMatch: "/guide/(using-the-panel|placing-devices|wall-materials|connectivity-map|property-tab|settings)" },
+      { text: "AI Agents", link: "/ai/using-ai", activeMatch: "/ai/" },
     ],
     sidebar: [
       { text: "Getting Started", items: [
@@ -28,20 +28,27 @@ export default defineConfig({
         { text: "Connectivity Map", link: "/guide/connectivity-map" },
         { text: "The Property Tab", link: "/guide/property-tab" },
         { text: "Settings", link: "/guide/settings" },
-        { text: "Good to Know", link: "/guide/good-to-know" },
       ] },
       { text: "AI Agents", items: [
         { text: "Using the Map with AI", link: "/ai/using-ai" },
         { text: "The Map Data", link: "/ai/map-data" },
       ] },
-      { text: "Advanced (Optional)", items: [
+      { text: "Advanced", items: [
         { text: "Automations and Actions", link: "/advanced/automations" },
+        { text: "Stored Data", link: "/advanced/stored-data" },
+      ] },
+      { text: "Support", items: [
         { text: "Reporting a Problem", link: "/advanced/reporting-a-problem" },
+        { text: "Suggesting a Feature", link: "/advanced/suggesting-a-feature" },
+        { text: "Buy Me an Espresso", link: "https://buymeacoffee.com/greminn" },
       ] },
     ],
     socialLinks: [{ icon: "github", link: "https://github.com/Greminn/ha-spatial-context" }],
     search: { provider: "local" },
     editLink: { pattern: "https://github.com/Greminn/ha-spatial-context/edit/main/site/:path", text: "Edit this page" },
-    footer: { message: "A personal project, shared as is. No warranty." },
+    footer: {
+      message: 'Released under the <a href="https://github.com/Greminn/ha-spatial-context/blob/main/LICENSE">MIT License</a>. A personal project, shared as is.',
+      copyright: 'Made by <a href="https://github.com/Greminn">Greminn</a> · <a href="https://buymeacoffee.com/greminn">Buy me an espresso</a>',
+    },
   },
 });

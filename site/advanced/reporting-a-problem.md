@@ -12,8 +12,8 @@ A debug report records versions, settings and layout counts, and the recent debu
 4. Attach the file to an [issue on GitHub](https://github.com/Greminn/ha-spatial-context/issues).
 5. Turn **Debug Logging** off.
 
-The report contains ids and counts only, never device names or positions.
+The report contains ids and counts only, never device names or positions. Web addresses and IP addresses in the log are masked.
 
 ::: tip Need help?
-Feature ideas are welcome in the same place as bug reports.
+Feature ideas are welcome too. See [Suggesting a Feature](/advanced/suggesting-a-feature).
 :::

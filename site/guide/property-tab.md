@@ -6,7 +6,7 @@ title: The Property Tab
 
 The **Property** tab is a whole-site view where each building and each outdoor device is placed on a site photo, a map, or both.
 
-![The Property tab on an aerial map in Move Map mode: the buildings stay put, and the third bar holds the zoom and rotation controls](/screenshots/screenshot-map-adjust-v2.jpeg)
+![The Property tab on an aerial map in Move Map mode: the buildings stay put, and the third bar holds the zoom controls, the rotation slider and Done](/screenshots/move-map-v3.jpeg)
 
 A building is one placement. Floors linked with **Align Floors** share a single placement, so a multi-storey house is one shape. A floor never aligned to another, such as a detached garage, has its own.
 
@@ -30,7 +30,7 @@ Move Map keeps the buildings in place and moves the map under them, to line a fo
 | Input | Action |
 |---|---|
 | Drag | Moves the map. |
-| **Ctrl**+scroll, or the zoom buttons | Zooms. |
+| Mouse wheel, **Ctrl**+scroll, or the zoom buttons | Zooms. |
 | **Shift**+scroll, or the slider | Rotates. **North Up** resets the rotation. |
 | Pinch and twist | Zooms and rotates on a touch screen. |
 

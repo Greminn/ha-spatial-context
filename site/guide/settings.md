@@ -6,7 +6,7 @@ title: Settings
 
 **Settings** is a page opened with the cog in the header. Settings are shared by everyone who uses the panel and apply immediately.
 
-![The Settings page](/screenshots/screenshot-settings-v2.jpeg)
+![The Settings page: Editing, Zigbee mesh, and Matter and Thread, with Troubleshooting and About below](/screenshots/settings-v3.jpeg)
 
 | Section | Setting | Effect |
 |---|---|---|
@@ -17,4 +17,4 @@ title: Settings
 | Zigbee Mesh | **Scan Timeout** | 30 to 600 seconds, default 180. Raise it if **Load Mesh** times out on a large mesh. |
 | Matter and Thread | **Border Router** | The device placed for the Thread border router, so its links are drawn. |
 | Troubleshooting | **Debug Logging** | Off by default. Writes `spatial_context_debug.log` to the configuration folder. See [Reporting a Problem](/advanced/reporting-a-problem). |
-| About | Version, release notes, documentation, issue tracker, repository, licence | Links and the installed version. |
+| About | Version, release notes, documentation, issue tracker, repository, licence, support | Links and the installed version. **Support the Project** opens the Buy Me a Coffee page. |

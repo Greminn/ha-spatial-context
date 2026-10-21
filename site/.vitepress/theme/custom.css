@@ -1,0 +1,82 @@
+/* Brand colours (brand/README.md): mark #039be5 on light, #03a9f4 on dark; wordmark #37474f on light, #eceff1 on dark.
+ * Links and small text use a darker blue on light so they stay readable on white. */
+:root {
+  --vp-c-brand-1: #0277bd;
+  --vp-c-brand-2: #01579b;
+  --vp-c-brand-3: #0288d1;
+  --vp-c-brand-soft: rgb(3 155 229 / 0.14);
+  --vp-c-text-1: #37474f;
+  --vp-home-hero-name-color: #039be5;
+}
+
+.dark {
+  --vp-c-brand-1: #03a9f4;
+  --vp-c-brand-2: #4fc3f7;
+  --vp-c-brand-3: #0288d1;
+  --vp-c-brand-soft: rgb(3 169 244 / 0.16);
+  --vp-c-text-1: #eceff1;
+  --vp-home-hero-name-color: #03a9f4;
+}
+
+/* The home page hero shows wide artwork, not the small square logo the default hero is sized for. */
+.VPHero .image-container {
+  height: auto;
+  transform: none;
+}
+
+/* The hero artwork carries its own glow and shadow, so VitePress's blurred circle behind it is switched off. */
+.VPHero .image-bg {
+  display: none;
+}
+
+.VPHero .image-src {
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  transform: none;
+}
+
+/* Below the desktop layout the default tucks the image up under the title with negative margins, which suits a small logo only. */
+.VPHero.has-image .image {
+  margin: 0 0 24px;
+}
+
+@media (min-width: 960px) {
+  .VPHero.has-image .container {
+    align-items: center;
+  }
+
+  .VPHero.has-image .main {
+    max-width: 420px;
+    flex-grow: 0;
+  }
+
+  .VPHero.has-image .image {
+    flex-grow: 1;
+    order: 2;
+    min-height: 0;
+    margin-left: 32px;
+  }
+
+  /* Sits a little below the vertical centre of the text, without changing the height of the hero. */
+  .VPHero.has-image .image-src {
+    transform: translateY(40px);
+  }
+}
+
+/* Less empty space between the navigation bar and the hero on the home page (VitePress adds 80px above the title). */
+@media (min-width: 640px) {
+  .VPHome .VPHero.has-image {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 16px);
+  }
+}
+
+/* Tables whose first column is a short label (tool names, menu items) keep it on one line. */
+.first-column-nowrap td:first-child,
+.first-column-nowrap th:first-child {
+  white-space: nowrap;
+}

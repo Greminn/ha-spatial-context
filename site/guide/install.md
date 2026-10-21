@@ -10,12 +10,13 @@ Requirements:
 
 - Home Assistant 2024.10 or newer.
 - Floors defined under **Settings → Areas → Floors**.
+- An administrator account. The panel and its commands are for administrators only, and other users do not see Spatial Context in the sidebar.
 
 Each Connectivity Map layer and the Property map background have their own requirements. See [Requirements by Feature](#requirements-by-feature).
 
 ## Install with HACS
 
-HACS is the easier route: it downloads the integration into `custom_components` and reports updates. Spatial Context is not in the HACS default repository, so it is added as a custom repository.
+HACS is the easier route: it downloads the integration into `custom_components` and reports updates. Spatial Context is not yet in the HACS default repository, so it is added as a custom repository. A submission to HACS is planned, and the steps below will get shorter once it is listed.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
 
@@ -26,10 +27,6 @@ Or add it by hand:
 3. Set **Type** to **Integration**, then select **Add**.
 4. Select **Spatial Context**, then **Download**.
 5. Restart Home Assistant.
-
-::: warning
-Every release is a pre-release. HACS hides pre-releases and shows a commit hash instead of a version. Enable **Show Beta Versions** for the repository to see them.
-:::
 
 ## Install from GitHub
 
@@ -79,7 +76,14 @@ The floor plan editor has no requirements beyond Home Assistant itself. The Conn
 - **HACS:** select **Update** on Spatial Context, then restart Home Assistant.
 - **GitHub:** copy the new `spatial_context` folder over the old one, then restart Home Assistant.
 
-Layouts are stored separately from the integration files and are kept. See [Good to Know](/guide/good-to-know#after-updating) for the update banners.
+Layouts are stored separately from the integration files and are kept. See [Stored Data](/advanced/stored-data).
+
+The panel compares itself with the installed version each time it opens and whenever its tab regains focus. A banner appears when they differ:
+
+| Banner | Meaning |
+|---|---|
+| Restart Home Assistant | Home Assistant has not restarted since the update. Some changes cannot be saved until it does. |
+| Reload the page | The browser is running an older copy of the panel. |
 
 ## Troubleshooting
 
@@ -87,8 +91,8 @@ Layouts are stored separately from the integration files and are kept. See [Good
 |---|---|
 | Spatial Context is missing from **Add Integration** | Check the folder is exactly `config/custom_components/spatial_context`, not nested one level deeper, then restart Home Assistant. |
 | No **Spatial Context** in the sidebar | Add the integration under **Settings → Devices & Services**. |
+| Spatial Context is missing for one user only | The panel is for administrators. Sign in with an administrator account. |
 | "No floors found" | Add floors under **Settings → Areas → Floors**, then reopen the panel. |
-| HACS offers a commit hash instead of a version | Enable **Show Beta Versions** for the repository. |
 
 ::: tip Need help?
 [Open an issue on GitHub](https://github.com/Greminn/ha-spatial-context/issues). See [Reporting a Problem](/advanced/reporting-a-problem) for what to attach.

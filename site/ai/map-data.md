@@ -52,7 +52,7 @@ Trimmed, it looks like this:
 
 ## Units
 
-Metric values (`x_m`, `y_m`, `points_m`, `width_m`) are in metres once the floor is calibrated, and `null` until then. Each device also carries its raw `x` and `y`.
+Metric values (`x_m`, `y_m`, `points_m`, `width_m`) are in metres once the floor is calibrated, and empty (`null` in the JSON) until then. Each device also carries its raw `x` and `y`.
 
 ## Signal Loss
 
