@@ -6,8 +6,8 @@
     "saving": "Saving…",
     "save": "Save",
     "menu": "Menu",
-    "back": "Back",
-    "settings": "Settings"
+    "back": "Back to Spatial Context",
+    "settings": "Spatial Context Settings"
   },
   "canvas": {
     "mode": {
@@ -164,6 +164,7 @@
     "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",
     "about": "About",
     "version": "Version",
+    "haVersion": "Home Assistant version",
     "github": "GitHub repository",
     "releaseNotes": "Release notes",
     "releaseNotesHint": "What's new in each version",

@@ -3219,6 +3219,7 @@ export class SpatialContextPanel extends LitElement {
         this._settingsOpen
           ? html`<settings-page
               .settings=${this._settings}
+              .haVersion=${this._hass?.config?.version ?? ""}
               .coordinatorChoices=${this._placedDeviceChoices}
               @settings-change=${this._onSettingsChange}
             ></settings-page>`

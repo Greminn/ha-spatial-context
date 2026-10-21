@@ -206,6 +206,10 @@ export class SettingsPage extends LitElement {
     label: string;
   }[] = [];
 
+  /** Home Assistant's own version, shown under About so it can go in a bug
+   * report without leaving the page. */
+  @property() haVersion = "";
+
   private _change(patch: Partial<Settings>) {
     this.dispatchEvent(
       new CustomEvent("settings-change", {
@@ -424,6 +428,14 @@ export class SettingsPage extends LitElement {
           localize("settings.version"),
           html`<span class="description">v${__VERSION__}</span>`,
         )}
+        ${
+          this.haVersion
+            ? this._row(
+                localize("settings.haVersion"),
+                html`<span class="description">${this.haVersion}</span>`,
+              )
+            : nothing
+        }
         ${this._linkRow(
           "mdi:text-box-outline",
           localize("settings.releaseNotes"),

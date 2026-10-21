@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import { PROPERTY_LOCATION_ID } from "../types";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
+import { isDevicePlaced } from "../picker-placement";
 import { localize } from "../i18n";
 import { selectStyles, sharedStyles } from "../styles";
 import { entityPickerSidebarStyles } from "./entity-picker-sidebar-styles";
@@ -256,7 +257,12 @@ export class EntityPickerSidebar extends LitElement {
         if (!area || !this._areaIsOnFloor(area, floorId)) return false;
       }
       if (this._placedFilter !== "all") {
-        const placed = this.placedDeviceIds.has(d.deviceId);
+        const placed = isDevicePlaced(
+          d.deviceId,
+          d.entities,
+          this.placedDeviceIds,
+          this.currentFloorId,
+        );
         if (placed !== (this._placedFilter === "placed")) return false;
       }
       if (!q) return true;

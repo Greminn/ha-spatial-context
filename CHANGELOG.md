@@ -2,6 +2,17 @@
 
 Notes for each release are also on the [releases page](https://github.com/Greminn/ha-spatial-context/releases). This file starts at 1.0.0 and summarises the beta releases before it.
 
+## Unreleased
+
+### Added
+- The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
+
+### Changed
+- The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
+
+### Fixed
+- The **Not placed yet** filter in the device list no longer shows devices that are placed on another floor.
+
 ## 1.0.0
 
 The first stable release.

@@ -523,7 +523,12 @@ export interface HomeAssistant {
     ): Promise<() => void>;
   };
   fetchWithAuth(path: string, init?: RequestInit): Promise<Response>;
-  config?: { latitude?: number; longitude?: number; components?: string[] };
+  config?: {
+    latitude?: number;
+    longitude?: number;
+    components?: string[];
+    version?: string;
+  };
   themes?: { darkMode?: boolean };
   states: Record<string, { attributes: Record<string, unknown> } | undefined>;
   /** For i18n (see i18n.ts's setLanguage) — the real HA-supplied object

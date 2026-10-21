@@ -6,8 +6,8 @@
     "saving": "Speichert…",
     "save": "Speichern",
     "menu": "Menü",
-    "back": "Zurück",
-    "settings": "Einstellungen"
+    "back": "Zurück zu Spatial Context",
+    "settings": "Spatial-Context-Einstellungen"
   },
   "canvas": {
     "mode": {
@@ -164,6 +164,7 @@
     "debugLoggingHint": "Schreibt spatial_context_debug.log in Ihren Konfigurationsordner – nur IDs und Anzahlen",
     "about": "Info",
     "version": "Version",
+    "haVersion": "Home-Assistant-Version",
     "github": "GitHub-Repository",
     "releaseNotes": "Versionshinweise",
     "releaseNotesHint": "Was in jeder Version neu ist",
