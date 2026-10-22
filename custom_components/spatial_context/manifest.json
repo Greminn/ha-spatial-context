@@ -9,5 +9,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Greminn/ha-spatial-context/issues",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.0.1-beta.1"
 }
