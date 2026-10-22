@@ -155,7 +155,7 @@
     "borderRouter": "Border router",
     "borderRouterAria": "Thread border router device",
     "notSet": "Not set",
-    "borderRouterHint": "The device placed for your Thread border router, so its links are drawn",
+    "borderRouterHint": "Place your Thread border router on the plan first (the OpenThread Border Router app, or Home Assistant Yellow), then choose it here so its links are drawn",
     "scanTimeout": "Scan timeout",
     "scanTimeoutAria": "Zigbee scan timeout in seconds",
     "scanTimeoutHint": "Raise it if Load mesh times out on a large mesh",

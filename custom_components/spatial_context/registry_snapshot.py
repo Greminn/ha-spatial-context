@@ -19,6 +19,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.loader import async_get_integration
 
+from .placeable_rules import device_is_placeable, entity_domain_is_placeable
 from .storage import (
     PROPERTY_LOCATION_ID,
     async_get_all_layouts,
@@ -235,7 +236,10 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
     house" — so this deliberately excludes entities with no device at all
     (automations, scripts, scenes, zones, persons, most helpers) and devices
     that are themselves non-physical (`entry_type == service`, e.g. an
-    integration's hub/bridge container entity).
+    integration's hub/bridge container entity). Two exceptions for the
+    Thread border router (#42): the OpenThread Border Router app, and the
+    firmware `update` entity on Home Assistant's own radio hardware (see
+    placeable_rules.py).
 
     Diagnostic/config entities (firmware update, restart button,
     signal-strength sensor) are NOT excluded by `entity_category` here —
@@ -330,11 +334,17 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
             continue
         if entry.device_id is None:
             continue
-        if entry.domain not in _PLACEABLE_DOMAINS:
-            continue
 
         device = device_registry.async_get(entry.device_id)
-        if device is None or device.entry_type is not None:
+        if device is None or not device_is_placeable(
+            device.entry_type, device.identifiers
+        ):
+            continue
+
+        integration_domain = device_integration_domains.get(entry.device_id)
+        if not entity_domain_is_placeable(
+            entry.domain, integration_domain, _PLACEABLE_DOMAINS
+        ):
             continue
 
         area_id = entry.area_id or device.area_id
@@ -347,7 +357,6 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
 
         placed_floor_id = device_id_to_floor_id.get(entry.device_id)
         placed_floor = floor_registry.async_get_floor(placed_floor_id) if placed_floor_id else None
-        integration_domain = device_integration_domains.get(entry.device_id)
 
         entities.append(
             {

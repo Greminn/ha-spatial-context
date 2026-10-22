@@ -11,6 +11,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed
+- The OpenThread Border Router app, and Home Assistant Yellow, Green, SkyConnect and ZBT-2 hardware, can now be placed on the plan and chosen under **Settings → Border router** (#42).
 - The **Not placed yet** filter in the device list no longer shows devices that are placed on another floor.
 
 ## 1.0.0

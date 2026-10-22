@@ -155,7 +155,7 @@
     "borderRouter": "Border-Router",
     "borderRouterAria": "Thread-Border-Router-Gerät",
     "notSet": "Nicht festgelegt",
-    "borderRouterHint": "Das platzierte Gerät deines Thread-Border-Routers, damit seine Verbindungen gezeichnet werden",
+    "borderRouterHint": "Platziere zuerst deinen Thread-Border-Router auf dem Plan (die OpenThread-Border-Router-App oder Home Assistant Yellow) und wähle ihn dann hier aus, damit seine Verbindungen gezeichnet werden",
     "scanTimeout": "Zeitlimit für den Scan",
     "scanTimeoutAria": "Zeitlimit für den Zigbee-Scan in Sekunden",
     "scanTimeoutHint": "Erhöhen, wenn „Mesh laden“ bei einem großen Mesh abbricht",
