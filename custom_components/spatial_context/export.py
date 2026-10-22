@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from . import registry_snapshot
+from .room_names import room_display_name
 from .storage import (
     async_get_all_layouts,
     async_get_floor_layout,
@@ -96,6 +97,10 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
     """
     floors_meta = await registry_snapshot.async_list_floors(hass)
     placeable_entities = await registry_snapshot.async_list_placeable_entities(hass)
+    area_names = {
+        area["area_id"]: area["name"]
+        for area in registry_snapshot.async_list_areas(hass)
+    }
 
     exported_floors = []
     for floor_meta in floors_meta:
@@ -115,7 +120,9 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
         exported_rooms = [
             {
                 "id": room["id"],
-                "name": room["name"],
+                "name": room_display_name(
+                    room.get("name"), room.get("area_id"), area_names
+                ),
                 "devices": room_devices.get(room["id"], []),
             }
             for room in layout.get("rooms", [])

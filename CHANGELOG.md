@@ -8,6 +8,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
 
 ### Changed
+- A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed

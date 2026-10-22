@@ -58,6 +58,7 @@ import {
   toolRowStyles,
 } from "../styles";
 import { localize } from "../i18n";
+import { roomName } from "../room-name";
 import { canvasOverlayStyles } from "./canvas-overlay-styles";
 
 /** Everything that floats over the canvas, Innerspace-style, instead of
@@ -561,7 +562,7 @@ export class CanvasOverlay extends LitElement {
       const visible = room.visible !== false;
       const area = this.areas.find((a) => a.area_id === room.area_id);
       return this._card({
-        title: room.name,
+        title: roomName(room, this.areas),
         subtitle: area ? area.name : localize("canvas.card.room"),
         onClose: this._clearSelection,
         body: html`
@@ -605,23 +606,23 @@ export class CanvasOverlay extends LitElement {
                 type="text"
                 class="text-field"
                 .value=${room.name}
+                placeholder=${area?.name ?? ""}
                 @change=${(e: Event) => {
                   const input = e.target as HTMLInputElement;
                   const name = input.value.trim();
-                  if (name) this._fire("room-name-change", { name });
+                  // Empty clears the override, so a linked room follows its
+                  // area again; with no area there is nothing to follow.
+                  if (name || area) this._fire("room-name-change", { name });
                   else input.value = room.name;
                 }}
               />`,
             )}
             ${
-              area && area.name !== room.name
+              area && room.name.trim()
                 ? this._actionRow(
                     "mdi:home-edit-outline",
                     localize("canvas.room.useAreaName", { name: area.name }),
-                    () =>
-                      this._fire("room-area-change", {
-                        areaId: area.area_id,
-                      }),
+                    () => this._fire("room-name-change", { name: "" }),
                   )
                 : nothing
             }

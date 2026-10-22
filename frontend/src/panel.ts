@@ -90,6 +90,7 @@ import "./views/icon-picker-dialog";
 import "./views/confirm-dialog";
 import type { ScDialog } from "./views/confirm-dialog";
 import { localize } from "./i18n";
+import { adoptAreaNames, roomName, withShownNames } from "./room-name";
 import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-page";
 import type { PropertyBuilding } from "./views/property-overlay";
@@ -294,6 +295,21 @@ export class SpatialContextPanel extends LitElement {
         .map((p) => p.device_id)
         .filter((id): id is string => id !== null),
     );
+  }
+
+  private _shownRoomsKey: [Room[], AreaMeta[]] | null = null;
+  private _shownRooms: Room[] = [];
+
+  /** The rooms as drawn: a room that follows its area carries the area's
+   * name. Cached so a render that changes neither rooms nor areas hands the
+   * canvas the same array. */
+  private get _roomsForCanvas(): Room[] {
+    const key = this._shownRoomsKey;
+    if (!key || key[0] !== this._layout.rooms || key[1] !== this._areas) {
+      this._shownRoomsKey = [this._layout.rooms, this._areas];
+      this._shownRooms = withShownNames(this._layout.rooms, this._areas);
+    }
+    return this._shownRooms;
   }
 
   private get _selectedRoom(): Room | null {
@@ -717,7 +733,11 @@ export class SpatialContextPanel extends LitElement {
     this._view = "floor";
     const previousBuildingId = this._layout.building_id;
     this._currentFloorId = floorId;
-    this._layout = await this._client.getLayout(floorId);
+    const loaded = await this._client.getLayout(floorId);
+    this._layout = {
+      ...loaded,
+      rooms: adoptAreaNames(loaded.rooms, this._areas),
+    };
     this._resetSelection();
     this._resetAlignState();
     // Self-heal a layout saved before room assignment was kept in sync with
@@ -2185,7 +2205,13 @@ export class SpatialContextPanel extends LitElement {
     this._updateLayout({
       rooms: this._layout.rooms.map((r) =>
         r.id === room.id
-          ? { ...r, area_id: areaId, name: area ? area.name : r.name }
+          ? {
+              ...r,
+              area_id: areaId,
+              // Linking to an area makes the room follow its name; unlinking
+              // keeps whatever name the room was showing.
+              name: area ? "" : roomName(r, this._areas),
+            }
           : r,
       ),
     });
@@ -2283,7 +2309,9 @@ export class SpatialContextPanel extends LitElement {
     const room = this._selectedRoom;
     if (
       !room ||
-      !(await this._ask("deleteRoom", "delete", { name: room.name }))
+      !(await this._ask("deleteRoom", "delete", {
+        name: roomName(room, this._areas),
+      }))
     )
       return;
     const rooms = this._layout.rooms.filter((r) => r.id !== room.id);
@@ -3384,7 +3412,7 @@ export class SpatialContextPanel extends LitElement {
                         <floorplan-canvas
                           @calibrate-scale-click=${this._onCalibrateScaleClick}
                           .dark=${this._hass?.themes?.darkMode ?? false}
-                          .rooms=${this._layout.rooms}
+                          .rooms=${this._roomsForCanvas}
                           .pins=${this._layout.pins}
                           .walls=${this._layout.walls}
                           .openings=${this._layout.openings}

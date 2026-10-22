@@ -62,12 +62,24 @@ def _load_export(layout: dict | None = None) -> types.ModuleType:
             }
         ]
 
+    def list_areas(hass):
+        return [{"area_id": "lounge", "name": "Lounge"}]
+
     registry.async_list_floors = list_floors  # type: ignore[attr-defined]
+    registry.async_list_areas = list_areas  # type: ignore[attr-defined]
     registry.async_list_placeable_entities = list_entities  # type: ignore[attr-defined]
     registry.pick_display_entity = (  # type: ignore[attr-defined]
         lambda device_id, entities: entities[0] if entities else None
     )
     sys.modules["sc_test.registry_snapshot"] = registry
+
+    room_names_path = EXPORT.with_name("room_names.py")
+    room_names_spec = importlib.util.spec_from_file_location(
+        "sc_test.room_names", room_names_path
+    )
+    room_names = importlib.util.module_from_spec(room_names_spec)
+    sys.modules["sc_test.room_names"] = room_names
+    room_names_spec.loader.exec_module(room_names)
 
     storage = types.ModuleType("sc_test.storage")
 
@@ -132,6 +144,12 @@ class ExportTest(unittest.TestCase):
         self.assertIsNone(floor["meters_per_unit"])
         self.assertIsNone(floor["rooms"][0]["devices"][0]["x_m"])
         self.assertIsNone(floor["walls"][0]["points_m"])
+
+    def test_a_room_with_no_name_exports_its_area_name(self) -> None:
+        rooms = [{"id": "r1", "name": "", "area_id": "lounge"}]
+        export = _load_export(dict(LAYOUT, rooms=rooms))
+        data = asyncio.run(export.async_get_map_data(object()))
+        self.assertEqual(data["floors"][0]["rooms"][0]["name"], "Lounge")
 
 
 if __name__ == "__main__":
