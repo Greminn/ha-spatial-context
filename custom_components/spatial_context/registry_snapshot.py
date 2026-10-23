@@ -60,6 +60,10 @@ _PLACEABLE_DOMAINS = frozenset(
     }
 )
 
+# Domains used only for a device that has no entity of a placeable domain,
+# so a repeater or remote that exposes just these can still be placed (#54).
+_FALLBACK_DOMAINS = frozenset({"update", "event"})
+
 # Mirrors frontend/src/canvas/device-display.ts's DOMAIN_PRIORITY exactly —
 # keep both in sync if this list changes. See pick_display_entity below for
 # why this exists at all (a device's icon/name has to come from *some*
@@ -251,8 +255,9 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
 
     Domain is filtered, though (`_PLACEABLE_DOMAINS`) — a device's `update`/
     `button`/`select`/`number`/`text`/`time`/`event` entities are never a
-    meaningful "what kind of thing is this" answer, and a device whose only
-    entities are of those domains isn't something worth placing at all.
+    meaningful "what kind of thing is this" answer. A device whose only
+    enabled entities are `update` or `event` ones (a Zigbee repeater, a
+    remote) is still listed, through one of those, so it can be placed (#54).
     """
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
@@ -329,6 +334,13 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
             integration_names[domain] = domain
 
     entities: list[dict[str, Any]] = []
+    # A device whose only enabled entities are an `update` or `event` (a
+    # Tradfri repeater, a remote) would otherwise vanish from the picker
+    # (#54). The first such entity per device is kept here and used only if
+    # the device ends up with no entity of a placeable domain.
+    fallback_entries: dict[str, er.RegistryEntry] = {}
+    placeable_device_ids: set[str] = set()
+    candidates: list[er.RegistryEntry] = []
     for entry in entity_registry.entities.values():
         if entry.disabled_by is not None:
             continue
@@ -345,7 +357,22 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
         if not entity_domain_is_placeable(
             entry.domain, integration_domain, _PLACEABLE_DOMAINS
         ):
+            if entry.domain in _FALLBACK_DOMAINS:
+                fallback_entries.setdefault(entry.device_id, entry)
             continue
+
+        placeable_device_ids.add(entry.device_id)
+        candidates.append(entry)
+
+    candidates.extend(
+        entry
+        for device_id, entry in fallback_entries.items()
+        if device_id not in placeable_device_ids
+    )
+
+    for entry in candidates:
+        device = device_registry.async_get(entry.device_id)
+        integration_domain = device_integration_domains.get(entry.device_id)
 
         area_id = entry.area_id or device.area_id
         area = area_registry.async_get_area(area_id) if area_id else None
