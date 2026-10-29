@@ -21,7 +21,7 @@ actions:
 
 ## Refresh the Zigbee Mesh
 
-A scan takes one to two minutes. Run it from a scheduled automation, not interactively. The cached scan is kept in memory, so it is empty after Home Assistant restarts until the next scan.
+A scan takes one to two minutes. Run it from a scheduled automation, not interactively. The action is for administrators: automations and scripts can run it, but a non-administrator who calls it directly is refused. The cached scan is kept in memory, so it is empty after Home Assistant restarts until the next scan.
 
 ```yaml
 triggers:

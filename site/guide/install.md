@@ -8,7 +8,7 @@ Spatial Context installs as a custom integration, from HACS or by copying one fo
 
 Requirements:
 
-- Home Assistant 2024.10 or newer.
+- Home Assistant 2026.10 or newer.
 - Floors defined under **Settings → Areas → Floors**.
 - An administrator account. The panel and its commands are for administrators only, and other users do not see Spatial Context in the sidebar.
 
@@ -16,17 +16,15 @@ Each Connectivity Map layer and the Property map background have their own requi
 
 ## Install with HACS
 
-HACS is the easier route: it downloads the integration into `custom_components` and reports updates. Spatial Context is not yet in the HACS default repository, so it is added as a custom repository. A submission to HACS is planned, and the steps below will get shorter once it is listed.
+HACS is the easier route: it downloads the integration into `custom_components` and reports updates. Spatial Context is in the HACS default repository, so you can search for it in HACS.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Greminn&repository=ha-spatial-context&category=integration)
 
-Or add it by hand:
+Or search for it by hand:
 
-1. In HACS, select **⋮ → Custom Repositories**.
-2. Enter `https://github.com/Greminn/ha-spatial-context` as the **Repository**.
-3. Set **Type** to **Integration**, then select **Add**.
-4. Select **Spatial Context**, then **Download**.
-5. Restart Home Assistant.
+1. Open HACS and search for **Spatial Context**.
+2. Select **Spatial Context**, then **Download**.
+3. Restart Home Assistant.
 
 ## Install from GitHub
 

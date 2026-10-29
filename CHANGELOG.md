@@ -17,6 +17,8 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - A device's card lists its links to devices that are not placed on any floor, marked "not placed on the plan" (#63).
 
 ### Changed
+- Spatial Context needs Home Assistant 2026.10 or newer, and the listed minimum now says so.
+- The `spatial_context.refresh_zigbee_mesh` action is limited to administrators. Automations and scripts still run it as before.
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 

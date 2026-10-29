@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN
 from .export import async_get_map_data
@@ -30,7 +31,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         the 1-2+ minutes a real scan takes on a large mesh."""
         await async_get_network_map(hass, force_refresh=True)
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         "refresh_zigbee_mesh",
         refresh_zigbee_mesh_service,
