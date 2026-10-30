@@ -28,12 +28,17 @@ features:
 <div class="other-project-card">
   <img src="/home-desk-icon.svg" alt="" width="56" height="56" />
   <div>
-    <p class="other-project-title">Home Desk <span class="other-project-badge">Coming soon</span></p>
+    <p class="other-project-title">Home Desk</p>
     <p class="other-project-text">A place for everything that needs your attention in your smart home.</p>
   </div>
+  <div class="other-project-links">
+  <a class="other-project-link" href="https://greminn.github.io/ha-home-desk/" aria-label="Home Desk docs" title="Home Desk docs">
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2M6 4h5v8l-2.5-1.5L6 12z"/></svg>
+  </a>
   <a class="other-project-link" href="https://github.com/Greminn/ha-home-desk" aria-label="Home Desk on GitHub" title="Home Desk on GitHub">
     <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
   </a>
+  </div>
 </div>
 
 </div>
