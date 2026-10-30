@@ -1,14 +1,8 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="brand/extras/social-preview-dark-1280x640.png">
-  <img alt="Spatial Context: give your AI assistant a floor plan of your home." src="brand/extras/social-preview-1280x640.png">
-</picture>
+![Spatial Context: give your AI assistant a floor plan of your home.](https://raw.githubusercontent.com/Greminn/ha-spatial-context/main/brand/extras/social-preview-1280x640.png)
 
 Home Assistant knows your devices by name and area, but not where anything actually *is*: how far the hallway sensor is from the router, which walls sit between a Zigbee bulb and its parent, what's on the other side of the garage door. Spatial Context lets you trace your floor plans over the top of your house plans, place your real devices on them, and hand the result to an AI assistant, an automation or a script as real-world, measured data.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="site/public/screenshots/hero-dark.png">
-  <img alt="An AI assistant answering questions about the home from the floor plan, beside the Zigbee mesh on the Top Floor" src="site/public/screenshots/hero-light.jpeg">
-</picture>
+![An AI assistant answering questions about the home from the floor plan, beside the Zigbee mesh on the Top Floor](https://raw.githubusercontent.com/Greminn/ha-spatial-context/main/site/public/screenshots/hero-light.jpeg)
 
 *An AI assistant answering questions about the home from its floor plan, beside the Top Floor with the Zigbee mesh layer on. The conversations are illustrations of what the map makes possible.*
 
