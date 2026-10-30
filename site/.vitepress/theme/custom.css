@@ -115,26 +115,21 @@
   font-weight: 600;
 }
 
-.other-project-badge {
-  margin-left: 8px;
-  padding: 2px 10px;
-  border-radius: 12px;
-  background-color: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
-  font-size: 12px;
-  font-weight: 600;
-  vertical-align: 2px;
-}
-
 .other-project-text {
   margin-top: 4px;
   color: var(--vp-c-text-2);
   line-height: 24px;
 }
 
+.other-project-links {
+  flex: none;
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+}
+
 .other-project-link {
   flex: none;
-  margin-left: auto;
   color: var(--vp-c-text-2);
   transition: color 0.25s;
 }
