@@ -194,7 +194,10 @@
     "showPlaced": "Platziert",
     "locate": "Im Plan anzeigen",
     "remove": "Aus dem Plan entfernen",
-    "title": "Gerät platzieren"
+    "title": "Gerät platzieren",
+    "hide": "In dieser Liste ausblenden",
+    "unhide": "In dieser Liste anzeigen",
+    "showHidden": "Ausgeblendete Geräte"
   },
   "iconPicker": {
     "title": "Symbol auswählen",
@@ -309,7 +312,24 @@
     "deletePin": "{name} von dieser Etage entfernen?",
     "deleteDoor": "Diese Tür löschen?",
     "deleteWindow": "Dieses Fenster löschen?",
-    "removeFromSpot": "{name} von dieser Stelle entfernen?"
+    "removeFromSpot": "{name} von dieser Stelle entfernen?",
+    "clearTitle": "Platzierte Geräte entfernen",
+    "clearChoose": "Welche platzierten Geräte sollen aus dem Plan entfernt werden? Die Geräte selbst bleiben unverändert.",
+    "clearScope": {
+      "area": "In {area} ({count})",
+      "floor": "Auf dieser Etage ({count})",
+      "building": "In diesem Gebäude, alle Etagen ({count})",
+      "all": "Überall: alle Etagen und draußen ({count})"
+    },
+    "resetFloorTitle": "„{floor}“ zurücksetzen",
+    "resetFloorChoose": "Wählen Sie, was entfernt werden soll. Nichts ist endgültig, bis Sie anschließend auf Speichern klicken.",
+    "resetPart": {
+      "rooms": "Räume ({count})",
+      "walls": "Wände mit Türen und Fenstern ({count})",
+      "openings": "Nur Türen und Fenster ({count})",
+      "pins": "Platzierte Geräte ({count})",
+      "background": "Hintergrundbild"
+    }
   },
   "prompt": {
     "distance": "Tatsächlicher Abstand zwischen diesen beiden Punkten in {unit}:"

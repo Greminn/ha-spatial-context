@@ -307,6 +307,11 @@ def _empty_settings() -> dict[str, Any]:
         # Send panel events to <config>/spatial_context_debug.log (see
         # debug.py) — off unless someone is chasing a problem.
         "debug_logging": False,
+        # Devices hidden from the panel's Place device list (#43): HA devices
+        # that are not worth placing, such as the extra device a router
+        # integration adds for every client. Display only; the device and
+        # any pin it already has are untouched.
+        "hidden_device_ids": [],
     }
 
 

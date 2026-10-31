@@ -38,6 +38,8 @@ export class EntityPickerSidebar extends LitElement {
   @state() private _menuOpen = false;
   @property({ attribute: false }) entities: PlaceableEntity[] = [];
   @property({ attribute: false }) placedDeviceIds: Set<string> = new Set();
+  /** Devices the user hid from this list (#43). */
+  @property({ attribute: false }) hiddenDeviceIds: Set<string> = new Set();
   @property({ attribute: false }) armedEntityId: string | null = null;
   @property({ attribute: false }) floors: FloorMeta[] = [];
   @property({ attribute: false }) areas: AreaMeta[] = [];
@@ -54,7 +56,8 @@ export class EntityPickerSidebar extends LitElement {
    * from the dropdown, overriding the follow-current-floor default. */
   @state() private _floorFilter: string | "all" | null = null;
   @state() private _areaFilter: string | null = null;
-  @state() private _placedFilter: "all" | "unplaced" | "placed" = "all";
+  @state() private _placedFilter: "all" | "unplaced" | "placed" | "hidden" =
+    "all";
 
   // --- resizable width (per-browser, not shared — see #22) --------------
 
@@ -249,14 +252,19 @@ export class EntityPickerSidebar extends LitElement {
     const q = this._search.trim().toLowerCase();
     const floorId = this._effectiveFloorFilter;
     const areaId = this._areaFilter;
+    const showHidden = this._placedFilter === "hidden";
     return this._devices.filter((d) => {
+      if (this.hiddenDeviceIds.has(d.deviceId) !== showHidden) return false;
       if (areaId) {
         if (d.areaId !== areaId) return false;
       } else if (floorId) {
         const area = this.areas.find((a) => a.area_id === d.areaId);
         if (!area || !this._areaIsOnFloor(area, floorId)) return false;
       }
-      if (this._placedFilter !== "all") {
+      if (
+        this._placedFilter === "unplaced" ||
+        this._placedFilter === "placed"
+      ) {
         const placed = isDevicePlaced(
           d.deviceId,
           d.entities,
@@ -410,7 +418,17 @@ export class EntityPickerSidebar extends LitElement {
                 ?selected=${this._placedFilter === "placed"}
               >
                 ${localize("picker.showPlaced")}
-              </option></select
+              </option>
+              ${
+                this.hiddenDeviceIds.size > 0 || this._placedFilter === "hidden"
+                  ? html`<option
+                      value="hidden"
+                      ?selected=${this._placedFilter === "hidden"}
+                    >
+                      ${localize("picker.showHidden")}
+                    </option>`
+                  : nothing
+              }</select
             ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
           ></span>
         </div>
@@ -423,6 +441,7 @@ export class EntityPickerSidebar extends LitElement {
                     this._menuOpen = false;
                     this.dispatchEvent(
                       new CustomEvent("clear-all-pins", {
+                        detail: { areaId: this._areaFilter },
                         bubbles: true,
                         composed: true,
                       }),
@@ -506,6 +525,40 @@ export class EntityPickerSidebar extends LitElement {
                       }
                       ${placed ? html`<span class="meta">${localize("picker.placed")}</span>` : nothing}
                     </span>
+                    ${
+                      !placed
+                        ? html`<span class="row-actions">
+                            <button
+                              title=${localize(
+                                this.hiddenDeviceIds.has(device.deviceId)
+                                  ? "picker.unhide"
+                                  : "picker.hide",
+                              )}
+                              aria-label=${localize(
+                                this.hiddenDeviceIds.has(device.deviceId)
+                                  ? "picker.unhide"
+                                  : "picker.hide",
+                              )}
+                              @click=${(e: Event) =>
+                                this._emitForDevice(
+                                  e,
+                                  this.hiddenDeviceIds.has(device.deviceId)
+                                    ? "device-unhide"
+                                    : "device-hide",
+                                  device.deviceId,
+                                )}
+                            >
+                              <ha-icon
+                                icon=${
+                                  this.hiddenDeviceIds.has(device.deviceId)
+                                    ? "mdi:eye-outline"
+                                    : "mdi:eye-off-outline"
+                                }
+                              ></ha-icon>
+                            </button>
+                          </span>`
+                        : nothing
+                    }
                     ${
                       placed
                         ? html`<span class="row-actions">

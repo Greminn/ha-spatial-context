@@ -5,6 +5,9 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 ## Unreleased
 
 ### Added
+- Devices can be hidden from the **Place device** list with the eye button on a row, and brought back from the new **Hidden devices** filter (#43).
+- **Clear placed devices** asks how far to go: in the selected area, on this floor, in this building or everywhere, with the number of devices for each (#44).
+- **Reset floor** has a checkbox for each thing it can clear: rooms, walls, doors and windows, placed devices and the background image (#45). Choosing everything works as before.
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
 
 ### Changed

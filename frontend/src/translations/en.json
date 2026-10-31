@@ -194,7 +194,10 @@
     "showPlaced": "Placed",
     "locate": "Show on plan",
     "remove": "Remove from plan",
-    "title": "Place device"
+    "title": "Place device",
+    "hide": "Hide from this list",
+    "unhide": "Show in this list",
+    "showHidden": "Hidden devices"
   },
   "iconPicker": {
     "title": "Choose an icon",
@@ -309,7 +312,24 @@
     "deletePin": "Remove {name} from this floor?",
     "deleteDoor": "Delete this door?",
     "deleteWindow": "Delete this window?",
-    "removeFromSpot": "Remove {name} from this spot?"
+    "removeFromSpot": "Remove {name} from this spot?",
+    "clearTitle": "Clear placed devices",
+    "clearChoose": "Which placed devices should be removed from the plan? The devices themselves are not touched.",
+    "clearScope": {
+      "area": "In {area} ({count})",
+      "floor": "On this floor ({count})",
+      "building": "In this building, every floor ({count})",
+      "all": "Everywhere: every floor and outdoors ({count})"
+    },
+    "resetFloorTitle": "Reset \"{floor}\"",
+    "resetFloorChoose": "Choose what to clear. Nothing is permanent until you hit Save afterwards.",
+    "resetPart": {
+      "rooms": "Rooms ({count})",
+      "walls": "Walls, with their doors and windows ({count})",
+      "openings": "Doors and windows only ({count})",
+      "pins": "Placed devices ({count})",
+      "background": "Background image"
+    }
   },
   "prompt": {
     "distance": "Real-world distance between these two points, in {unit}:"

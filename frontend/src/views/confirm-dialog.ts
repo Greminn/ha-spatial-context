@@ -4,14 +4,24 @@ import { safeCustomElement } from "../define";
 import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 
+export interface ChoiceOption {
+  key: string;
+  label: string;
+  /** Shown under the label, e.g. what the choice will remove. */
+  hint?: string;
+  checked?: boolean;
+}
+
 interface Request {
-  kind: "confirm" | "alert" | "prompt";
+  kind: "confirm" | "alert" | "prompt" | "choose";
+  options?: ChoiceOption[];
+  multi?: boolean;
   text: string;
   title?: string;
   confirmText?: string;
   dismissText?: string;
   destructive?: boolean;
-  resolve: (value: boolean | string | null) => void;
+  resolve: (value: boolean | string | string[] | null) => void;
 }
 
 /** One dialog for every confirmation, error notice and one-line question in
@@ -54,9 +64,32 @@ export class ScDialog extends LitElement {
         line-height: 1.5;
         white-space: pre-line;
       }
-      input {
+      input[type="text"] {
         width: 100%;
         margin-top: var(--ha-space-4, 16px);
+      }
+      .choices {
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-2, 8px);
+        margin-top: var(--ha-space-4, 16px);
+      }
+      .choice {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--ha-space-3, 12px);
+        cursor: pointer;
+        font-size: var(--ha-font-size-m, 14px);
+        line-height: 1.4;
+      }
+      .choice input {
+        margin: 2px 0 0;
+        accent-color: var(--sc-accent);
+      }
+      .choice .hint {
+        display: block;
+        color: var(--sc-fg-secondary);
+        font-size: var(--sc-fs-small);
       }
       .footer {
         display: flex;
@@ -86,6 +119,7 @@ export class ScDialog extends LitElement {
 
   @state() private _req: Request | null = null;
   @state() private _value = "";
+  @state() private _picked: Set<string> = new Set();
   @query("dialog") private _dialog!: HTMLDialogElement;
 
   confirm(opts: {
@@ -111,25 +145,43 @@ export class ScDialog extends LitElement {
     return this._open({ kind: "prompt", ...opts }) as Promise<string | null>;
   }
 
+  /** A set of options to pick from: radio buttons, or checkboxes when
+   * `multi`. Resolves the picked keys, or null if cancelled. */
+  choose(opts: {
+    text: string;
+    title?: string;
+    options: ChoiceOption[];
+    multi?: boolean;
+    confirmText?: string;
+    destructive?: boolean;
+  }): Promise<string[] | null> {
+    return this._open({ kind: "choose", ...opts }) as Promise<string[] | null>;
+  }
+
   private _open(
     req: Omit<Request, "resolve">,
-  ): Promise<boolean | string | null> {
+  ): Promise<boolean | string | string[] | null> {
     // A second request while one is open dismisses the first.
     this._onCancel();
     return new Promise((resolve) => {
       this._value = "";
+      this._picked = new Set(
+        (req.options ?? []).filter((o) => o.checked).map((o) => o.key),
+      );
       this._req = { ...req, resolve };
       void this.updateComplete.then(() => {
         if (!this._dialog.open) this._dialog.showModal();
         const target = this.renderRoot.querySelector<HTMLElement>(
-          req.destructive ? "button.cancel" : "input, button.confirm",
+          req.destructive
+            ? "button.cancel"
+            : "input[type=text], button.confirm",
         );
         target?.focus();
       });
     });
   }
 
-  private _finish(value: boolean | string | null): void {
+  private _finish(value: boolean | string | string[] | null): void {
     const req = this._req;
     if (!req) return;
     this._req = null;
@@ -138,12 +190,26 @@ export class ScDialog extends LitElement {
   }
 
   private _onConfirm = () => {
-    this._finish(this._req?.kind === "prompt" ? this._value : true);
+    const kind = this._req?.kind;
+    if (kind === "choose") this._finish([...this._picked]);
+    else this._finish(kind === "prompt" ? this._value : true);
   };
 
   private _onCancel = () => {
-    this._finish(this._req?.kind === "prompt" ? null : false);
+    const kind = this._req?.kind;
+    this._finish(kind === "prompt" || kind === "choose" ? null : false);
   };
+
+  private _onPick(key: string, on: boolean): void {
+    if (this._req?.multi) {
+      const next = new Set(this._picked);
+      if (on) next.add(key);
+      else next.delete(key);
+      this._picked = next;
+    } else {
+      this._picked = new Set([key]);
+    }
+  }
 
   /** Escape: the dialog's own cancel event. */
   private _onDialogCancel = (e: Event) => {
@@ -183,6 +249,34 @@ export class ScDialog extends LitElement {
                       />`
                     : nothing
                 }
+                ${
+                  req.kind === "choose"
+                    ? html`<div class="choices">
+                        ${(req.options ?? []).map(
+                          (o) =>
+                            html`<label class="choice">
+                              <input
+                                type=${req.multi ? "checkbox" : "radio"}
+                                name="choice"
+                                .checked=${this._picked.has(o.key)}
+                                @change=${(e: Event) =>
+                                  this._onPick(
+                                    o.key,
+                                    (e.target as HTMLInputElement).checked,
+                                  )}
+                              />
+                              <span
+                                >${o.label}${
+                                  o.hint
+                                    ? html`<span class="hint">${o.hint}</span>`
+                                    : nothing
+                                }</span
+                              >
+                            </label>`,
+                        )}
+                      </div>`
+                    : nothing
+                }
               </div>
               <div class="footer">
                 ${
@@ -194,6 +288,7 @@ export class ScDialog extends LitElement {
                 }
                 <button
                   class="confirm ${req.destructive ? "destructive" : ""}"
+                  ?disabled=${req.kind === "choose" && this._picked.size === 0}
                   @click=${this._onConfirm}
                 >
                   ${req.confirmText ?? localize("dialog.ok")}

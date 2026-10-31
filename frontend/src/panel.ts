@@ -71,6 +71,13 @@ import {
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
+  RESET_PARTS,
+  pinsToClear,
+  resetFloorParts,
+  withoutPins,
+  type ResetPart,
+} from "./clear-scope";
+import {
   selectStyles,
   sharedStyles,
   sliderStyles,
@@ -284,6 +291,28 @@ export class SpatialContextPanel extends LitElement {
 
   private get _entityLookup(): Map<string, PlaceableEntity> {
     return new Map(this._entities.map((e) => [e.entity_id, e]));
+  }
+
+  private get _hiddenDeviceIds(): Set<string> {
+    return new Set(this._settings.hidden_device_ids ?? []);
+  }
+
+  private _onDeviceHide = (e: CustomEvent<{ deviceId: string }>) =>
+    this._setDeviceHidden(e.detail.deviceId, true);
+
+  private _onDeviceUnhide = (e: CustomEvent<{ deviceId: string }>) =>
+    this._setDeviceHidden(e.detail.deviceId, false);
+
+  /** Hiding is a shared preference (#43), so it saves like any Settings change. */
+  private _setDeviceHidden(deviceId: string, hidden: boolean): void {
+    const ids = new Set(this._settings.hidden_device_ids ?? []);
+    if (hidden) ids.add(deviceId);
+    else ids.delete(deviceId);
+    this._onSettingsChange(
+      new CustomEvent("settings-change", {
+        detail: { hidden_device_ids: [...ids] },
+      }),
+    );
   }
 
   private get _placedDeviceIds(): Set<string> {
@@ -1731,12 +1760,33 @@ export class SpatialContextPanel extends LitElement {
     const floorName =
       this._floors.find((f) => f.floor_id === this._currentFloorId)?.name ??
       localize("floor.thisFloor");
-    if (!(await this._ask("resetFloor", "reset", { floor: floorName }))) {
-      return;
-    }
+    const l = this._layout;
+    const counts: Record<ResetPart, number> = {
+      rooms: l.rooms.length,
+      walls: l.walls.length,
+      openings: l.openings.length,
+      pins: l.pins.length,
+      background: l.background_image_id ? 1 : 0,
+    };
+    const picked = await this._dialogEl?.choose({
+      title: localize("confirm.resetFloorTitle", { floor: floorName }),
+      text: localize("confirm.resetFloorChoose"),
+      options: RESET_PARTS.map((part) => ({
+        key: part,
+        label: localize(`confirm.resetPart.${part}`, { count: counts[part] }),
+        checked: true,
+      })),
+      multi: true,
+      confirmText: localize("dialog.reset"),
+      destructive: true,
+    });
+    if (!picked) return;
     this._autoSaveHeld = true;
     this._floorHistory.record(this._layout);
-    this._layout = emptyFloorLayout();
+    this._layout = resetFloorParts(
+      this._layout,
+      new Set(picked as ResetPart[]),
+    );
     this._dirty = true;
     this._resetSelection();
     this._pinStackIds = null;
@@ -2499,23 +2549,99 @@ export class SpatialContextPanel extends LitElement {
       this._armedEntityId === e.detail.entityId ? null : e.detail.entityId;
   };
 
-  private _onClearAllPins = async () => {
-    const count = this._layout.pins.length;
-    if (count === 0) return;
-    if (
-      !(await this._ask(
-        count === 1 ? "removeFloorOne" : "removeFloorMany",
-        "remove",
-        { count },
-      ))
-    ) {
-      return;
-    }
+  /** "Clear placed devices" (#44): asks how far to go, with the counts, then
+   * clears just that. The open floor is edited in place (and saved like any
+   * edit); other floors are rewritten in storage, as Align Floors does. */
+  private _onClearAllPins = async (
+    e: CustomEvent<{ areaId: string | null }>,
+  ) => {
+    const floorId = this._currentFloorId;
+    if (!floorId) return;
+    const areaId = e.detail?.areaId ?? null;
+    const otherIds = this._floors
+      .map((f) => f.floor_id)
+      .filter((id) => id !== floorId);
+    const others = new Map(
+      await Promise.all(
+        otherIds.map(
+          async (id) => [id, await this._client.getLayout(id)] as const,
+        ),
+      ),
+    );
+    const buildingId = this._layout.building_id;
+    const sameBuilding = otherIds.filter(
+      (id) => buildingId !== null && others.get(id)!.building_id === buildingId,
+    );
+    const sum = (ids: string[]) =>
+      ids.reduce((n, id) => n + others.get(id)!.pins.length, 0);
+    const thisFloor = this._layout.pins.length;
+    const area = areaId ? this._areas.find((a) => a.area_id === areaId) : null;
+    const areaCount = areaId ? pinsToClear(this._layout, areaId).length : 0;
+    const options = [
+      ...(area && areaCount > 0
+        ? [
+            {
+              key: "area",
+              label: localize("confirm.clearScope.area", {
+                area: area.name,
+                count: areaCount,
+              }),
+            },
+          ]
+        : []),
+      {
+        key: "floor",
+        label: localize("confirm.clearScope.floor", { count: thisFloor }),
+      },
+      ...(sameBuilding.length > 0
+        ? [
+            {
+              key: "building",
+              label: localize("confirm.clearScope.building", {
+                count: thisFloor + sum(sameBuilding),
+              }),
+            },
+          ]
+        : []),
+      {
+        key: "all",
+        label: localize("confirm.clearScope.all", {
+          count: thisFloor + sum(otherIds) + this._propertyLayout.pins.length,
+        }),
+      },
+    ];
+    const picked = await this._dialogEl?.choose({
+      title: localize("confirm.clearTitle"),
+      text: localize("confirm.clearChoose"),
+      options: options.map((o, i) => ({ ...o, checked: i === 0 })),
+      confirmText: localize("dialog.remove"),
+      destructive: true,
+    });
+    const scope = picked?.[0];
+    if (!scope) return;
+
+    const otherTargets =
+      scope === "all" ? otherIds : scope === "building" ? sameBuilding : [];
     this._autoSaveHeld = true;
-    this._updateLayout({ pins: [] });
+    this._updateLayout({
+      pins: withoutPins(
+        this._layout,
+        pinsToClear(this._layout, scope === "area" ? areaId : null),
+      ).pins,
+    });
     this._selectedPinId = null;
     this._multiPinIds = [];
     this._pinStackIds = null;
+    await Promise.all(
+      otherTargets.map((id) =>
+        this._client.saveLayout(id, { ...others.get(id)!, pins: [] }),
+      ),
+    );
+    if (scope === "all" && this._propertyLayout.pins.length > 0) {
+      this._updatePropertyLayout({ pins: [] });
+      this._selectedOutdoorPinId = null;
+    }
+    if (otherTargets.length > 0) void this._loadOtherFloorPins(floorId);
   };
 
   // --- canvas ---------------------------------------------------------
@@ -3390,6 +3516,7 @@ export class SpatialContextPanel extends LitElement {
                               @picker-close=${this._onPickerClose}
                               .entities=${this._entities}
                               .placedDeviceIds=${this._placedDeviceIds}
+                              .hiddenDeviceIds=${this._hiddenDeviceIds}
                               .armedEntityId=${this._armedEntityId}
                               .floors=${this._floors}
                               .areas=${this._areas}
@@ -3398,6 +3525,8 @@ export class SpatialContextPanel extends LitElement {
                               @pin-locate=${this._onPickerPinLocate}
                               @pin-remove=${this._onPickerPinRemove}
                               @clear-all-pins=${this._onClearAllOutdoorPins}
+                              @device-hide=${this._onDeviceHide}
+                              @device-unhide=${this._onDeviceUnhide}
                             ></entity-picker-sidebar>`
                           : nothing
                       }
@@ -3550,6 +3679,7 @@ export class SpatialContextPanel extends LitElement {
                               @picker-close=${this._onPickerClose}
                               .entities=${this._entities}
                               .placedDeviceIds=${this._placedDeviceIds}
+                              .hiddenDeviceIds=${this._hiddenDeviceIds}
                               .armedEntityId=${this._armedEntityId}
                               .floors=${this._floors}
                               .areas=${this._areas}
@@ -3559,6 +3689,8 @@ export class SpatialContextPanel extends LitElement {
                               @pin-locate=${this._onPickerPinLocate}
                               @pin-remove=${this._onPickerPinRemove}
                               @clear-all-pins=${this._onClearAllPins}
+                              @device-hide=${this._onDeviceHide}
+                              @device-unhide=${this._onDeviceUnhide}
                             ></entity-picker-sidebar>`
                           : nothing
                       }

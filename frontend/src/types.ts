@@ -94,6 +94,10 @@ export interface Settings {
   auto_save: boolean;
   /** Send panel events to the backend's debug log file (see debug.py). */
   debug_logging: boolean;
+  /** Devices hidden from the Place device list (#43). Absent until the
+   * backend reports it, so a panel newer than the running backend never
+   * sends a field the backend's strict schema would reject. */
+  hidden_device_ids?: string[];
 }
 
 /** What the backend reports for the version handshake (see debug.py). */
