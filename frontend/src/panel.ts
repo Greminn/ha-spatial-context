@@ -1828,6 +1828,11 @@ export class SpatialContextPanel extends LitElement {
     const patch = e.detail;
     this._settings = { ...this._settings, ...patch };
     const saved = this._client.saveSettings(this._settings);
+    // A rejected save used to vanish: the change looked applied until a
+    // reload brought the old value back.
+    saved.catch((err: unknown) => {
+      this._saveError = this._describeSaveError(err);
+    });
     if ("auto_save" in patch) this._scheduleAutoSave();
     if ("zigbee_coordinator_device_id" in patch) {
       this._selectedMeshLink = null;
