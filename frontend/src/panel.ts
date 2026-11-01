@@ -230,6 +230,10 @@ export class SpatialContextPanel extends LitElement {
    * to keep the live pan/zoom when the floor just switched to has no
    * saved view of its own (see that component's `updated()`). */
   @state() private _sameBuildingAsPreviousFloor = false;
+  /** The floor `_layout` belongs to. Unlike `_currentFloorId` it only
+   * changes in the same step as the layout, so "Fit to screen" (#48) fits
+   * the floor that is actually on screen, not the one it replaced. */
+  @state() private _layoutFloorId: string | null = null;
 
   /** Align Floors mode's working state — none of this is persisted until
    * Apply; Cancel or leaving align mode (see _resetAlignState) just drops
@@ -767,6 +771,7 @@ export class SpatialContextPanel extends LitElement {
       ...loaded,
       rooms: adoptAreaNames(loaded.rooms, this._areas),
     };
+    this._layoutFloorId = floorId;
     this._resetSelection();
     this._resetAlignState();
     // Self-heal a layout saved before room assignment was kept in sync with
@@ -3567,7 +3572,7 @@ export class SpatialContextPanel extends LitElement {
                           .alignOverlay=${this._alignOverlay}
                           .initialViewBox=${this._layout.view_box}
                           .fitOnOpen=${this._settings.open_view === "fit"}
-                          .floorKey=${this._currentFloorId}
+                          .floorKey=${this._layoutFloorId}
                           .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
                           .mode=${this._mode}
                           .snapMode=${this._snapMode}
