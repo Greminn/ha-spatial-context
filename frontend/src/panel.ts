@@ -3570,7 +3570,11 @@ export class SpatialContextPanel extends LitElement {
                           .backgroundOffsetY=${this._layout.background_offset_y}
                           .backgroundScale=${this._layout.background_scale}
                           .alignOverlay=${this._alignOverlay}
-                          .initialViewBox=${this._layout.view_box}
+                          .initialViewBox=${
+                            this._settings.open_view === "fit"
+                              ? null
+                              : this._layout.view_box
+                          }
                           .fitOnOpen=${this._settings.open_view === "fit"}
                           .floorKey=${this._layoutFloorId}
                           .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
