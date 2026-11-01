@@ -175,7 +175,11 @@
     "githubHint": "Greminn/ha-spatial-context – ein Stern hilft anderen, es zu finden",
     "support": "Projekt unterstützen",
     "supportHint": "Kostenlos und ohne Gewähr. Spendiere mir einen Espresso, wenn es dir nützt",
-    "licence": "Lizenz"
+    "licence": "Lizenz",
+    "openView": "Ansicht beim Öffnen",
+    "savedView": "Gespeicherte Ansicht",
+    "fitToScreen": "An Bildschirm anpassen",
+    "openViewHint": "Womit eine Etage oder die Grundstücksansicht startet. Gespeicherte Ansichten bleiben unverändert."
   },
   "picker": {
     "search": "Geräte suchen…",

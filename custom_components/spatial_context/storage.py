@@ -312,6 +312,10 @@ def _empty_settings() -> dict[str, Any]:
         # integration adds for every client. Display only; the device and
         # any pin it already has are untouched.
         "hidden_device_ids": [],
+        # Where a floor or the Property tab starts when opened (#48): "saved"
+        # (the view saved with Save) or "fit" (fitted to the screen). Saved
+        # views are never touched, so switching back restores them.
+        "open_view": "saved",
     }
 
 

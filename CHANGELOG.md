@@ -8,6 +8,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - Devices can be hidden from the **Place device** list with the eye button on a row, and brought back from the new **Hidden devices** filter (#43).
 - **Clear placed devices** asks how far to go: in the selected area, on this floor, in this building or everywhere, with the number of devices for each (#44).
 - **Reset floor** has a checkbox for each thing it can clear: rooms, walls, doors and windows, placed devices and the background image (#45). Choosing everything works as before.
+- An **Opening a view** setting: choose **Fit to screen** and every floor and the Property tab open fitted to the screen instead of at their saved view. Saved views are not changed (#48).
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
 
 ### Changed
@@ -15,6 +16,8 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed
+- Devices whose only enabled entities are firmware update or event entities, such as IKEA Tradfri repeaters and Styrbar remotes, are listed in the Place device list (#54).
+- With only one floor, the Place device list starts on **All floors**, so devices with no area, or an area on no floor, are no longer hidden (#54).
 - The OpenThread Border Router app, and Home Assistant Yellow, Green, SkyConnect and ZBT-2 hardware, can now be placed on the plan and chosen under **Settings → Border router** (#42).
 - The **Not placed yet** filter in the device list no longer shows devices that are placed on another floor.
 

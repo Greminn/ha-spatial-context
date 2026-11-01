@@ -123,6 +123,9 @@ export class HaClient {
       thread_border_router_device_id: settings.thread_border_router_device_id,
       auto_save: settings.auto_save,
       debug_logging: settings.debug_logging,
+      ...(settings.open_view !== undefined
+        ? { open_view: settings.open_view }
+        : {}),
       ...(settings.hidden_device_ids !== undefined
         ? { hidden_device_ids: settings.hidden_device_ids }
         : {}),

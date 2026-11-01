@@ -98,6 +98,9 @@ export interface Settings {
    * backend reports it, so a panel newer than the running backend never
    * sends a field the backend's strict schema would reject. */
   hidden_device_ids?: string[];
+  /** Where a floor or the Property tab starts (#48): the saved view, or
+   * fitted to the screen. Absent until the backend reports it. */
+  open_view?: "saved" | "fit";
 }
 
 /** What the backend reports for the version handshake (see debug.py). */

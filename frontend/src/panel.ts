@@ -3440,7 +3440,11 @@ export class SpatialContextPanel extends LitElement {
                           .backgroundOffsetX=${this._propertyLayout.background_offset_x}
                           .backgroundOffsetY=${this._propertyLayout.background_offset_y}
                           .backgroundScale=${this._propertyLayout.background_scale}
-                          .initialViewBox=${this._propertyLayout.view_box}
+                          .initialViewBox=${
+                            this._settings.open_view === "fit"
+                              ? null
+                              : this._propertyLayout.view_box
+                          }
                           .mode=${this._propertyMode}
                           .selectedPlacementId=${this._selectedPlacementId}
                           .pins=${this._propertyLayout.pins}
@@ -3562,6 +3566,8 @@ export class SpatialContextPanel extends LitElement {
                           .backgroundScale=${this._layout.background_scale}
                           .alignOverlay=${this._alignOverlay}
                           .initialViewBox=${this._layout.view_box}
+                          .fitOnOpen=${this._settings.open_view === "fit"}
+                          .floorKey=${this._currentFloorId}
                           .sameBuildingAsPrevious=${this._sameBuildingAsPreviousFloor}
                           .mode=${this._mode}
                           .snapMode=${this._snapMode}

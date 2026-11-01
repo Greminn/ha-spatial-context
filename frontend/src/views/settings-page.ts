@@ -353,6 +353,18 @@ export class SettingsPage extends LitElement {
             (floor_order) => this._change({ floor_order }),
           ),
         )}
+        ${this._row(
+          localize("settings.openView"),
+          this._segmented(
+            s.open_view ?? "saved",
+            [
+              ["saved", localize("settings.savedView")],
+              ["fit", localize("settings.fitToScreen")],
+            ],
+            (open_view) => this._change({ open_view }),
+          ),
+          localize("settings.openViewHint"),
+        )}
       </div>
 
       <div class="card">

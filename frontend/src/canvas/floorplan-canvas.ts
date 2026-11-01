@@ -156,6 +156,11 @@ export class FloorplanCanvas extends LitElement {
    * `updated()`) whenever this reference changes, i.e. on every floor
    * switch, in preference to the same-building/fit-fresh fallback below. */
   @property({ attribute: false }) initialViewBox: ViewBox | null = null;
+  /** The "Fit to screen" opening preference (#48): each time `floorKey`
+   * changes (and on first show) the floor is fitted, whatever view it has
+   * saved. */
+  @property({ type: Boolean }) fitOnOpen = false;
+  @property({ attribute: false }) floorKey: string | null = null;
   /** Whether the floor just switched TO shares a building_id with the one
    * switched FROM — when `initialViewBox` is null, this decides whether to
    * keep the current live pan/zoom (same building, existing continuity
@@ -338,7 +343,11 @@ export class FloorplanCanvas extends LitElement {
       };
       img.src = this.backgroundImageUrl;
     }
-    if (changed.has("initialViewBox")) {
+    if (this.fitOnOpen && changed.has("floorKey")) {
+      this.fitToScreen();
+      this._hasFittedOnce =
+        this._contentBounds() !== null || !this.backgroundImageUrl;
+    } else if (changed.has("initialViewBox")) {
       const vb = this.initialViewBox;
       const cur = this._viewBox;
       if (

@@ -175,7 +175,11 @@
     "githubHint": "Greminn/ha-spatial-context — a star helps others find it",
     "support": "Support the project",
     "supportHint": "Free and shared as is. Buy me an espresso if it's useful",
-    "licence": "Licence"
+    "licence": "Licence",
+    "openView": "Opening a view",
+    "savedView": "Saved view",
+    "fitToScreen": "Fit to screen",
+    "openViewHint": "Where a floor or the Property tab starts. Your saved views are not changed."
   },
   "picker": {
     "search": "Search devices…",

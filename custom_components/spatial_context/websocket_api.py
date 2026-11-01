@@ -360,6 +360,7 @@ _SETTINGS_SCHEMA = {
     vol.Optional("auto_save", default=True): bool,
     vol.Optional("debug_logging", default=False): bool,
     vol.Optional("hidden_device_ids", default=list): [str],
+    vol.Optional("open_view", default="saved"): vol.In(["saved", "fit"]),
 }
 
 

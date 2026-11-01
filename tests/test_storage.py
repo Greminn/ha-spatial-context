@@ -115,6 +115,12 @@ class OlderSavesTest(unittest.TestCase):
         settings = run(storage.async_get_settings(hass))
         self.assertEqual(settings["hidden_device_ids"], [])
 
+    def test_the_opening_view_defaults_to_the_saved_view(self) -> None:
+        hass = stubs.FakeHass()
+        hass.stored[KEY] = {"floors": {}, "settings": {"unit_system": "metric"}}
+        settings = run(storage.async_get_settings(hass))
+        self.assertEqual(settings["open_view"], "saved")
+
     def test_a_placement_without_source_bounds_gets_them_and_keeps_them(self) -> None:
         hass = stubs.FakeHass()
         floor = {**storage._empty_floor(), "walls": [{"id": "w", "points": [[0, 0], [10, 20]]}]}
