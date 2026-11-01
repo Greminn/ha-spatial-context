@@ -163,6 +163,16 @@ export class EntityPickerSidebar extends LitElement {
 
   private get _effectiveFloorFilter(): string | null {
     if (this._floorFilter === "all") return null;
+    // With one floor there is nothing to narrow by, and a device with no
+    // area (or an area on no floor) would be hidden for no visible reason
+    // (#54), so the list starts on every device.
+    if (
+      this._floorFilter === null &&
+      this.floors.length <= 1 &&
+      this.currentFloorId !== PROPERTY_LOCATION_ID
+    ) {
+      return null;
+    }
     return this._floorFilter ?? this.currentFloorId;
   }
 
@@ -343,7 +353,10 @@ export class EntityPickerSidebar extends LitElement {
         <div class="filters">
           <span class="select-wrap"
             ><select @change=${this._onFloorFilterChange}>
-              <option value="all" ?selected=${this._floorFilter === "all"}>
+              <option
+                value="all"
+                ?selected=${this._effectiveFloorFilter === null}
+              >
                 ${localize("picker.allFloors")}
               </option>
               <option
