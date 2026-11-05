@@ -102,6 +102,9 @@ export class CanvasOverlay extends LitElement {
    * absolute real values. */
   @property({ type: Number }) unitsPerMeter: number | null = null;
   @property({ attribute: false }) pinStack: Pin[] | null = null;
+  /** True when the selected device was opened from a "devices at this spot"
+   * list, so its card can offer a way back to that list. */
+  @property({ type: Boolean }) canReturnToStack = false;
   @property({ attribute: false }) entityLookup: Map<string, PlaceableEntity> =
     new Map();
   @property({ attribute: false }) selectedOpening: Opening | null = null;
@@ -706,6 +709,12 @@ export class CanvasOverlay extends LitElement {
         title: this._pinLabel(pin),
         subtitle: localize("canvas.card.device"),
         onClose: this._clearSelection,
+        ...(this.canReturnToStack
+          ? {
+              onBack: () => this._fire("pin-stack-back"),
+              backLabel: localize("canvas.pin.backToGroup"),
+            }
+          : {}),
         body: html`<div class="info-group">
             ${this._fieldRow(
               "mdi:tag-text",
@@ -956,6 +965,15 @@ export class CanvasOverlay extends LitElement {
                 @click=${() => this._fire("pin-stack-choose", { pinId: pin.id })}
               >
                 ${this._pinLabel(pin)}
+              </button>
+              <button
+                class="stack-move"
+                title=${localize("canvas.pin.moveOutOfSpot")}
+                aria-label=${localize("canvas.pin.moveOutOfSpot")}
+                @click=${() =>
+                  this._fire("pin-stack-move-out", { pinId: pin.id })}
+              >
+                <ha-icon icon="mdi:arrow-top-right"></ha-icon>
               </button>
               <button
                 class="stack-remove"

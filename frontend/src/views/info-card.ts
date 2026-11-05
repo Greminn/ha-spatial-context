@@ -117,6 +117,12 @@ export const infoCardStyles = css`
   .info-row.stack-row button:hover:not(:disabled):not(.primary) {
     background-image: none;
   }
+  .info-row.stack-row .stack-move:hover:not(:disabled):not(.primary) {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--sc-accent) 16%, transparent),
+      color-mix(in srgb, var(--sc-accent) 16%, transparent)
+    );
+  }
   .info-row.stack-row .stack-remove:hover:not(:disabled):not(.primary) {
     background-image: linear-gradient(
       color-mix(in srgb, var(--sc-danger) 16%, transparent),
@@ -178,6 +184,7 @@ export const infoCardStyles = css`
     text-align: start;
     justify-content: flex-start;
   }
+  .stack-move,
   .stack-remove {
     display: grid;
     place-items: center;
@@ -185,7 +192,12 @@ export const infoCardStyles = css`
     height: var(--sc-h-field);
     padding: 0;
     border-radius: 50%;
+  }
+  .stack-remove {
     color: var(--sc-danger);
+  }
+  .stack-move {
+    color: var(--secondary-text-color);
   }
   .info-foot {
     display: flex;
@@ -245,6 +257,9 @@ export function renderCard(opts: {
   title: string;
   subtitle?: string | undefined;
   onClose: () => void;
+  /** Optional "back" button shown before the title (e.g. back to a group). */
+  onBack?: () => void;
+  backLabel?: string;
   body: unknown;
   footer?: unknown;
   /** Folded to just the header, with a chevron to toggle it. */
@@ -262,6 +277,18 @@ export function renderCard(opts: {
         >
           <ha-icon icon="mdi:close"></ha-icon>
         </button>
+        ${
+          opts.onBack
+            ? html`<button
+                class="info-close"
+                title=${opts.backLabel ?? localize("canvas.button.back")}
+                aria-label=${opts.backLabel ?? localize("canvas.button.back")}
+                @click=${opts.onBack}
+              >
+                <ha-icon icon="mdi:arrow-left"></ha-icon>
+              </button>`
+            : nothing
+        }
         <div class="info-titles">
           <div class="info-title">${opts.title}</div>
           ${

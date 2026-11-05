@@ -461,6 +461,12 @@ export class FloorplanCanvas extends LitElement {
     };
   }
 
+  /** How far to move a device so it no longer overlaps the one it was
+   * stacked with, at the current zoom (#47). */
+  pinMoveOutDistance(): number {
+    return this._pxToUnits(PIN_RADIUS_PX * 3);
+  }
+
   private _pxToUnits(px: number): number {
     return px / this._svgTransform().scale;
   }

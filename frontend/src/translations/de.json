@@ -56,6 +56,7 @@
       "chooseAnother": "Andere wählen",
       "apply": "Anwenden",
       "close": "Schließen",
+      "back": "Zurück",
       "clearSelection": "Auswahl aufheben"
     },
     "align": {
@@ -77,8 +78,10 @@
     "pin": {
       "setIcon": "Symbol festlegen",
       "delete": "Gerät entfernen",
+      "moveOutOfSpot": "Von dieser Stelle wegbewegen",
       "removeFromSpot": "Von dieser Stelle entfernen",
-      "stackTitle": "{count} Geräte an dieser Stelle"
+      "stackTitle": "{count} Geräte an dieser Stelle",
+      "backToGroup": "Zurück zur Gruppe"
     },
     "wall": {
       "material": "Wandmaterial",

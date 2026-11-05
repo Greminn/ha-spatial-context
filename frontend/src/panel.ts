@@ -156,6 +156,8 @@ export class SpatialContextPanel extends LitElement {
   /** Set when a click/placement lands where 2+ pins share a spot — the
    * overlay shows a picker instead of guessing which one was meant. */
   @state() private _pinStackIds: string[] | null = null;
+  /** The stack a device was picked from, so its card can go back to it. */
+  @state() private _returnStackIds: string[] | null = null;
   @state() private _selectedWallId: string | null = null;
   @state() private _editingWallId: string | null = null;
   @state() private _selectedOpeningId: string | null = null;
@@ -635,6 +637,16 @@ export class SpatialContextPanel extends LitElement {
       .map((id) => byId.get(id))
       .filter((p): p is Pin => !!p);
     return pins.length > 1 ? pins : null;
+  }
+
+  /** True while the selected pin is one that was picked from a stack. */
+  private get _canReturnToStack(): boolean {
+    const ids = this._returnStackIds;
+    if (!ids || !this._selectedPinId || this._multiPinIds.length > 0)
+      return false;
+    if (!ids.includes(this._selectedPinId)) return false;
+    const live = this._layout.pins.filter((p) => ids.includes(p.id));
+    return live.length > 1;
   }
 
   private get _selectedWall(): Wall | null {
@@ -1375,7 +1387,15 @@ export class SpatialContextPanel extends LitElement {
     return longMeters / mpu;
   }
 
-  private _onPlacementPlace = (e: CustomEvent<{ x: number; y: number }>) => {
+  private get _armedBuilding() {
+    return (
+      this._buildings.find((b) => b.key === this._armedBuildingKey) ?? null
+    );
+  }
+
+  private _onPlacementPlace = (
+    e: CustomEvent<{ x: number; y: number; longSide?: number }>,
+  ) => {
     if (!this._armedBuildingKey) return;
     const building = this._buildings.find(
       (b) => b.key === this._armedBuildingKey,
@@ -1393,7 +1413,8 @@ export class SpatialContextPanel extends LitElement {
       e.detail.y,
       building.aspectRatio,
       bounds,
-      this._newPlacementLongSide(building, bounds),
+      // A click-and-drag gives the size it was dragged to (#56).
+      e.detail.longSide ?? this._newPlacementLongSide(building, bounds),
     );
     this._updatePropertyLayout({
       placements: [...this._propertyLayout.placements, placement],
@@ -2976,7 +2997,18 @@ export class SpatialContextPanel extends LitElement {
     else void this._selectFloor(stub.targetFloorId);
   };
 
+  private _onPinStackBack = () => {
+    const ids = this._returnStackIds;
+    if (!ids) return;
+    const live = this._layout.pins.filter((p) => ids.includes(p.id));
+    if (live.length < 2) return;
+    this._pinStackIds = live.map((p) => p.id);
+    this._selectedPinId = null;
+    this._multiPinIds = [];
+  };
+
   private _onPinStackChoose = (e: CustomEvent<{ pinId: string }>) => {
+    this._returnStackIds = this._pinStackIds;
     this._pinStackIds = null;
     this._selectedPinId = e.detail.pinId;
     this._multiPinIds = [];
@@ -2984,12 +3016,29 @@ export class SpatialContextPanel extends LitElement {
 
   /** The info card's close button: drop whatever is selected. */
   private _onSelectionClear = () => {
+    this._returnStackIds = null;
     this._resetSelection();
     this._pinStackIds = null;
   };
 
   private _onPinStackDismiss = () => {
     this._pinStackIds = null;
+  };
+
+  /** Moves one device out from under the others in its stack, and selects
+   * it so it can be dragged wherever it belongs (#47). */
+  private _onPinStackMoveOut = (e: CustomEvent<{ pinId: string }>) => {
+    const pin = this._layout.pins.find((p) => p.id === e.detail.pinId);
+    if (!pin) return;
+    const x = pin.x + (this._canvas?.pinMoveOutDistance() ?? 40);
+    this._patchPin(pin.id, {
+      x,
+      room_id: findRoomForPoint(x, pin.y, this._layout.rooms),
+    });
+    this._returnStackIds = null;
+    this._pinStackIds = null;
+    this._selectedPinId = pin.id;
+    this._multiPinIds = [];
   };
 
   private _onPinStackRemove = async (e: CustomEvent<{ pinId: string }>) => {
@@ -3463,6 +3512,7 @@ export class SpatialContextPanel extends LitElement {
                           @outdoor-pin-move=${this._onOutdoorPinMove}
                           @outdoor-pin-select=${this._onOutdoorPinSelect}
                           @property-mesh-link-select=${this._onPropertyMeshLinkSelect}
+                          .armedAspect=${this._armedBuilding?.aspectRatio ?? null}
                           @placement-place=${this._onPlacementPlace}
                           @placement-move=${this._onPlacementMove}
                           @placement-resize=${this._onPlacementResize}
@@ -3648,6 +3698,8 @@ export class SpatialContextPanel extends LitElement {
                           .networkLabel=${this._networkLabel}
                           .selectedMeshStub=${this._selectedMeshStub}
                           .pinStack=${this._pinStack}
+                          .canReturnToStack=${this._canReturnToStack}
+                          @pin-stack-back=${this._onPinStackBack}
                           .entityLookup=${this._entityLookup}
                           .otherFloors=${this._otherFloors}
                           .alignTargetFloorId=${this._alignTargetFloorId}
@@ -3686,6 +3738,7 @@ export class SpatialContextPanel extends LitElement {
                           @opening-width-change=${this._onOpeningWidthChange}
                           @opening-delete-click=${this._onOpeningDelete}
                           @pin-stack-choose=${this._onPinStackChoose}
+                          @pin-stack-move-out=${this._onPinStackMoveOut}
                           @pin-stack-dismiss=${this._onPinStackDismiss}
                           @selection-clear=${this._onSelectionClear}
                           @pin-stack-remove-click=${this._onPinStackRemove}

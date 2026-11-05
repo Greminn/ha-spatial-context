@@ -92,6 +92,8 @@ type Gesture =
       anchorWorld: { x: number; y: number };
     }
   | { kind: "rotate"; id: string }
+  /** Placing a building: drag from one corner to size it (#56). */
+  | { kind: "placeSize"; start: { x: number; y: number } }
   | {
       kind: "pinch";
       startDistance: number;
@@ -105,6 +107,16 @@ export class PropertyCanvas extends LitElement {
   static override styles = [sharedStyles, pinStyles, propertyCanvasStyles];
 
   @property({ attribute: false }) placements: PropertyPlacement[] = [];
+  /** Width/height ratio of the building armed for placement, when one is —
+   * lets a click-and-drag size it at the right proportions (#56). */
+  @property({ type: Number }) armedAspect: number | null = null;
+  /** The outline shown while dragging out a new building's size. */
+  @state() private _sizePreview: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null = null;
   /** Traced rooms/walls per placement id, drawn faintly inside its
    * rectangle so the fit against the photo is visible (#6). */
   @property({ attribute: false }) ghosts: Map<string, PlacementGhost> =
@@ -485,6 +497,25 @@ export class PropertyCanvas extends LitElement {
     );
   }
 
+  private _renderSizePreview() {
+    const b = this._sizePreview;
+    if (!b) return nothing;
+    return svg`<rect
+      class="size-preview"
+      x=${b.x - b.width / 2}
+      y=${b.y - b.height / 2}
+      width=${b.width}
+      height=${b.height}
+      fill="var(--primary-color)"
+      fill-opacity="0.12"
+      stroke="var(--primary-color)"
+      stroke-width="2"
+      stroke-dasharray="8 6"
+      vector-effect="non-scaling-stroke"
+      pointer-events="none"
+    ></rect>`;
+  }
+
   private _onPointerDown = (e: PointerEvent): void => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     blurActiveElement(this);
@@ -548,6 +579,10 @@ export class PropertyCanvas extends LitElement {
       return { kind: "move", id: this._downHit.id };
     if (this._downHit?.type === "pin")
       return { kind: "pinMove", id: this._downHit.id };
+    if (this.mode === "place" && this.armedAspect && this._downClient) {
+      const start = this._clientToImage(this._downClient.x, this._downClient.y);
+      return { kind: "placeSize", start };
+    }
     return this.mode === "map" && this.mapBackground
       ? { kind: "mapPan" }
       : { kind: "pan" };
@@ -703,6 +738,11 @@ export class PropertyCanvas extends LitElement {
           y: gesture.anchorWorld.y - (sin * ax + cos * ay),
         });
       }
+    } else if (this._gesture?.kind === "placeSize") {
+      this._sizePreview = this._sizeFromDrag(
+        this._gesture.start,
+        this._clientToImage(e.clientX, e.clientY),
+      );
     } else if (this._gesture?.kind === "rotate") {
       const gestureId = this._gesture.id;
       const p = this.placements.find((pl) => pl.id === gestureId);
@@ -717,6 +757,30 @@ export class PropertyCanvas extends LitElement {
 
     this._lastClient = { x: e.clientX, y: e.clientY };
   };
+
+  /** The box a drag from `start` to `to` sizes: the start is one corner,
+   * the building's proportions are kept, and it grows to cover the pointer
+   * on whichever axis asks for more (the same rule as resizing). */
+  private _sizeFromDrag(
+    start: { x: number; y: number },
+    to: { x: number; y: number },
+  ): { x: number; y: number; width: number; height: number } {
+    const ratio = this.armedAspect || 1;
+    const dx = to.x - start.x;
+    const dy = to.y - start.y;
+    const width = Math.max(
+      MIN_PLACEMENT_SIZE,
+      Math.abs(dx),
+      Math.abs(dy) * ratio,
+    );
+    const height = width / ratio;
+    return {
+      x: start.x + (dx < 0 ? -1 : 1) * (width / 2),
+      y: start.y + (dy < 0 ? -1 : 1) * (height / 2),
+      width,
+      height,
+    };
+  }
 
   private _onPointerUp = (e: PointerEvent): void => {
     this._pointers.delete(e.pointerId);
@@ -734,7 +798,20 @@ export class PropertyCanvas extends LitElement {
 
     if (!this._moved && this._downClient && !this._gestureCancelled) {
       this._handleClick();
+    } else if (
+      this._moved &&
+      !this._gestureCancelled &&
+      this._gesture?.kind === "placeSize" &&
+      this._sizePreview
+    ) {
+      const box = this._sizePreview;
+      this._fire("placement-place", {
+        x: box.x,
+        y: box.y,
+        longSide: Math.max(box.width, box.height),
+      });
     }
+    this._sizePreview = null;
 
     this._gesture = null;
     this._downHit = null;
@@ -759,6 +836,7 @@ export class PropertyCanvas extends LitElement {
       return false;
     }
     this._gesture = null;
+    this._sizePreview = null;
     this._gestureCancelled = true;
     this._svg.style.cursor = "";
     return true;
@@ -1013,6 +1091,7 @@ export class PropertyCanvas extends LitElement {
           @pointercancel=${this._onPointerUp}
         >
           ${this.placements.map((p) => this._renderPlacement(p))}
+          ${this._renderSizePreview()}
           ${this.meshLinks.map((link) => this._renderMeshLink(link))}
           ${this._renderIndoorEnds()}
           ${this.pins.map((pin) => this._renderPin(pin))}
