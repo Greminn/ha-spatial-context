@@ -19,6 +19,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed
+- The first click-and-drag to size a new building no longer fails after choosing the building from the list (#56).
 - A ZHA coordinator with no enabled entities, such as the ZBT-2 or an SLZB-06 radio, is listed in the Place device list (#60).
 - Devices whose only enabled entities are firmware update or event entities, such as IKEA Tradfri repeaters and Styrbar remotes, are listed in the Place device list (#54).
 - With only one floor, the Place device list starts on **All floors**, so devices with no area, or an area on no floor, are no longer hidden (#54).

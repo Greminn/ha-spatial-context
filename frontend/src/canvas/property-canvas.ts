@@ -516,8 +516,10 @@ export class PropertyCanvas extends LitElement {
     ></rect>`;
   }
 
-  private _onPointerDown = (e: PointerEvent): void => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
+  /** `resumed` is a press the canvas never saw (see _onPointerMove): the
+   * button is already down, so the usual button check is skipped. */
+  private _onPointerDown = (e: PointerEvent, resumed = false): void => {
+    if (!resumed && e.pointerType === "mouse" && e.button !== 0) return;
     blurActiveElement(this);
     this._svg.setPointerCapture(e.pointerId);
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -589,7 +591,22 @@ export class PropertyCanvas extends LitElement {
   }
 
   private _onPointerMove = (e: PointerEvent): void => {
-    if (!this._pointers.has(e.pointerId)) return;
+    if (!this._pointers.has(e.pointerId)) {
+      // The press that began a drag to size a new building can be swallowed
+      // by the list that armed it closing, so the canvas sees the move with
+      // the button held but never the press. Carry on from here, so the
+      // first drag works (#56).
+      if (
+        e.pointerType === "mouse" &&
+        (e.buttons & 1) === 1 &&
+        this.mode === "place" &&
+        this.armedAspect &&
+        this._pointers.size === 0
+      ) {
+        this._onPointerDown(e, true);
+      }
+      return;
+    }
     this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (this._gesture?.kind === "mapPinch" && this._pointers.size === 2) {
