@@ -107,6 +107,22 @@ class ZhaMeshTest(unittest.TestCase):
             else ghost["target_device_id"]
         )
 
+    def test_coordinator_device_ids_only_lists_coordinators(self) -> None:
+        _, zha_mesh = _setup()
+        infos = [
+            _info("c", "Coordinator", []),
+            _info("r", "Router", []),
+        ]
+        with mock.patch.object(zha_mesh, "_device_infos", return_value=infos):
+            self.assertEqual(zha_mesh.coordinator_device_ids(None), {"dev-c"})
+
+    def test_coordinator_device_ids_is_empty_when_zha_is_unavailable(self) -> None:
+        _, zha_mesh = _setup()
+        with mock.patch.object(
+            zha_mesh, "_device_infos", side_effect=RuntimeError("no ZHA")
+        ):
+            self.assertEqual(zha_mesh.coordinator_device_ids(None), set())
+
     def test_unparseable_lqi_is_not_counted_as_zero(self) -> None:
         zigbee_mesh, zha_mesh = _setup()
         infos = [

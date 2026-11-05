@@ -42,6 +42,20 @@ def _device_infos(hass: HomeAssistant) -> list[dict[str, Any]]:
     return [d.zha_device_info for d in proxy.device_proxies.values()]
 
 
+def coordinator_device_ids(hass: HomeAssistant) -> set[str]:
+    """Device-registry ids of ZHA's coordinator(s), or none when ZHA is not
+    running. Used to let a coordinator that exposes no entities be placed
+    (#60); any failure just means no extra devices are offered."""
+    try:
+        return {
+            info["device_reg_id"]
+            for info in _device_infos(hass)
+            if info.get("device_type") == "Coordinator" and info.get("device_reg_id")
+        }
+    except Exception:  # noqa: BLE001 - ZHA absent, not loaded, or changed
+        return set()
+
+
 async def async_fetch_zha_mesh(
     hass: HomeAssistant,
     force_refresh: bool,

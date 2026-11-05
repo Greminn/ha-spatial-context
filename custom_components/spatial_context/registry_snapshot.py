@@ -20,6 +20,7 @@ from homeassistant.helpers import (
 from homeassistant.loader import async_get_integration
 
 from .placeable_rules import device_is_placeable, entity_domain_is_placeable
+from .zha_mesh import coordinator_device_ids
 from .storage import (
     PROPERTY_LOCATION_ID,
     async_get_all_layouts,
@@ -369,6 +370,53 @@ async def async_list_placeable_entities(hass: HomeAssistant) -> list[dict[str, A
         for device_id, entry in fallback_entries.items()
         if device_id not in placeable_device_ids
     )
+
+    # A ZHA coordinator can have no enabled entities at all (a ZBT-2, an
+    # SLZB-06 radio), so it would never reach the list above. Offer it as an
+    # entity-less entry keyed on the device, so it can be placed (#60).
+    for device_id in coordinator_device_ids(hass) - placeable_device_ids - {
+        e.device_id for e in fallback_entries.values()
+    }:
+        device = device_registry.async_get(device_id)
+        if device is None or not device_is_placeable(
+            device.entry_type, device.identifiers
+        ):
+            continue
+        integration_domain = device_integration_domains.get(device_id)
+        area = (
+            area_registry.async_get_area(device.area_id) if device.area_id else None
+        )
+        placed_floor_id = device_id_to_floor_id.get(device_id)
+        placed_floor = (
+            floor_registry.async_get_floor(placed_floor_id)
+            if placed_floor_id
+            else None
+        )
+        entities.append(
+            {
+                "entity_id": f"device.{device_id}",
+                "name": device.name_by_user or device.name or device_id,
+                "domain": "device",
+                "device_class": None,
+                "area_id": device.area_id,
+                "area_name": area.name if area else None,
+                "device_id": device_id,
+                "device_name": device.name_by_user or device.name or device_id,
+                "entity_category": None,
+                "integration_domain": integration_domain,
+                "integration_name": integration_names.get(integration_domain)
+                if integration_domain
+                else None,
+                "placed_floor_id": placed_floor_id,
+                "placed_floor_name": (
+                    "Property"
+                    if placed_floor_id == PROPERTY_LOCATION_ID
+                    else placed_floor.name
+                    if placed_floor
+                    else placed_floor_id
+                ),
+            }
+        )
 
     for entry in candidates:
         device = device_registry.async_get(entry.device_id)
