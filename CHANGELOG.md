@@ -10,12 +10,16 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - **Reset floor** has a checkbox for each thing it can clear: rooms, walls, doors and windows, placed devices and the background image (#45). Choosing everything works as before.
 - An **Opening a view** setting: choose **Fit to screen** and every floor and the Property tab open fitted to the screen instead of at their saved view. Saved views are not changed (#48).
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
+- Click and drag to size a new building on the Property tab. Drag from one corner and the outline keeps the building's proportions. A plain click still places it at the default size (#56).
+- A **Back to group** arrow on a device's card, when you opened it from a list of devices at the same spot (#62).
+- A **Move out of this spot** button on each device in that list, so a stacked device can be moved without deleting it (#47).
 
 ### Changed
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed
+- A ZHA coordinator with no enabled entities, such as the ZBT-2 or an SLZB-06 radio, is listed in the Place device list (#60).
 - Devices whose only enabled entities are firmware update or event entities, such as IKEA Tradfri repeaters and Styrbar remotes, are listed in the Place device list (#54).
 - With only one floor, the Place device list starts on **All floors**, so devices with no area, or an area on no floor, are no longer hidden (#54).
 - The OpenThread Border Router app, and Home Assistant Yellow, Green, SkyConnect and ZBT-2 hardware, can now be placed on the plan and chosen under **Settings → Border router** (#42).
