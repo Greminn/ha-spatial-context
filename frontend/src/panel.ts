@@ -49,7 +49,9 @@ import {
   floorMeshLegend,
   propertyMeshLegend,
   propertyMeshLinks,
+  unplacedMeshLinks,
 } from "./mesh-resolve";
+import type { UnplacedMeshLink } from "./mesh-resolve";
 import type { MeshContext, NormalizedMeshLink } from "./mesh-resolve";
 import {
   HaClient,
@@ -647,6 +649,10 @@ export class SpatialContextPanel extends LitElement {
     if (!ids.includes(this._selectedPinId)) return false;
     const live = this._layout.pins.filter((p) => ids.includes(p.id));
     return live.length > 1;
+  }
+
+  private get _unplacedMeshLinks(): UnplacedMeshLink[] {
+    return unplacedMeshLinks(this._meshContext);
   }
 
   private get _selectedWall(): Wall | null {
@@ -3699,6 +3705,7 @@ export class SpatialContextPanel extends LitElement {
                           .selectedMeshStub=${this._selectedMeshStub}
                           .pinStack=${this._pinStack}
                           .canReturnToStack=${this._canReturnToStack}
+                          .unplacedLinks=${this._unplacedMeshLinks}
                           @pin-stack-back=${this._onPinStackBack}
                           .entityLookup=${this._entityLookup}
                           .otherFloors=${this._otherFloors}

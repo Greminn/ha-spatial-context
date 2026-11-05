@@ -1,4 +1,5 @@
 import { css, html, nothing } from "lit";
+import { keyed } from "lit/directives/keyed.js";
 import { qualityColor } from "../canvas/mesh-colors";
 import { localize } from "../i18n";
 
@@ -266,65 +267,70 @@ export function renderCard(opts: {
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
-  return html`
-    <div class="info-card floating-panel">
-      <div class="info-head">
-        <button
-          class="info-close"
-          title=${localize("canvas.button.close")}
-          aria-label=${localize("canvas.button.close")}
-          @click=${opts.onClose}
-        >
-          <ha-icon icon="mdi:close"></ha-icon>
-        </button>
-        ${
-          opts.onBack
-            ? html`<button
-                class="info-close"
-                title=${opts.backLabel ?? localize("canvas.button.back")}
-                aria-label=${opts.backLabel ?? localize("canvas.button.back")}
-                @click=${opts.onBack}
-              >
-                <ha-icon icon="mdi:arrow-left"></ha-icon>
-              </button>`
-            : nothing
-        }
-        <div class="info-titles">
-          <div class="info-title">${opts.title}</div>
+  // Keyed on the title so a different card (a device, then its group) gets
+  // fresh DOM instead of reusing the last card's scrolled body.
+  return keyed(
+    opts.title,
+    html`
+      <div class="info-card floating-panel">
+        <div class="info-head">
+          <button
+            class="info-close"
+            title=${localize("canvas.button.close")}
+            aria-label=${localize("canvas.button.close")}
+            @click=${opts.onClose}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
           ${
-            opts.subtitle
-              ? html`<div class="info-sub">${opts.subtitle}</div>`
+            opts.onBack
+              ? html`<button
+                  class="info-close"
+                  title=${opts.backLabel ?? localize("canvas.button.back")}
+                  aria-label=${opts.backLabel ?? localize("canvas.button.back")}
+                  @click=${opts.onBack}
+                >
+                  <ha-icon icon="mdi:arrow-left"></ha-icon>
+                </button>`
+              : nothing
+          }
+          <div class="info-titles">
+            <div class="info-title">${opts.title}</div>
+            ${
+              opts.subtitle
+                ? html`<div class="info-sub">${opts.subtitle}</div>`
+                : nothing
+            }
+          </div>
+          ${
+            opts.onToggle
+              ? html`<button
+                  class="info-toggle"
+                  title=${localize(
+                    opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
+                  )}
+                  aria-label=${localize(
+                    opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
+                  )}
+                  aria-expanded=${opts.collapsed ? "false" : "true"}
+                  @click=${opts.onToggle}
+                >
+                  <ha-icon
+                    icon=${opts.collapsed ? "mdi:chevron-down" : "mdi:chevron-up"}
+                  ></ha-icon>
+                </button>`
               : nothing
           }
         </div>
         ${
-          opts.onToggle
-            ? html`<button
-                class="info-toggle"
-                title=${localize(
-                  opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
-                )}
-                aria-label=${localize(
-                  opts.collapsed ? "canvas.card.show" : "canvas.card.hide",
-                )}
-                aria-expanded=${opts.collapsed ? "false" : "true"}
-                @click=${opts.onToggle}
-              >
-                <ha-icon
-                  icon=${opts.collapsed ? "mdi:chevron-down" : "mdi:chevron-up"}
-                ></ha-icon>
-              </button>`
-            : nothing
+          opts.collapsed
+            ? nothing
+            : html`<div class="info-body">${opts.body}</div>
+                ${opts.footer ? html`<div class="info-foot">${opts.footer}</div>` : nothing}`
         }
       </div>
-      ${
-        opts.collapsed
-          ? nothing
-          : html`<div class="info-body">${opts.body}</div>
-              ${opts.footer ? html`<div class="info-foot">${opts.footer}</div>` : nothing}`
-      }
-    </div>
-  `;
+    `,
+  );
 }
 
 /** A clickable row: icon and label. */

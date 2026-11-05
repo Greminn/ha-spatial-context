@@ -126,6 +126,9 @@ export class HaClient {
       ...(settings.open_view !== undefined
         ? { open_view: settings.open_view }
         : {}),
+      ...(settings.weak_link_threshold_db !== undefined
+        ? { weak_link_threshold_db: settings.weak_link_threshold_db }
+        : {}),
       ...(settings.hidden_device_ids !== undefined
         ? { hidden_device_ids: settings.hidden_device_ids }
         : {}),

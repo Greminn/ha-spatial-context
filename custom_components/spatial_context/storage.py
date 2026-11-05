@@ -316,6 +316,9 @@ def _empty_settings() -> dict[str, Any]:
         # (the view saved with Save) or "fit" (fitted to the screen). Saved
         # views are never touched, so switching back restores them.
         "open_view": "saved",
+        # How many dB worse than the walls predict a Zigbee link may be
+        # before the Connectivity Map flags it (#29). 0 turns the check off.
+        "weak_link_threshold_db": 25,
     }
 
 

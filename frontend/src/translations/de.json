@@ -119,6 +119,11 @@
       "hide": "Details ausblenden",
       "show": "Details anzeigen"
     },
+    "link": {
+      "weak": "Schwächer, als die Wände erwarten lassen: erwartet etwa {predicted} dBm, gemessen etwa {measured} dBm ({gap} dB weniger). Die Wände kosten {walls} dB.",
+      "weakShort": "schwächer als die Wände erwarten lassen",
+      "notPlaced": "nicht im Plan platziert"
+    },
     "calibrateHint": "Klicken, um den Maßstab festzulegen"
   },
   "mapBackground": {
@@ -162,6 +167,9 @@
     "scanTimeout": "Zeitlimit für den Scan",
     "scanTimeoutAria": "Zeitlimit für den Zigbee-Scan in Sekunden",
     "scanTimeoutHint": "Erhöhen, wenn „Mesh laden“ bei einem großen Mesh abbricht",
+    "weakLink": "Schwache Verbindungen markieren",
+    "weakLinkAria": "Schwellenwert für die Zigbee-Verbindungswarnung in dB",
+    "weakLinkHint": "Wie viele dB schwächer als von den Wänden erwartet eine Zigbee-Verbindung sein darf, bevor sie ein Warnsymbol bekommt. 0 schaltet es aus. Der Maßstab des Stockwerks muss gesetzt sein.",
     "troubleshooting": "Fehlerbehebung",
     "debugLogging": "Debug-Protokollierung",
     "debugLoggingHint": "Schreibt spatial_context_debug.log in Ihren Konfigurationsordner – nur IDs und Anzahlen",

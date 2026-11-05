@@ -13,12 +13,15 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - Click and drag to size a new building on the Property tab. Drag from one corner and the outline keeps the building's proportions. A plain click still places it at the default size (#56).
 - A **Back to group** arrow on a device's card, when you opened it from a list of devices at the same spot (#62).
 - A **Move out of this spot** button on each device in that list, so a stacked device can be moved without deleting it (#47).
+- A warning triangle on a Zigbee link that reads much weaker than the walls between its two devices predict. Hover it for the expected and measured signal. It needs the floor's scale set. A **Flag weak links** setting chooses how big the gap must be (25 dB by default, 0 turns it off) (#29).
+- A device's card lists its links to devices that are not placed on any floor, marked "not placed on the plan" (#63).
 
 ### Changed
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
 ### Fixed
+- Going back to a group of devices after scrolling a long link list on a device's card no longer shows a blank card.
 - The first click-and-drag to size a new building no longer fails after choosing the building from the list (#56).
 - A ZHA coordinator with no enabled entities, such as the ZBT-2 or an SLZB-06 radio, is listed in the Place device list (#60).
 - Devices whose only enabled entities are firmware update or event entities, such as IKEA Tradfri repeaters and Styrbar remotes, are listed in the Place device list (#54).

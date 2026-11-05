@@ -404,6 +404,30 @@ export class SettingsPage extends LitElement {
           >`,
           localize("settings.scanTimeoutHint"),
         )}
+        ${this._row(
+          localize("settings.weakLink"),
+          html`<span class="number"
+            ><input
+              type="number"
+              min="0"
+              max="60"
+              step="1"
+              aria-label=${localize("settings.weakLinkAria")}
+              .value=${String(s.weak_link_threshold_db ?? 25)}
+              @change=${(e: Event) => {
+                const raw = Number((e.target as HTMLInputElement).value);
+                if (!Number.isFinite(raw)) return;
+                this._change({
+                  weak_link_threshold_db: Math.min(
+                    60,
+                    Math.max(0, Math.round(raw)),
+                  ),
+                });
+              }}
+            />dB</span
+          >`,
+          localize("settings.weakLinkHint"),
+        )}
       </div>
 
       <div class="card">

@@ -26,6 +26,11 @@ import { pinDisplayLabel } from "./canvas/device-display";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
 import { rayBoxExit } from "./canvas/geometry";
+import {
+  DEFAULT_WEAK_LINK_THRESHOLD_DB,
+  checkWeakLink,
+  weakLinkToFlag,
+} from "./canvas/weak-link";
 import { placementForFloor } from "./property-layout";
 
 /** Everything the Connectivity Map needs to turn each network's raw data
@@ -74,7 +79,12 @@ export function pinLabel(ctx: MeshContext, pin: Pin): string {
  * build off this) — so "how do we grade this" lives in one place. The
  * picked network layer is the master on/off switch: no layer picked
  * means off, and a picked layer stays drawn after the menu is closed. */
-export function normalizeMeshLinks(ctx: MeshContext): NormalizedMeshLink[] {
+export function normalizeMeshLinks(
+  ctx: MeshContext,
+  /** Keep Zigbee links whose far end is not placed anywhere (see
+   * unplacedMeshLinks); the map never wants those. */
+  includeUnplaced = false,
+): NormalizedMeshLink[] {
   if (ctx.networkType === null) return [];
 
   if (ctx.networkType === "zigbee" && ctx.zigbeeMesh) {
@@ -89,8 +99,10 @@ export function normalizeMeshLinks(ctx: MeshContext): NormalizedMeshLink[] {
         ctx.zigbeeMesh,
         ctx.settings.zigbee_coordinator_device_id,
       ),
-      floorOfDevice,
-      ctx.zigbeeShowAllLinks,
+      includeUnplaced
+        ? (deviceId) => floorOfDevice(deviceId) ?? "unplaced"
+        : floorOfDevice,
+      ctx.zigbeeShowAllLinks || includeUnplaced,
     ).map((link) =>
       // A route Zigbee2MQTT lists without measuring either direction has no
       // readings at all (the backend reports it as LQI 0): no data, not a
@@ -257,16 +269,81 @@ export function meshLinksForFloor(ctx: MeshContext): ResolvedMeshLink[] {
     const fromPin = ctx.pinByDeviceId.get(link.sourceDeviceId);
     const toPin = ctx.pinByDeviceId.get(link.targetDeviceId);
     if (fromPin && toPin) {
+      const weak =
+        ctx.networkType === "zigbee" &&
+        link.quality !== "unknown" &&
+        link.value !== undefined
+          ? weakLinkToFlag(
+              checkWeakLink({
+                from: [fromPin.x, fromPin.y],
+                to: [toPin.x, toPin.y],
+                walls: ctx.layout.walls,
+                openings: ctx.layout.openings,
+                scale: ctx.layout.scale,
+                lqi: link.value,
+              }),
+              ctx.settings.weak_link_threshold_db ??
+                DEFAULT_WEAK_LINK_THRESHOLD_DB,
+            )
+          : null;
       links.push({
         fromPin,
         toPin,
         quality: link.quality,
         ...(link.detail ? { detail: link.detail } : {}),
         ...(link.value !== undefined ? { value: link.value } : {}),
+        ...(weak
+          ? {
+              weak: {
+                gapDb: weak.gapDb,
+                predictedDbm: weak.predictedDbm,
+                measuredDbm: weak.measuredDbm,
+                wallDb: weak.wallDb,
+              },
+            }
+          : {}),
       });
     }
   }
   return links;
+}
+
+/** A link from a device on the viewed floor to one that is not placed on
+ * any floor or outdoors, so the map draws nothing for it (#63). */
+export interface UnplacedMeshLink {
+  /** The device on the viewed floor. */
+  localDeviceId: string;
+  /** The device with no pin. */
+  deviceId: string;
+  name: string;
+  quality: "strong" | "medium" | "weak" | "unknown";
+  detail?: string;
+}
+
+export function unplacedMeshLinks(ctx: MeshContext): UnplacedMeshLink[] {
+  const placed = (id: string) =>
+    ctx.pinByDeviceId.has(id) ||
+    ctx.outdoorPinByDeviceId.has(id) ||
+    ctx.otherFloorPinsByDeviceId.has(id);
+  const out: UnplacedMeshLink[] = [];
+  for (const link of normalizeMeshLinks(ctx, true)) {
+    const sourceHere = ctx.pinByDeviceId.has(link.sourceDeviceId);
+    const targetHere = ctx.pinByDeviceId.has(link.targetDeviceId);
+    if (sourceHere === targetHere) continue;
+    const localDeviceId = sourceHere
+      ? link.sourceDeviceId
+      : link.targetDeviceId;
+    const deviceId = sourceHere ? link.targetDeviceId : link.sourceDeviceId;
+    if (placed(deviceId)) continue;
+    out.push({
+      localDeviceId,
+      deviceId,
+      name: pinDisplayLabel(deviceId, ctx.entityLookup.values()),
+      quality: link.quality,
+      ...(link.detail ? { detail: link.detail } : {}),
+    });
+  }
+  return out;
 }
 
 /** The viewed floor's traced content extent (rooms + walls), padded — the

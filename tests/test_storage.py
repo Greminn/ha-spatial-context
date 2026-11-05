@@ -121,6 +121,12 @@ class OlderSavesTest(unittest.TestCase):
         settings = run(storage.async_get_settings(hass))
         self.assertEqual(settings["open_view"], "saved")
 
+    def test_the_weak_link_threshold_defaults_to_15_db(self) -> None:
+        hass = stubs.FakeHass()
+        hass.stored[KEY] = {"floors": {}, "settings": {"unit_system": "metric"}}
+        settings = run(storage.async_get_settings(hass))
+        self.assertEqual(settings["weak_link_threshold_db"], 25)
+
     def test_a_placement_without_source_bounds_gets_them_and_keeps_them(self) -> None:
         hass = stubs.FakeHass()
         floor = {**storage._empty_floor(), "walls": [{"id": "w", "points": [[0, 0], [10, 20]]}]}

@@ -101,6 +101,10 @@ export interface Settings {
   /** Where a floor or the Property tab starts (#48): the saved view, or
    * fitted to the screen. Absent until the backend reports it. */
   open_view?: "saved" | "fit";
+  /** dB worse than the walls predict before a Zigbee link is flagged on the
+   * Connectivity Map (#29); 0 turns the check off. Absent until the backend
+   * reports it, like `open_view`. */
+  weak_link_threshold_db?: number;
 }
 
 /** What the backend reports for the version handshake (see debug.py). */
@@ -460,6 +464,15 @@ export interface ResolvedMeshLink {
   /** The reading the quality was graded from (LQI or dBm), when the network
    * reports one. */
   value?: number;
+  /** Set when a Zigbee link reads much weaker than the walls between its two
+   * devices predict (#29): what was expected, what was measured, and what the
+   * walls cost, in dB and dBm. */
+  weak?: {
+    gapDb: number;
+    predictedDbm: number;
+    measuredDbm: number;
+    wallDb: number;
+  };
 }
 
 /** What the Connectivity Map legend shows for the picked layer: always the

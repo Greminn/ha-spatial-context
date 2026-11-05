@@ -1,3 +1,4 @@
+import type { UnplacedMeshLink } from "../mesh-resolve";
 import { LitElement, html, nothing, type PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 import { safeCustomElement } from "../define";
@@ -118,6 +119,8 @@ export class CanvasOverlay extends LitElement {
   /** The links drawn on this floor, and the active network layer's name
    * (null when none is on) — the device card lists the selected device's. */
   @property({ attribute: false }) meshLinks: ResolvedMeshLink[] = [];
+  /** Links from devices on this floor to devices that are not placed (#63). */
+  @property({ attribute: false }) unplacedLinks: UnplacedMeshLink[] = [];
   @property({ attribute: false }) meshStubs: ResolvedMeshStub[] = [];
   @property({ attribute: false }) networkLabel: string | null = null;
   @property({ attribute: false }) selectedMeshLink: ResolvedMeshLink | null =
@@ -546,7 +549,17 @@ export class CanvasOverlay extends LitElement {
           name: this._pinLabel(l.fromPin.id === pin.id ? l.toPin : l.fromPin),
           where: "",
           quality: l.quality,
-          detail: l.detail ?? l.quality,
+          detail: l.weak
+            ? `${l.detail ?? l.quality} · ${localize("canvas.link.weakShort")}`
+            : (l.detail ?? l.quality),
+        })),
+      ...this.unplacedLinks
+        .filter((u) => u.localDeviceId === pin.device_id)
+        .map((u) => ({
+          name: u.name,
+          where: localize("canvas.link.notPlaced"),
+          quality: u.quality,
+          detail: u.detail ?? u.quality,
         })),
       ...this.meshStubs
         .filter((st) => st.fromPin.id === pin.id)

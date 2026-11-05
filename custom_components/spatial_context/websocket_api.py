@@ -361,6 +361,9 @@ _SETTINGS_SCHEMA = {
     vol.Optional("debug_logging", default=False): bool,
     vol.Optional("hidden_device_ids", default=list): [str],
     vol.Optional("open_view", default="saved"): vol.In(["saved", "fit"]),
+    vol.Optional("weak_link_threshold_db", default=25): vol.All(
+        vol.Coerce(int), vol.Range(min=0, max=60)
+    ),
 }
 
 

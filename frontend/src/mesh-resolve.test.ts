@@ -7,6 +7,7 @@ import {
   meshStubsForFloor,
   normalizeMeshLinks,
   propertyMeshLinks,
+  unplacedMeshLinks,
 } from "./mesh-resolve";
 import type { MeshContext } from "./mesh-resolve";
 import {
@@ -255,6 +256,75 @@ describe("meshLinksForFloor", () => {
     });
     expect(meshLinksForFloor(ctx)).toHaveLength(1);
     expect(meshLinksForFloor(ctx)[0]?.toPin.device_id).toBe("b");
+  });
+
+  describe("weak Zigbee links (#29)", () => {
+    // 100 units = 10 m: 10 units per metre.
+    const scale = {
+      points: [
+        [0, 0],
+        [100, 0],
+      ] as [[number, number], [number, number]],
+      meters: 10,
+    };
+    const zigbee = (
+      lqi: number,
+      over: Partial<MeshContext> = {},
+      layoutScale: typeof scale | null = scale,
+    ) =>
+      context({
+        networkType: "zigbee",
+        zigbeeMesh: {
+          nodes: [],
+          links: [
+            {
+              source_ieee: "s",
+              target_ieee: "t",
+              lqi,
+              lqi_readings: [lqi],
+              parent_child: false,
+              source_device_id: "a",
+              target_device_id: "b",
+            },
+          ],
+          fetched_at: 0,
+        },
+        pinByDeviceId: new Map([
+          ["a", pin("a", 0, 0)],
+          ["b", pin("b", 50, 0)],
+        ]),
+        currentFloorId: "up",
+        layout: { ...emptyFloorLayout(), scale: layoutScale },
+        ...over,
+      });
+
+    it("flags a link far weaker than the clear 5 m path predicts", () => {
+      const [link] = meshLinksForFloor(zigbee(20));
+      expect(link?.weak?.gapDb).toBeGreaterThan(15);
+      expect(link?.weak?.wallDb).toBe(0);
+    });
+
+    it("leaves a strong link, a floor with no scale, and a threshold of 0 alone", () => {
+      expect(meshLinksForFloor(zigbee(200))[0]?.weak).toBeUndefined();
+      expect(meshLinksForFloor(zigbee(20, {}, null))[0]?.weak).toBeUndefined();
+      const off = zigbee(20, {
+        settings: { ...emptySettings(), weak_link_threshold_db: 0 },
+      });
+      expect(meshLinksForFloor(off)[0]?.weak).toBeUndefined();
+    });
+
+    it("never flags a Wi-Fi link", () => {
+      const ctx = context({
+        networkType: "wifi",
+        wifiMesh: wifi([["a", "b", -95]]),
+        pinByDeviceId: new Map([
+          ["a", pin("a", 0, 0)],
+          ["b", pin("b", 50, 0)],
+        ]),
+        layout: { ...emptyFloorLayout(), scale },
+      });
+      expect(meshLinksForFloor(ctx)[0]?.weak).toBeUndefined();
+    });
   });
 });
 
@@ -566,5 +636,79 @@ describe("legend range", () => {
       pinByDeviceId: two,
     });
     expect(floorMeshLegend(ctx)?.range).toBeNull();
+  });
+});
+
+describe("unplacedMeshLinks (#63)", () => {
+  const ctx = (over: Partial<MeshContext> = {}) =>
+    context({
+      networkType: "wifi",
+      wifiMesh: wifi([
+        ["a", "gone", -50],
+        ["a", "b", -50],
+        ["a", "out", -50],
+        ["c", "d", -50],
+      ]),
+      pinByDeviceId: new Map([
+        ["a", pin("a")],
+        ["b", pin("b")],
+      ]),
+      outdoorPinByDeviceId: new Map([["out", pin("out")]]),
+      ...over,
+    });
+
+  it("lists a link from a placed device to one that is placed nowhere", () => {
+    const links = unplacedMeshLinks(ctx());
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({
+      localDeviceId: "a",
+      deviceId: "gone",
+    });
+  });
+
+  it("ignores links whose far end is placed on another floor", () => {
+    const other = ctx({
+      otherFloorPinsByDeviceId: new Map([
+        ["gone", { pin: pin("gone"), floorId: "down" }],
+      ]),
+    });
+    expect(unplacedMeshLinks(other)).toEqual([]);
+  });
+
+  it("ignores links where neither end is on this floor", () => {
+    const links = unplacedMeshLinks(ctx());
+    expect(links.some((l) => l.localDeviceId === "c")).toBe(false);
+  });
+
+  it("finds a Zigbee neighbour that is placed nowhere", () => {
+    const link = (target: string): MeshLink => ({
+      source_ieee: "s",
+      target_ieee: `t-${target}`,
+      lqi: 180,
+      lqi_readings: [180],
+      parent_child: false,
+      source_device_id: "a",
+      target_device_id: target,
+    });
+    const zigbee = context({
+      networkType: "zigbee",
+      zigbeeMesh: {
+        nodes: [],
+        links: [link("gone"), link("b")],
+        fetched_at: 0,
+      },
+      pinByDeviceId: new Map([
+        ["a", pin("a")],
+        ["b", pin("b")],
+      ]),
+      currentFloorId: "up",
+    });
+    const links = unplacedMeshLinks(zigbee);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({ localDeviceId: "a", deviceId: "gone" });
+    // The map itself still never draws a link to it.
+    expect(
+      normalizeMeshLinks(zigbee).some((l) => l.targetDeviceId === "gone"),
+    ).toBe(false);
   });
 });

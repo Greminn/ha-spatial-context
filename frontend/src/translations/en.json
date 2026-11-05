@@ -119,6 +119,11 @@
       "hide": "Hide details",
       "show": "Show details"
     },
+    "link": {
+      "weak": "Weaker than the walls predict: expected about {predicted} dBm, measured about {measured} dBm ({gap} dB lower). The walls cost {walls} dB.",
+      "weakShort": "weaker than the walls predict",
+      "notPlaced": "not placed on the plan"
+    },
     "calibrateHint": "Click to set the scale"
   },
   "mapBackground": {
@@ -162,6 +167,9 @@
     "scanTimeout": "Scan timeout",
     "scanTimeoutAria": "Zigbee scan timeout in seconds",
     "scanTimeoutHint": "Raise it if Load mesh times out on a large mesh",
+    "weakLink": "Flag weak links",
+    "weakLinkAria": "Zigbee link warning threshold in dB",
+    "weakLinkHint": "How many dB weaker than the walls predict a Zigbee link can read before it gets a warning icon. 0 turns it off. The floor needs its scale set.",
     "troubleshooting": "Troubleshooting",
     "debugLogging": "Debug logging",
     "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",

@@ -1804,7 +1804,39 @@ export class FloorplanCanvas extends LitElement {
       >
         <title>${link.detail ?? link.quality}</title>
       </line>
+      ${link.weak ? this._renderWeakLinkMark(link, from, to) : nothing}
     `;
+  }
+
+  /** A small warning triangle where a link reads much weaker than the walls
+   * between its two devices predict (#29). The tooltip gives the numbers. */
+  private _renderWeakLinkMark(
+    link: ResolvedMeshLink,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+  ) {
+    const weak = link.weak!;
+    const r = this._pxToUnits(9);
+    const cx = (from.x + to.x) / 2;
+    const cy = (from.y + to.y) / 2;
+    const title = localize("canvas.link.weak", {
+      predicted: Math.round(weak.predictedDbm),
+      measured: Math.round(weak.measuredDbm),
+      gap: Math.round(weak.gapDb),
+      walls: Math.round(weak.wallDb),
+    });
+    return svg`<g class="weak-link-mark" transform="translate(${cx} ${cy})">
+      <title>${title}</title>
+      <path
+        d="M0 ${-r} L${r} ${r * 0.8} L${-r} ${r * 0.8} Z"
+        fill="var(--warning-color, #ffa600)"
+        stroke="var(--card-background-color, #1c1c1c)"
+        stroke-width=${r * 0.2}
+        stroke-linejoin="round"
+      ></path>
+      <rect x=${-r * 0.1} y=${-r * 0.35} width=${r * 0.2} height=${r * 0.6} fill="#1c1c1c"></rect>
+      <circle cx="0" cy=${r * 0.5} r=${r * 0.12} fill="#1c1c1c"></circle>
+    </g>`;
   }
 
   /** The Shift-drag selection box. */
