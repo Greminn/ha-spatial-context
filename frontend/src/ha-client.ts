@@ -21,6 +21,7 @@ import type {
   BluetoothAdvertisementEvent,
 } from "./types";
 import { DEFAULT_WALL_MATERIAL, wallMaterial } from "./canvas/materials";
+import { cameraProxyPath } from "./background-file";
 
 /** Thin wrapper over the five spatial_context/* WebSocket commands + core's image upload API. */
 export class HaClient {
@@ -54,6 +55,9 @@ export class HaClient {
       background_offset_x: layout.background_offset_x,
       background_offset_y: layout.background_offset_y,
       background_scale: layout.background_scale,
+      ...(layout.background_rotation_deg !== undefined
+        ? { background_rotation_deg: layout.background_rotation_deg }
+        : {}),
       building_id: layout.building_id,
       view_box: layout.view_box,
       rooms: layout.rooms,
@@ -233,6 +237,16 @@ export class HaClient {
     return this.hass.connection.sendMessagePromise({
       type: "spatial_context/get_bluetooth_devices",
     });
+  }
+
+  /** A camera entity's current still image (HA core's camera proxy) — a
+   * robot vacuum's map camera makes a ready-made floor background. */
+  async fetchCameraSnapshot(entityId: string): Promise<Blob> {
+    const response = await this.hass.fetchWithAuth(cameraProxyPath(entityId));
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    return response.blob();
   }
 
   /** Uploads via HA core's built-in image_upload component, returns the new image id. */
