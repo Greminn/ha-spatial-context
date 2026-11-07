@@ -430,6 +430,9 @@
   "setup": {
     "seedRooms": "Create rooms for this floor's areas ({count})",
     "seedRoomsHint": "One placeholder room per Home Assistant area on this floor that has no room yet, linked to the area and sized by its device count. Drag and reshape them over the background.",
-    "seedRoomsNone": "Every Home Assistant area on this floor already has a room."
+    "seedRoomsNone": "Every Home Assistant area on this floor already has a room.",
+    "walls": "Generate walls from room outlines",
+    "wallsHint": "A wall along every room edge: timber framed (drywall) where two rooms meet, brick veneer on the outside. Edges that already have a wall are skipped. Change the exceptions in each wall's card.",
+    "wallsNone": "No walls to add: every room edge already has a wall."
   }
 }

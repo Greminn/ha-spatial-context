@@ -80,6 +80,7 @@ import {
   unplacedDevices,
 } from "./bulk-place";
 import { areasWithoutRooms, seedRoomRects } from "./seed-rooms";
+import { wallTolerance, wallsFromRooms } from "./walls-from-rooms";
 import {
   RESET_PARTS,
   pinsToClear,
@@ -427,6 +428,33 @@ export class SpatialContextPanel extends LitElement {
     });
   };
 
+  /** "Generate walls from room outlines" (see walls-from-rooms.ts): an
+   * interior wall per shared edge, an exterior one per outside edge,
+   * nothing where a wall already runs. One undo step. */
+  private _onGenerateWalls = async () => {
+    this._moreOptionsPopoverOpen = false;
+    if (this._view !== "floor" || !this._currentFloorId) return;
+    const generated = wallsFromRooms({
+      rooms: this._layout.rooms,
+      existingWalls: this._layout.walls,
+      tolerance: wallTolerance(this._unitsPerMeter()),
+    });
+    if (generated.length === 0) {
+      await this._notify(localize("setup.wallsNone"));
+      return;
+    }
+    debugLog.log("walls_from_rooms", {
+      exterior: generated.filter((w) => w.exterior).length,
+      interior: generated.filter((w) => !w.exterior).length,
+    });
+    this._updateLayout({
+      walls: [
+        ...this._layout.walls,
+        ...generated.map((w) => newWall(w.points, w.material)),
+      ],
+    });
+  };
+
   /** Floor-only setup shortcuts in the header's ⋮ menu. */
   private _renderSetupMenuItems() {
     if (this._view !== "floor" || !this._currentFloorId) return nothing;
@@ -436,13 +464,22 @@ export class SpatialContextPanel extends LitElement {
       this._currentFloorId,
     ).length;
     return html`<button
-      class="menu-item"
-      title=${localize("setup.seedRoomsHint")}
-      @click=${this._onSeedRooms}
-    >
-      <ha-icon icon="mdi:vector-square-plus"></ha-icon>
-      ${localize("setup.seedRooms", { count: missing })}
-    </button>`;
+        class="menu-item"
+        title=${localize("setup.seedRoomsHint")}
+        @click=${this._onSeedRooms}
+      >
+        <ha-icon icon="mdi:vector-square-plus"></ha-icon>
+        ${localize("setup.seedRooms", { count: missing })}
+      </button>
+      <button
+        class="menu-item"
+        title=${localize("setup.wallsHint")}
+        ?disabled=${this._layout.rooms.length === 0}
+        @click=${this._onGenerateWalls}
+      >
+        <ha-icon icon="mdi:wall"></ha-icon>
+        ${localize("setup.walls")}
+      </button>`;
   }
 
   private _onPinConfirmPosition = () => {

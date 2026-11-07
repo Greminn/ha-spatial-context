@@ -430,6 +430,9 @@
   "setup": {
     "seedRooms": "Räume für die Bereiche dieser Etage anlegen ({count})",
     "seedRoomsHint": "Ein Platzhalter-Raum für jeden Home-Assistant-Bereich dieser Etage, der noch keinen Raum hat – mit dem Bereich verknüpft und nach seiner Geräteanzahl bemessen. Anschließend über dem Hintergrund verschieben und anpassen.",
-    "seedRoomsNone": "Jeder Home-Assistant-Bereich dieser Etage hat bereits einen Raum."
+    "seedRoomsNone": "Jeder Home-Assistant-Bereich dieser Etage hat bereits einen Raum.",
+    "walls": "Wände aus Raumumrissen erzeugen",
+    "wallsHint": "Eine Wand entlang jeder Raumkante: eine Holzständerwand (Trockenbau), wo zwei Räume aneinandergrenzen, Ziegelverblendung an der Außenseite. Kanten mit vorhandener Wand werden übersprungen. Ausnahmen in der Karte der jeweiligen Wand ändern.",
+    "wallsNone": "Keine Wände hinzuzufügen: Jede Raumkante hat bereits eine Wand."
   }
 }
