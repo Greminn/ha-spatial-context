@@ -104,6 +104,18 @@ import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-page";
 import type { PropertyBuilding } from "./views/property-overlay";
 import { panelStyles } from "./panel-styles";
+import {
+  APPEARANCES,
+  APPEARANCE_ICONS,
+  PLAN_SHEETS,
+  PLAN_SHEET_ICONS,
+  THEME_VAR_NAMES,
+  isDarkAppearance,
+  readAppearancePrefs,
+  themeVars,
+  writeAppearancePrefs,
+  type AppearancePrefs,
+} from "./appearance";
 
 /** The docs site's walkthrough, linked from the More options menu. */
 const GETTING_STARTED_URL =
@@ -187,6 +199,12 @@ export class SpatialContextPanel extends LitElement {
   /** The Settings page is showing in place of the map. */
   @state() private _settingsOpen = false;
   @state() private _moreOptionsPopoverOpen = false;
+  @state() private _appearancePopoverOpen = false;
+  /** This browser's Light/Dark/System choice and plan sheet (see
+   * appearance.ts). */
+  @state() private _appearancePrefs: AppearancePrefs = readAppearancePrefs();
+  /** HA's own theme, mirrored so a theme switch re-renders the panel. */
+  @state() private _haDark = false;
 
   // --- Property tab ---------------------------------------------------
   @state() private _view: "floor" | "property" = "floor";
@@ -284,6 +302,8 @@ export class SpatialContextPanel extends LitElement {
 
   set hass(value: HomeAssistant) {
     this._hass = value;
+    const haDark = value.themes?.darkMode ?? false;
+    if (haDark !== this._haDark) this._haDark = haDark;
     if (!this._initialized) {
       this._initialized = true;
       void this._init();
@@ -1654,6 +1674,9 @@ export class SpatialContextPanel extends LitElement {
   /** Picking something on the canvas puts the header menus away (a layer
    * that's switched on stays on; only its menu closes). */
   override willUpdate(changed: Map<string, unknown>): void {
+    if (changed.has("_appearancePrefs") || changed.has("_haDark")) {
+      this._applyAppearance();
+    }
     const selectionKeys = [
       "_selectedRoomId",
       "_selectedPinId",
@@ -1673,6 +1696,7 @@ export class SpatialContextPanel extends LitElement {
     );
     if (picked) {
       this._meshPopoverOpen = false;
+      this._appearancePopoverOpen = false;
       this._backgroundPopoverOpen = false;
       this._moreOptionsPopoverOpen = false;
     }
@@ -1826,6 +1850,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _onToggleBackgroundPopover = () => {
     this._backgroundPopoverOpen = !this._backgroundPopoverOpen;
+    this._appearancePopoverOpen = false;
     this._meshPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
   };
@@ -1835,12 +1860,14 @@ export class SpatialContextPanel extends LitElement {
    * menu leaves it drawn; tap the selected layer again to turn it off. */
   private _onToggleMeshPopover = () => {
     this._meshPopoverOpen = !this._meshPopoverOpen;
+    this._appearancePopoverOpen = false;
     this._backgroundPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
   };
 
   private _onOpenSettings = () => {
     this._settingsOpen = true;
+    this._appearancePopoverOpen = false;
     this._backgroundPopoverOpen = false;
     this._meshPopoverOpen = false;
     this._moreOptionsPopoverOpen = false;
@@ -1848,6 +1875,7 @@ export class SpatialContextPanel extends LitElement {
 
   private _onToggleMoreOptionsPopover = () => {
     this._moreOptionsPopoverOpen = !this._moreOptionsPopoverOpen;
+    this._appearancePopoverOpen = false;
     this._backgroundPopoverOpen = false;
     this._meshPopoverOpen = false;
   };
@@ -3092,6 +3120,83 @@ export class SpatialContextPanel extends LitElement {
     this._mode = "select";
   };
 
+  /** Whether the panel draws dark: HA's theme, unless this browser picked
+   * Light or Dark. */
+  private get _dark(): boolean {
+    return isDarkAppearance(this._appearancePrefs.appearance, this._haDark);
+  }
+
+  /** Overrides HA's theme properties on the panel host (inherited by every
+   * element inside it), or clears them so HA's theme shows through. Native
+   * controls (selects, checkboxes, scrollbars) follow color-scheme. */
+  private _applyAppearance() {
+    const vars = themeVars(this._appearancePrefs.appearance);
+    for (const name of THEME_VAR_NAMES) {
+      const value = vars[name];
+      if (value) this.style.setProperty(name, value);
+      else this.style.removeProperty(name);
+    }
+    this.style.colorScheme = this._dark ? "dark" : "light";
+  }
+
+  private _setAppearancePrefs(patch: Partial<AppearancePrefs>) {
+    this._appearancePrefs = { ...this._appearancePrefs, ...patch };
+    writeAppearancePrefs(this._appearancePrefs);
+  }
+
+  private _onToggleAppearancePopover = () => {
+    this._appearancePopoverOpen = !this._appearancePopoverOpen;
+    this._backgroundPopoverOpen = false;
+    this._meshPopoverOpen = false;
+    this._moreOptionsPopoverOpen = false;
+  };
+
+  private _onAppearanceChange = (e: CustomEvent<Partial<AppearancePrefs>>) => {
+    this._setAppearancePrefs(e.detail);
+  };
+
+  /** The header's Appearance menu: Light/Dark/System for this panel, and
+   * what goes behind the plan image. */
+  private _renderAppearancePopover() {
+    const { appearance, planSheet } = this._appearancePrefs;
+    const check = (on: boolean) =>
+      on ? html`<ha-icon class="trail" icon="mdi:check"></ha-icon>` : nothing;
+    return html`<icon-popover
+      icon=${APPEARANCE_ICONS[appearance]}
+      label=${localize("appearance.title")}
+      .open=${this._appearancePopoverOpen}
+      @toggle=${this._onToggleAppearancePopover}
+    >
+      <div class="menu-heading">${localize("appearance.title")}</div>
+      ${APPEARANCES.map(
+        (option) =>
+          html`<button
+            class="menu-item ${option === appearance ? "active" : ""}"
+            @click=${() => this._setAppearancePrefs({ appearance: option })}
+          >
+            <ha-icon icon=${APPEARANCE_ICONS[option]}></ha-icon>
+            ${localize(`appearance.${option}`)} ${check(option === appearance)}
+          </button>`,
+      )}
+      <div class="menu-divider"></div>
+      <div class="menu-heading">${localize("appearance.planSheet")}</div>
+      ${PLAN_SHEETS.map(
+        (option) =>
+          html`<button
+            class="menu-item ${option === planSheet ? "active" : ""}"
+            @click=${() => this._setAppearancePrefs({ planSheet: option })}
+          >
+            <ha-icon icon=${PLAN_SHEET_ICONS[option]}></ha-icon>
+            ${localize(`appearance.sheet_${option}`)}
+            ${check(option === planSheet)}
+          </button>`,
+      )}
+      <span class="hint" style="padding: 4px 16px 8px"
+        >${localize("appearance.browserOnly")}</span
+      >
+    </icon-popover>`;
+  }
+
   private _onPendingChanged = (e: CustomEvent<{ count: number }>) => {
     this._pendingCount = e.detail.count;
   };
@@ -3252,7 +3357,7 @@ export class SpatialContextPanel extends LitElement {
     return html`
       <app-header
         .narrow=${this.narrow}
-        ?light=${!(this._hass?.themes?.darkMode ?? false)}
+        ?light=${!this._dark}
         .floors=${this._orderedFloors}
         .selectedFloorId=${this._currentFloorId}
         .propertySelected=${this._view === "property"}
@@ -3383,6 +3488,7 @@ export class SpatialContextPanel extends LitElement {
               </icon-popover>`
             : nothing
         }
+        ${this._renderAppearancePopover()}
         <icon-popover
           slot="end"
           icon="mdi:dots-vertical"
@@ -3440,7 +3546,9 @@ export class SpatialContextPanel extends LitElement {
               .settings=${this._settings}
               .haVersion=${this._hass?.config?.version ?? ""}
               .coordinatorChoices=${this._placedDeviceChoices}
+              .appearance=${this._appearancePrefs}
               @settings-change=${this._onSettingsChange}
+              @appearance-change=${this._onAppearanceChange}
             ></settings-page>`
           : html`<div class="main">
               ${
@@ -3485,7 +3593,7 @@ export class SpatialContextPanel extends LitElement {
                         @drop=${this._onCanvasDrop}
                       >
                         <property-canvas
-                          .dark=${this._hass?.themes?.darkMode ?? false}
+                          .dark=${this._dark}
                           .placements=${this._livePlacements}
                           .ghosts=${this._placementGhosts}
                           .hass=${this._hass}
@@ -3610,7 +3718,8 @@ export class SpatialContextPanel extends LitElement {
                       >
                         <floorplan-canvas
                           @calibrate-scale-click=${this._onCalibrateScaleClick}
-                          .dark=${this._hass?.themes?.darkMode ?? false}
+                          .dark=${this._dark}
+                          .planSheet=${this._appearancePrefs.planSheet}
                           .rooms=${this._roomsForCanvas}
                           .pins=${this._layout.pins}
                           .walls=${this._layout.walls}
