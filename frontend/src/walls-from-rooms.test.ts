@@ -57,9 +57,9 @@ describe("classifyCoverage", () => {
       { start: 5, end: 15, roomId: "b" },
     ]);
     expect(pieces).toEqual([
-      { start: 0, end: 5, shared: false },
-      { start: 5, end: 10, shared: true },
-      { start: 10, end: 15, shared: false },
+      { start: 0, end: 5, shared: false, offset: 0 },
+      { start: 5, end: 10, shared: true, offset: 0 },
+      { start: 10, end: 15, shared: false, offset: 0 },
     ]);
   });
 
@@ -69,7 +69,7 @@ describe("classifyCoverage", () => {
         { start: 0, end: 5, roomId: "a" },
         { start: 5, end: 10, roomId: "b" },
       ]),
-    ).toEqual([{ start: 0, end: 10, shared: false }]);
+    ).toEqual([{ start: 0, end: 10, shared: false, offset: 0 }]);
   });
 
   it("does not count one room twice", () => {
@@ -78,7 +78,7 @@ describe("classifyCoverage", () => {
         { start: 0, end: 10, roomId: "a" },
         { start: 2, end: 4, roomId: "a" },
       ]),
-    ).toEqual([{ start: 0, end: 10, shared: false }]);
+    ).toEqual([{ start: 0, end: 10, shared: false, offset: 0 }]);
   });
 });
 
@@ -220,6 +220,44 @@ describe("wallsFromRooms", () => {
     expect(
       wallsFromRooms({ rooms: [room], existingWalls: existing, tolerance: 2 }),
     ).toEqual([]);
+  });
+
+  it("keeps a distant room on the same line at its own offset", () => {
+    // b's top edge is 10 units lower than a's, within the tolerance, but
+    // far away along the line: it must not be pulled up to a's line.
+    const walls = wallsFromRooms({
+      rooms: [rect("a", 0, 0, 100, 50), rect("b", 300, 10, 100, 50)],
+      existingWalls: [],
+      tolerance: 17,
+    });
+    const bTop = walls.find(
+      (w) =>
+        w.points.every(([x]) => x >= 300) &&
+        w.points.every(([, y]) => near(y, 10)),
+    );
+    expect(bTop).toBeDefined();
+    const aTop = walls.find(
+      (w) =>
+        w.points.every(([x]) => x <= 100) &&
+        w.points.every(([, y]) => near(y, 0)),
+    );
+    expect(aTop).toBeDefined();
+  });
+
+  it("puts the exterior part of a partly shared edge on its own room's edge", () => {
+    // b sits 4 units below a, against the left half of a's bottom edge.
+    const walls = wallsFromRooms({
+      rooms: [rect("a", 0, 0, 200, 50), rect("b", 0, 54, 100, 50)],
+      existingWalls: [],
+      tolerance: 6,
+    });
+    const shared = walls.filter((w) => !w.exterior);
+    expect(shared).toHaveLength(1);
+    expect(shared[0]!.points.every(([, y]) => near(y, 52))).toBe(true);
+    const aBottomRight = walls.find(
+      (w) => w.exterior && w.points.every(([x, y]) => x >= 100 && near(y, 50)),
+    );
+    expect(aBottomRight).toBeDefined();
   });
 
   it("ignores degenerate rooms", () => {
