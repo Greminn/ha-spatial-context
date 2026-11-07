@@ -18,7 +18,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 
 ### Changed
 - Spatial Context needs Home Assistant 2026.10 or newer, and the listed minimum now says so.
-- The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators when a user calls them directly. Automations and scripts still run them as before.
+- The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators. Automations still run them as before, but a script started by a non-administrator is refused (#67).
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 

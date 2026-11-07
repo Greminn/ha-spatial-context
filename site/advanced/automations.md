@@ -4,7 +4,7 @@ title: Automations and Actions
 
 # Automations and Actions
 
-Spatial Context registers two actions for use in automations and scripts. Automations and scripts can always run them. Called directly by a user (from Developer Tools, or through the API with a user's token), they need an administrator account, the same as the panel.
+Spatial Context registers two actions for use in automations and scripts. Both are for administrators, the same as the panel. An automation can always run them. A script runs as the person who started it, so a script started by a non-administrator (from a dashboard button or a voice assistant, for example) is refused, and so is a direct call from Developer Tools or the API with a non-administrator's token.
 
 | Action | Effect |
 |---|---|
@@ -21,7 +21,7 @@ actions:
 
 ## Refresh the Zigbee Mesh
 
-A scan takes one to two minutes. Run it from a scheduled automation, not interactively. The action is for administrators: automations and scripts can run it, but a non-administrator who calls it directly is refused. The cached scan is kept in memory, so it is empty after Home Assistant restarts until the next scan.
+A scan takes one to two minutes. Run it from a scheduled automation, not interactively. The cached scan is kept in memory, so it is empty after Home Assistant restarts until the next scan.
 
 ```yaml
 triggers:
