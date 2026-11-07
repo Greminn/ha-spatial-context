@@ -73,6 +73,12 @@ import {
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
+  bulkCounts,
+  confirmPin,
+  planBulkPlacement,
+  unplacedDevices,
+} from "./bulk-place";
+import {
   RESET_PARTS,
   pinsToClear,
   resetFloorParts,
@@ -333,6 +339,61 @@ export class SpatialContextPanel extends LitElement {
         .filter((id): id is string => id !== null),
     );
   }
+
+  /** Devices whose pin on this floor was bulk-placed and not confirmed. */
+  private get _approximateDeviceIds(): Set<string> {
+    return new Set(
+      this._layout.pins
+        .filter((p) => p.approximate && p.device_id)
+        .map((p) => p.device_id!),
+    );
+  }
+
+  private get _bulkCandidates() {
+    return unplacedDevices(
+      this._entities,
+      this._placedDeviceIds,
+      this._hiddenDeviceIds,
+      this._currentFloorId,
+    );
+  }
+
+  /** "Place by area" (see bulk-place.ts): every unplaced device of one
+   * area (or of every area linked to a room here) dropped inside its room,
+   * flagged approximate. One layout update, so one undo step; the new pins
+   * end up selected, ready to drag as a group. */
+  private _onBulkPlace = async (e: CustomEvent<{ areaId: string | null }>) => {
+    const spots = planBulkPlacement({
+      rooms: this._layout.rooms,
+      devices: this._bulkCandidates,
+      unitsPerMeter: this._unitsPerMeter(),
+      occupied: this._layout.pins.map((p) => [p.x, p.y]),
+      areaId: e.detail.areaId,
+    });
+    if (spots.length === 0) {
+      await this._notify(localize("picker.bulkNothing"));
+      return;
+    }
+    const pins = spots.map((spot) => ({
+      ...emptyPin(spot.deviceId, spot.x, spot.y, spot.roomId),
+      approximate: true,
+    }));
+    debugLog.log("bulk_place", {
+      count: pins.length,
+      scope: e.detail.areaId ? "area" : "floor",
+    });
+    this._updateLayout({ pins: [...this._layout.pins, ...pins] });
+    this._armedEntityId = null;
+    this._applyPinPick(pins.map((p) => p.id));
+  };
+
+  private _onPinConfirmPosition = () => {
+    const pin = this._selectedPin;
+    if (!pin?.approximate) return;
+    this._updateLayout({
+      pins: this._layout.pins.map((p) => (p.id === pin.id ? confirmPin(p) : p)),
+    });
+  };
 
   private _shownRoomsKey: [Room[], AreaMeta[]] | null = null;
   private _shownRooms: Room[] = [];
@@ -2849,10 +2910,13 @@ export class SpatialContextPanel extends LitElement {
     e: CustomEvent<{ pinId: string; x: number; y: number }>,
   ) => {
     const roomId = findRoomForPoint(e.detail.x, e.detail.y, this._layout.rooms);
-    this._patchPin(e.detail.pinId, {
-      x: e.detail.x,
-      y: e.detail.y,
-      room_id: roomId,
+    // Dragged by hand: wherever it lands is now its real spot.
+    this._updateLayout({
+      pins: this._layout.pins.map((p) =>
+        p.id === e.detail.pinId
+          ? confirmPin({ ...p, x: e.detail.x, y: e.detail.y, room_id: roomId })
+          : p,
+      ),
     });
   };
 
@@ -2920,12 +2984,12 @@ export class SpatialContextPanel extends LitElement {
       if (!moving.has(p.id)) return p;
       const x = p.x + dx;
       const y = p.y + dy;
-      return {
+      return confirmPin({
         ...p,
         x,
         y,
         room_id: findRoomForPoint(x, y, this._layout.rooms),
-      };
+      });
     });
     // One layout update, so the whole group move is a single undo step.
     this._updateLayout({ pins });
@@ -3738,6 +3802,7 @@ export class SpatialContextPanel extends LitElement {
                           @pin-set-icon-click=${this._onPinSetIcon}
                           @pin-height-change=${this._onPinHeightChange}
                           @pin-delete-click=${this._onPinDelete}
+                          @pin-confirm-position-click=${this._onPinConfirmPosition}
                           @wall-material-change=${this._onWallMaterialChange}
                           @wall-thickness-change=${this._onWallThicknessChange}
                           @wall-edit-vertices-click=${this._onWallEditVertices}
@@ -3765,6 +3830,9 @@ export class SpatialContextPanel extends LitElement {
                               .areas=${this._areas}
                               .currentFloorId=${this._currentFloorId}
                               .linkedAreaIds=${this._outdoorAreaIdsOnCurrentFloor}
+                              .bulkCounts=${bulkCounts(this._layout.rooms, this._bulkCandidates)}
+                              .approximateDeviceIds=${this._approximateDeviceIds}
+                              @bulk-place=${this._onBulkPlace}
                               @entity-armed=${this._onEntityArmed}
                               @pin-locate=${this._onPickerPinLocate}
                               @pin-remove=${this._onPickerPinRemove}

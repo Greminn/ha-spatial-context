@@ -43,6 +43,10 @@ export interface Pin {
   /** Mounting height in metres above floor level, e.g. for judging a
    * mmWave sensor's detection cone. Null when not specified. */
   height_m: number | null;
+  /** Bulk-placed by area (see bulk-place.ts): in the right room, not yet
+   * at the device's real spot. Dragging or confirming the pin drops the
+   * key; absent = placed deliberately. */
+  approximate?: boolean;
 }
 
 export interface Wall {
@@ -321,6 +325,7 @@ export interface ExportSnapshot {
         x_m: number | null;
         y_m: number | null;
         height_m: number | null;
+        approximate?: boolean;
       }[];
     }[];
     walls: {
