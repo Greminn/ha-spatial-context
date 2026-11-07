@@ -19,7 +19,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 
 ### Changed
 - Spatial Context needs Home Assistant 2026.10 or newer, and the listed minimum now says so.
-- The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators. Automations still run them as before, but a script started by a non-administrator is refused (#67).
+- The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators. Automations still run them as before, but a script started by a non-administrator is refused (#67, thanks cb2206).
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
 
@@ -31,10 +31,11 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - With only one floor, the Place device list starts on **All floors**, so devices with no area, or an area on no floor, are no longer hidden (#54).
 - The OpenThread Border Router app, and Home Assistant Yellow, Green, SkyConnect and ZBT-2 hardware, can now be placed on the plan and chosen under **Settings → Border router** (#42).
 - The **Not placed yet** filter in the device list no longer shows devices that are placed on another floor.
-- The panel now follows the Home Assistant language. The German translation was never shown before, and the last few English-only labels are translated.
-- With UniFi, a Wi-Fi client's link keeps the signal strength UniFi reports, where before it was dropped for clients whose tracker is enabled.
-- A device in a room that has since been deleted is now listed as unassigned in `get_map` and Export JSON, instead of missing.
-- A save with malformed or non-finite points, or a bad scale, is refused, and a malformed point already stored no longer breaks the floor.
+- The panel now follows the Home Assistant language. The German translation was never shown before, and the last few English-only labels are translated (#70, thanks cb2206).
+- With UniFi, a Wi-Fi client's link keeps the signal strength UniFi reports, where before it was dropped for clients whose tracker is enabled (#65, thanks cb2206).
+- A device in a room that has since been deleted is now listed as unassigned in `get_map` and Export JSON, instead of missing (#66, thanks cb2206).
+- A save with malformed or non-finite points, or a bad scale, is refused, and a malformed point already stored no longer breaks the floor (#68, thanks cb2206).
+- A Zigbee device that has moved to a different parent is no longer drawn as still linked to the old one, for ZHA and Zigbee2MQTT (#69, thanks cb2206).
 
 ## 1.0.0
 
