@@ -4,12 +4,13 @@ title: Automations and Actions
 
 # Automations and Actions
 
-Spatial Context registers two actions for use in automations and scripts.
+Spatial Context registers these actions for use in automations and scripts.
 
 | Action | Effect |
 |---|---|
 | `spatial_context.get_map` | Returns the whole layout as the action's response. See [The Map Data](/ai/map-data). |
 | `spatial_context.refresh_zigbee_mesh` | Runs a fresh Zigbee scan and caches the result, so the Zigbee layer opens with current data. |
+| `spatial_context.refresh_links` | Re-reads the radio links (ZHA, Zigbee2MQTT, Matter/Thread, UniFi Wi-Fi) into the link store; optional `layers`. It runs by itself every 30 minutes and never starts a Zigbee scan, except a first Zigbee2MQTT network map when none has been fetched yet. Admin only when called by a user; automations and scripts can always run it. |
 
 ## Read the Map
 

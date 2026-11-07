@@ -520,6 +520,53 @@ async def ws_get_wifi_mesh(
 
 @websocket_api.require_admin
 @websocket_api.websocket_command(
+    {
+        vol.Required("type"): "spatial_context/get_links",
+        vol.Optional("layer"): vol.In(("zigbee", "thread", "wifi", "bluetooth")),
+        vol.Optional("network"): _TEXT,
+        vol.Optional("refresh", default=False): bool,
+    }
+)
+@websocket_api.async_response
+async def ws_get_links(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """The stored radio-link snapshots (see links/store.py).
+
+    Serves the last stored topology by default, which costs nothing.
+    `refresh` re-reads the integrations for the asked layer (or all) first;
+    that is still cheap except for a Zigbee2MQTT house with no cached map,
+    where it waits for one network-map scan.
+    """
+    # Imported here, like zha_mesh in zigbee_mesh.py, so the link providers
+    # load only when links are actually asked for.
+    from .links import store as link_store
+    from .links.common import compact_snapshot_dict
+
+    layer = msg.get("layer")
+    try:
+        if msg["refresh"]:
+            await link_store.async_refresh(hass, [layer] if layer else None)
+        snapshots = await link_store.async_get_snapshots(hass, layer, msg.get("network"))
+    except Exception as err:  # noqa: BLE001 - surface any failure to the frontend, not an unhandled rejection
+        connection.send_error(
+            msg["id"], "get_links_failed", _client_error(err, "Radio link lookup")
+        )
+        return
+    store = link_store.async_get_store(hass)
+    connection.send_result(
+        msg["id"],
+        {
+            "last_refresh": store.last_refresh if store else None,
+            "snapshots": [compact_snapshot_dict(s) for s in snapshots],
+        },
+    )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
     {vol.Required("type"): "spatial_context/get_bluetooth_devices"}
 )
 @callback
@@ -597,6 +644,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_zigbee_mesh)
     websocket_api.async_register_command(hass, ws_get_wifi_mesh)
     websocket_api.async_register_command(hass, ws_get_bluetooth_devices)
+    websocket_api.async_register_command(hass, ws_get_links)
     websocket_api.async_register_command(hass, ws_version)
     websocket_api.async_register_command(hass, ws_debug_log)
     websocket_api.async_register_command(hass, ws_debug_report)

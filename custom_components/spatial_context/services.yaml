@@ -4,3 +4,18 @@ get_map:
 refresh_zigbee_mesh:
   name: Refresh Zigbee mesh
   description: Forces a fresh Zigbee2MQTT network scan and caches the result, so the panel's own "Load mesh" can serve it instantly. Intended for a scheduled/overnight automation, not interactive use (a scan can take 1–2 minutes).
+refresh_links:
+  name: Refresh radio links
+  description: Re-reads the radio links (ZHA, Zigbee2MQTT, Matter/Thread, UniFi Wi-Fi) into Spatial Context's link store. Cheap; it reads what the integrations already hold and never starts a Zigbee scan, except a first Zigbee2MQTT network map when none has been fetched yet. Runs by itself every 30 minutes.
+  fields:
+    layers:
+      name: Layers
+      description: Only refresh these layers. Leave empty for all.
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - zigbee
+            - thread
+            - wifi

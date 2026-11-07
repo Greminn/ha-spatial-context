@@ -1,8 +1,18 @@
-"""Services for Spatial Context."""
+"""Services for Spatial Context.
+
+The services added for the link store and the spatial engine are admin-only,
+like the WebSocket API, and are registered with Home Assistant's
+`async_register_admin_service`: a non-admin user's call is refused, while a
+call with no user (an automation or script) is allowed.
+"""
 
 from __future__ import annotations
 
+import voluptuous as vol
+
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN
 from .export import async_get_map_data
@@ -34,4 +44,41 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "refresh_zigbee_mesh",
         refresh_zigbee_mesh_service,
+    )
+
+    async def refresh_links_service(call: ServiceCall) -> dict:
+        """Re-read every radio-link provider (or the given layers) into the
+        link store, for an automation that wants fresher data than the
+        30-minute schedule. Returns a short per-network summary."""
+        from .links.store import async_refresh
+
+        snapshots = await async_refresh(hass, call.data.get("layers"))
+        return {
+            "snapshots": [
+                {
+                    "layer": s.layer,
+                    "network": s.network,
+                    "provider": s.provider,
+                    "captured_at": s.captured_at,
+                    "nodes": len(s.nodes),
+                    "links": len(s.links),
+                    "errors": s.errors,
+                }
+                for s in snapshots
+            ]
+        }
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "refresh_links",
+        refresh_links_service,
+        vol.Schema(
+            {
+                vol.Optional("layers"): vol.All(
+                    cv.ensure_list, [vol.In(("zigbee", "thread", "wifi", "bluetooth"))]
+                )
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
     )

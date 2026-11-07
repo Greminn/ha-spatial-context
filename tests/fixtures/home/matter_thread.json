@@ -1,0 +1,2636 @@
+{
+ "_meta": {
+  "source": "Matter per-device diagnostics (data.node.attributes 0/53/*, 0/51/0) + ha_get_device node_diagnostics + thread integration diagnostics (border routers only)",
+  "capture_date": "2026-11-06",
+  "notes": [
+   "Attribute keys are endpoint/cluster/attribute; table entries keep Matter spec field ids as string keys.",
+   "0/53/7 fields: 0 ExtAddress, 1 Age, 2 Rloc16, 3 LinkFrameCounter, 4 MleFrameCounter, 5 LQI(0-3), 6 AverageRssi, 7 LastRssi, 8 FrameErrorRate, 9 MessageErrorRate, 10 RxOnWhenIdle, 11 FullThreadDevice, 12 FullNetworkData, 13 IsChild.",
+   "0/53/8 fields: 0 ExtAddress, 1 Rloc16, 2 RouterId, 3 NextHop, 4 PathCost, 5 LQIIn, 6 LQIOut, 7 Age, 8 Allocated, 9 LinkEstablished.",
+   "own_rloc16 is derived from the mesh-local RLOC IPv6 (...:0:ff:fe00:XXXX) in 0/51/0 field 6; join neighbors/routes on Rloc16.",
+   "ExtAddress values are fake. In the raw capture the 64-bit table values had float precision loss; they were mapped to the owning device's fake ext address when within 4096 of an exact own address, otherwise to a fake 0x00000B... value. Own addresses (0/51/0 field 4, node_diagnostics.mac_address) are exact fakes in the 0x00000A... range.",
+   "Fake IPv6: mesh-local prefix fd00:0:<net>::/64 keeps the real RLOC IID (so derivation still works); link-local derived from the fake ext address; other addresses get counter IIDs.",
+   "0/53/0, 0/53/2, 0/53/3 for devices with attrs_fetched_individually not listing them were filled from network constants, not fetched per device.",
+   "is_shadow_record: disabled duplicate registry entries created by a time-sync helper integration with the same node_id as a real device; they have no diagnostics.",
+   "Bridge (ethernet) node has no 0/53 cluster; its non-Thread interfaces had MAC/IPs replaced and IP lists emptied."
+  ]
+ },
+ "networks": [
+  {
+   "network_name": "net-a",
+   "ext_pan_id": "000000000000000a",
+   "border_routers": [
+    {
+     "name": "br-a1.local.",
+     "vendor_name": "Home Assistant",
+     "model_name": "OpenThread Border Router",
+     "thread_version": "1.4.0"
+    }
+   ],
+   "channel": 15,
+   "pan_id": 4660,
+   "ha_otbr": true
+  },
+  {
+   "network_name": "net-b",
+   "ext_pan_id": "000000000000000b",
+   "border_routers": [
+    {
+     "name": "br-b1.local.",
+     "vendor_name": "Apple",
+     "model_name": "BorderRouter",
+     "thread_version": "1.4.0"
+    },
+    {
+     "name": "br-b2.local.",
+     "vendor_name": "Aqara",
+     "model_name": "HubM3",
+     "thread_version": "1.3.0"
+    }
+   ],
+   "channel": 25,
+   "pan_id": 22136,
+   "ha_otbr": false
+  },
+  {
+   "network_name": "net-c",
+   "ext_pan_id": "000000000000000c",
+   "border_routers": [
+    {
+     "name": "br-c1.local.",
+     "vendor_name": "amazon",
+     "model_name": "echo",
+     "thread_version": "1.1.1"
+    }
+   ],
+   "channel": null,
+   "pan_id": null,
+   "ha_otbr": false
+  }
+ ],
+ "devices": [
+  {
+   "device_id": "dev_134",
+   "name": "matter-01 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_01",
+   "node_id": 35,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:01"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277772,
+      "1": 10,
+      "2": 4256,
+      "3": 84180,
+      "4": 840,
+      "5": 2,
+      "6": -89,
+      "7": -89,
+      "8": 24,
+      "9": 1,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 10995116277773,
+      "1": 3,
+      "2": 4259,
+      "3": 325039,
+      "4": 2292,
+      "5": 1,
+      "6": -95,
+      "7": -95,
+      "8": 54,
+      "9": 15,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 10995116277766,
+      "1": 6,
+      "2": 9216,
+      "3": 166247,
+      "4": 106144,
+      "5": 2,
+      "6": -89,
+      "7": -90,
+      "8": 58,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277761,
+      "1": 4096,
+      "2": 4,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 63,
+      "4": 0,
+      "5": 2,
+      "6": 1,
+      "7": 6,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 9,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 16,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 9,
+      "4": 4,
+      "5": 0,
+      "6": 0,
+      "7": 78,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277763,
+      "1": 35840,
+      "2": 35,
+      "3": 9,
+      "4": 4,
+      "5": 0,
+      "6": 0,
+      "7": 4,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 41984,
+      "2": 41,
+      "3": 9,
+      "4": 5,
+      "5": 0,
+      "6": 0,
+      "7": 231,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 9,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 45,
+      "8": true,
+      "9": false
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAE=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gAQAA==",
+       "/QAACgAAAAEOHQAAAAAAAQ==",
+       "/QAACgAAAAAOHQAAAAAAAg==",
+       "/oAAAAAAAAACAAoAAAAAAQ=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 4096,
+   "own_ext_address": 10995116277761
+  },
+  {
+   "device_id": "dev_135",
+   "name": "matter-02 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_05",
+   "node_id": 29,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "routing_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:02"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277763,
+      "1": 0,
+      "2": 6144,
+      "3": 90298,
+      "4": 51520,
+      "5": 3,
+      "6": -72,
+      "7": -72,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 0,
+      "2": 12288,
+      "3": 636638,
+      "4": 103191,
+      "5": 3,
+      "6": -64,
+      "7": -64,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 2,
+      "2": 29696,
+      "3": 354783,
+      "4": 106410,
+      "5": 3,
+      "6": -66,
+      "7": -67,
+      "8": 9,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 0,
+      "2": 59392,
+      "3": 322451,
+      "4": 107986,
+      "5": 2,
+      "6": -80,
+      "7": -80,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 29,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 0,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 0,
+      "1": 9216,
+      "2": 9,
+      "3": 29,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 1,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 29,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 0,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 12,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 2,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277762,
+      "1": 38912,
+      "2": 38,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 41984,
+      "2": 41,
+      "3": 29,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 16,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 29,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 0,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAI=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gCYAA==",
+       "/QAACgAAAAEOHQAAAAAAAw==",
+       "/QAACgAAAAAOHQAAAAAABA==",
+       "/oAAAAAAAAACAAoAAAAAAg=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 38912,
+   "own_ext_address": 10995116277762
+  },
+  {
+   "device_id": "dev_136",
+   "name": "matter-03 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_19",
+   "node_id": 30,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:03"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 4,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277764,
+      "1": 12,
+      "2": 12288,
+      "3": 625926,
+      "4": 98094,
+      "5": 2,
+      "6": -78,
+      "7": -79,
+      "8": 7,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 4,
+      "2": 29696,
+      "3": 336755,
+      "4": 101215,
+      "5": 3,
+      "6": -73,
+      "7": -73,
+      "8": 20,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277768,
+      "1": 8,
+      "2": 41984,
+      "3": 195994,
+      "4": 157185,
+      "5": 2,
+      "6": -83,
+      "7": -83,
+      "8": 26,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 21,
+      "2": 59392,
+      "3": 298738,
+      "4": 102070,
+      "5": 1,
+      "6": -95,
+      "7": -96,
+      "8": 6,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 9216,
+      "2": 9,
+      "3": 12,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 29,
+      "4": 1,
+      "5": 2,
+      "6": 3,
+      "7": 12,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 12,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 4,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277768,
+      "1": 41984,
+      "2": 41,
+      "3": 29,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 8,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 29,
+      "4": 2,
+      "5": 1,
+      "6": 1,
+      "7": 21,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAM=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAABQ==",
+       "/QAACgAAAAAAAAD//gAYAA==",
+       "/QAACgAAAAAOHQAAAAAABg==",
+       "/oAAAAAAAAACAAoAAAAAAw=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 6144,
+   "own_ext_address": 10995116277763
+  },
+  {
+   "device_id": "dev_137",
+   "name": "matter-04 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_04",
+   "node_id": 31,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "routing_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:04"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277763,
+      "1": 18,
+      "2": 6144,
+      "3": 79342,
+      "4": 45608,
+      "5": 3,
+      "6": -78,
+      "7": -78,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277766,
+      "1": 3,
+      "2": 9216,
+      "3": 220176,
+      "4": 135003,
+      "5": 2,
+      "6": -85,
+      "7": -86,
+      "8": 50,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 7,
+      "2": 29696,
+      "3": 336759,
+      "4": 101215,
+      "5": 3,
+      "6": -72,
+      "7": -73,
+      "8": 19,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 23,
+      "2": 59392,
+      "3": 298738,
+      "4": 102070,
+      "5": 2,
+      "6": -88,
+      "7": -88,
+      "8": 21,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 29,
+      "4": 1,
+      "5": 3,
+      "6": 2,
+      "7": 18,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 58,
+      "4": 1,
+      "5": 2,
+      "6": 2,
+      "7": 3,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 0,
+      "1": 12288,
+      "2": 12,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 6,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 7,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277768,
+      "1": 41984,
+      "2": 41,
+      "3": 29,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 20,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 9,
+      "4": 1,
+      "5": 2,
+      "6": 2,
+      "7": 23,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAQ=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAABw==",
+       "/QAACgAAAAAAAAD//gAwAA==",
+       "/QAACgAAAAAOHQAAAAAACA==",
+       "/oAAAAAAAAACAAoAAAAABA=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 12288,
+   "own_ext_address": 10995116277764,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_138",
+   "name": "matter-05 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_13",
+   "node_id": 33,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "routing_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:05"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277770,
+      "1": 5,
+      "2": 59428,
+      "3": 127194,
+      "4": 61,
+      "5": 2,
+      "6": -87,
+      "7": -86,
+      "8": 48,
+      "9": 5,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 10995116277763,
+      "1": 45,
+      "2": 6144,
+      "3": 79342,
+      "4": 45606,
+      "5": 1,
+      "6": -94,
+      "7": -95,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277766,
+      "1": 5,
+      "2": 9216,
+      "3": 220176,
+      "4": 135003,
+      "5": 3,
+      "6": -66,
+      "7": -67,
+      "8": 11,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 55,
+      "2": 12288,
+      "3": 625926,
+      "4": 98092,
+      "5": 2,
+      "6": -88,
+      "7": -89,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 9,
+      "2": 29696,
+      "3": 336764,
+      "4": 101215,
+      "5": 2,
+      "6": -82,
+      "7": -83,
+      "8": 42,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 29,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 45,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 12,
+      "4": 2,
+      "5": 3,
+      "6": 3,
+      "7": 5,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 9,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 55,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 12,
+      "4": 1,
+      "5": 2,
+      "6": 2,
+      "7": 9,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277768,
+      "1": 41984,
+      "2": 41,
+      "3": 29,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 237,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 59392,
+      "2": 58,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAU=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAACQ==",
+       "/QAACgAAAAAAAAD//gDoAA==",
+       "/QAACgAAAAAOHQAAAAAACg==",
+       "/oAAAAAAAAACAAoAAAAABQ=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 59392,
+   "own_ext_address": 10995116277765,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_139",
+   "name": "matter-06 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_16",
+   "node_id": 34,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "routing_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:06"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277764,
+      "1": 57,
+      "2": 12288,
+      "3": 625943,
+      "4": 98092,
+      "5": 2,
+      "6": -85,
+      "7": -86,
+      "8": 16,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 76,
+      "2": 29696,
+      "3": 336731,
+      "4": 101212,
+      "5": 1,
+      "6": -94,
+      "7": -94,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 11,
+      "2": 59392,
+      "3": 298738,
+      "4": 102071,
+      "5": 3,
+      "6": -67,
+      "7": -67,
+      "8": 9,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 0,
+      "1": 6144,
+      "2": 6,
+      "3": 12,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 47,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 58,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 57,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 12,
+      "4": 1,
+      "5": 1,
+      "6": 0,
+      "7": 76,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 0,
+      "1": 41984,
+      "2": 41,
+      "3": 12,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 245,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 12,
+      "4": 2,
+      "5": 3,
+      "6": 3,
+      "7": 11,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAY=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAACw==",
+       "/QAACgAAAAAAAAD//gAkAA==",
+       "/QAACgAAAAAOHQAAAAAADA==",
+       "/oAAAAAAAAACAAoAAAAABg=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 9216,
+   "own_ext_address": 10995116277766,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_140",
+   "name": "matter-07 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_06",
+   "node_id": 38,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:07"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 4,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [],
+    "0/53/8": [
+     {
+      "0": 0,
+      "1": 6144,
+      "2": 6,
+      "3": 38,
+      "4": 1,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 9216,
+      "2": 9,
+      "3": 38,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 12288,
+      "2": 12,
+      "3": 38,
+      "4": 1,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 29696,
+      "2": 29,
+      "3": 38,
+      "4": 1,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 38912,
+      "2": 38,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 41984,
+      "2": 41,
+      "3": 38,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 0,
+      "1": 59392,
+      "2": 58,
+      "3": 38,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 15,
+      "8": true,
+      "9": false
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAc=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAADQ==",
+       "/QAACgAAAAAAAAD//gCYAQ==",
+       "/QAACgAAAAAOHQAAAAAADg==",
+       "/oAAAAAAAAACAAoAAAAABw=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 38913,
+   "own_ext_address": 10995116277767,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_141",
+   "name": "matter-08 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_03",
+   "node_id": 39,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:08"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 4,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277763,
+      "1": 20,
+      "2": 6144,
+      "3": 79352,
+      "4": 45609,
+      "5": 2,
+      "6": -83,
+      "7": -83,
+      "8": 39,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 8,
+      "2": 29696,
+      "3": 336774,
+      "4": 101216,
+      "5": 2,
+      "6": -81,
+      "7": -81,
+      "8": 39,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 29,
+      "4": 1,
+      "5": 2,
+      "6": 2,
+      "7": 20,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 0,
+      "1": 9216,
+      "2": 9,
+      "3": 29,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 84,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 29,
+      "4": 1,
+      "5": 0,
+      "6": 0,
+      "7": 10,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 6,
+      "4": 1,
+      "5": 2,
+      "6": 2,
+      "7": 8,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277768,
+      "1": 41984,
+      "2": 41,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 29,
+      "4": 2,
+      "5": 0,
+      "6": 0,
+      "7": 228,
+      "8": true,
+      "9": false
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAg=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAEOHQAAAAAADw==",
+       "/QAACgAAAAAAAAD//gCkAA==",
+       "/QAACgAAAAAOHQAAAAAAEA==",
+       "/oAAAAAAAAACAAoAAAAACA=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 41984,
+   "own_ext_address": 10995116277768,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_142",
+   "name": "matter-09 (KLIPPBOK water leak sensor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "KLIPPBOK water leak sensor",
+   "area_id": "area_18",
+   "node_id": 13,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "sleepy_end_device",
+    "available": false,
+    "network_name": "net-b",
+    "mac_address": "00:00:0a:00:00:00:00:09"
+   },
+   "attributes": {
+    "0/53/0": 25,
+    "0/53/1": 2,
+    "0/53/2": "net-b",
+    "0/53/3": 22136,
+    "0/53/7": [
+     {
+      "0": 12094627905538,
+      "1": 65,
+      "2": 26624,
+      "3": 22330,
+      "4": 3590,
+      "5": 3,
+      "6": -54,
+      "7": -54,
+      "8": 30,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 12094627905538,
+      "1": 26624,
+      "2": 26,
+      "3": 0,
+      "4": 0,
+      "5": 3,
+      "6": 3,
+      "7": 65,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-b",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAk=",
+      "5": [],
+      "6": [
+       "/QAACwAAAAAAAAD//gBo7w==",
+       "/QAACwAAAAEOHQAAAAAAEQ==",
+       "/QAACwAAAAAOHQAAAAAAEg==",
+       "/oAAAAAAAAACAAoAAAAACQ=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 26863,
+   "own_ext_address": 10995116277769,
+   "attrs_fetched_individually": [
+    "0/53/0",
+    "0/53/1",
+    "0/53/2",
+    "0/53/3",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_143",
+   "name": "matter-10 (KLIPPBOK water leak sensor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "KLIPPBOK water leak sensor",
+   "area_id": "area_18",
+   "node_id": 14,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "sleepy_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:0a"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 2,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277765,
+      "1": 140041,
+      "2": 59392,
+      "3": 298740,
+      "4": 96275,
+      "5": 2,
+      "6": -86,
+      "7": -87,
+      "8": 29,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 0,
+      "4": 0,
+      "5": 2,
+      "6": 2,
+      "7": 9,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAo=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gDoJA==",
+       "/QAACgAAAAEOHQAAAAAAEw==",
+       "/QAACgAAAAAOHQAAAAAAFA==",
+       "/oAAAAAAAAACAAoAAAAACg=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 59428,
+   "own_ext_address": 10995116277770,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_144",
+   "name": "matter-11 (KLIPPBOK water leak sensor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "KLIPPBOK water leak sensor",
+   "area_id": "area_18",
+   "node_id": 49,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "sleepy_end_device",
+    "available": false,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:0b"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 2,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277764,
+      "1": 259863,
+      "2": 12288,
+      "3": 572035,
+      "4": 68333,
+      "5": 1,
+      "6": -93,
+      "7": -92,
+      "8": 39,
+      "9": 2,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 0,
+      "4": 0,
+      "5": 1,
+      "6": 2,
+      "7": 23,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAs=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gAwCg==",
+       "/QAACgAAAAEOHQAAAAAAFQ==",
+       "/QAACgAAAAAOHQAAAAAAFg==",
+       "/oAAAAAAAAACAAoAAAAACw=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 12298,
+   "own_ext_address": 10995116277771,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_145",
+   "name": "matter-12 (MYGGSPRAY wrlss mtn sensor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "MYGGSPRAY wrlss mtn sensor",
+   "area_id": "area_12",
+   "node_id": 26,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "sleepy_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:0c"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 2,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277766,
+      "1": 920,
+      "2": 9216,
+      "3": 184237,
+      "4": 113013,
+      "5": 3,
+      "6": -12,
+      "7": -97,
+      "8": 2,
+      "9": 5,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 0,
+      "4": 0,
+      "5": 3,
+      "6": 0,
+      "7": 152,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAAw=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gAkdw==",
+       "/QAACgAAAAEOHQAAAAAAFw==",
+       "/QAACgAAAAAOHQAAAAAAGA==",
+       "/oAAAAAAAAACAAoAAAAADA=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 9335,
+   "own_ext_address": 10995116277772,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_146",
+   "name": "matter-13 (Aqara Hub M3)",
+   "manufacturer": "Aqara",
+   "model": "Aqara Hub M3",
+   "area_id": null,
+   "node_id": 8,
+   "node_diagnostics": {
+    "network_type": "ethernet",
+    "node_type": "bridge",
+    "available": true,
+    "network_name": null,
+    "mac_address": "02:00:00:00:0e:00"
+   },
+   "attributes": {
+    "0/53/0": null,
+    "0/53/1": null,
+    "0/53/2": null,
+    "0/53/3": null,
+    "0/53/7": null,
+    "0/53/8": null,
+    "0/51/0": [
+     {
+      "0": "p2p0",
+      "1": false,
+      "2": null,
+      "3": null,
+      "4": "AgAAAA4B",
+      "5": [],
+      "6": [],
+      "7": 0
+     },
+     {
+      "0": "wlan0",
+      "1": false,
+      "2": null,
+      "3": null,
+      "4": "AgAAAA4C",
+      "5": [],
+      "6": [],
+      "7": 1
+     },
+     {
+      "0": "ip6tnl0",
+      "1": false,
+      "2": null,
+      "3": null,
+      "4": "AAAAAAAA",
+      "5": [],
+      "6": [],
+      "7": 0
+     },
+     {
+      "0": "sit0",
+      "1": false,
+      "2": null,
+      "3": null,
+      "4": "AgAAAA4D",
+      "5": [],
+      "6": [],
+      "7": 0
+     },
+     {
+      "0": "ip6_vti0",
+      "1": false,
+      "2": null,
+      "3": null,
+      "4": "AAAAAAAA",
+      "5": [],
+      "6": [],
+      "7": 0
+     },
+     {
+      "0": "eth0",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AgAAAA4E",
+      "5": [],
+      "6": [],
+      "7": 2,
+      "_ipv6_removed": true
+     },
+     {
+      "0": "lo",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAAAAAA",
+      "5": [],
+      "6": [],
+      "7": 0,
+      "_ipv4_removed": true,
+      "_ipv6_removed": true
+     }
+    ]
+   },
+   "own_rloc16": null,
+   "own_ext_address": null,
+   "attrs_fetched_individually": [
+    "0/53/7",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_147",
+   "name": "matter-14 (Aqara Smart Lock U100)",
+   "manufacturer": "Aqara",
+   "model": "Aqara Smart Lock U100",
+   "area_id": null,
+   "node_id": 8,
+   "via_device_id": "dev_146",
+   "node_diagnostics": {
+    "network_type": "ethernet",
+    "node_type": "bridge",
+    "available": true,
+    "network_name": null,
+    "mac_address": "02:00:00:00:0e:00"
+   },
+   "attributes": {
+    "0/53/0": null,
+    "0/53/1": null,
+    "0/53/2": null,
+    "0/53/3": null,
+    "0/53/7": null,
+    "0/53/8": null,
+    "0/51/0": null,
+    "_0/51/0_note": "bridged endpoint on the bridge node; interfaces are the bridge's"
+   },
+   "own_rloc16": null,
+   "own_ext_address": null
+  },
+  {
+   "device_id": "dev_148",
+   "name": "matter-15 (BILRESA dual button)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "BILRESA dual button",
+   "area_id": "area_12",
+   "node_id": 12,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "sleepy_end_device",
+    "available": true,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:0d"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 2,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277766,
+      "1": 32777,
+      "2": 9216,
+      "3": 204558,
+      "4": 121817,
+      "5": 3,
+      "6": -22,
+      "7": -93,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 0,
+      "4": 0,
+      "5": 3,
+      "6": 1,
+      "7": 9,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAA0=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gAkiQ==",
+       "/QAACgAAAAEOHQAAAAAAGQ==",
+       "/QAACgAAAAAOHQAAAAAAGg==",
+       "/oAAAAAAAAACAAoAAAAADQ=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 9353,
+   "own_ext_address": 10995116277773,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_149",
+   "name": "matter-16 (BILRESA dual button)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "BILRESA dual button",
+   "area_id": "area_14",
+   "node_id": 36,
+   "node_diagnostics": null,
+   "attributes": {
+    "0/53/0": 25,
+    "0/53/1": 2,
+    "0/53/2": "net-b",
+    "0/53/3": 22136,
+    "0/53/7": [
+     {
+      "0": 10995116277775,
+      "1": 137502,
+      "2": 62464,
+      "3": 71764,
+      "4": 106317,
+      "5": 3,
+      "6": -9,
+      "7": -74,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277775,
+      "1": 62464,
+      "2": 61,
+      "3": 0,
+      "4": 0,
+      "5": 3,
+      "6": 2,
+      "7": 30,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-b",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAA4=",
+      "5": [],
+      "6": [
+       "/QAACwAAAAEOHQAAAAAAGw==",
+       "/QAACwAAAAAAAAD//gD1wg==",
+       "/QAACwAAAAAOHQAAAAAAHA==",
+       "/oAAAAAAAAACAAoAAAAADg=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 62914,
+   "own_ext_address": 10995116277774,
+   "attrs_fetched_individually": [
+    "0/53/0",
+    "0/53/1",
+    "0/53/3",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_150",
+   "name": "matter-17 (Aqara Dimmer Switch H2 US)",
+   "manufacturer": "Aqara",
+   "model": "Aqara Dimmer Switch H2 US",
+   "area_id": null,
+   "node_id": 37,
+   "node_diagnostics": null,
+   "attributes": {
+    "0/53/0": 25,
+    "0/53/1": 4,
+    "0/53/2": "net-b",
+    "0/53/3": 22136,
+    "0/53/7": [
+     {
+      "0": 10995116277774,
+      "1": 0,
+      "2": 62914,
+      "3": 620283,
+      "4": 5825,
+      "5": 2,
+      "6": -84,
+      "7": -84,
+      "8": 1,
+      "9": 0,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 12094627905539,
+      "1": 0,
+      "2": 62913,
+      "3": 978713,
+      "4": 1175,
+      "5": 2,
+      "6": -88,
+      "7": -89,
+      "8": 4,
+      "9": 0,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 12094627905540,
+      "1": 1,
+      "2": 62915,
+      "3": 701609,
+      "4": 26840,
+      "5": 3,
+      "6": -70,
+      "7": -71,
+      "8": 2,
+      "9": 0,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 12094627905541,
+      "1": 1,
+      "2": 62916,
+      "3": 881503,
+      "4": 3148,
+      "5": 1,
+      "6": -90,
+      "7": -91,
+      "8": 8,
+      "9": 0,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 12094627905542,
+      "1": 1,
+      "2": 62917,
+      "3": 829188,
+      "4": 1730,
+      "5": 3,
+      "6": -71,
+      "7": -72,
+      "8": 0,
+      "9": 0,
+      "10": false,
+      "11": false,
+      "12": false,
+      "13": true
+     },
+     {
+      "0": 12094627905543,
+      "1": 3,
+      "2": 51200,
+      "3": 1734296,
+      "4": 138988,
+      "5": 1,
+      "6": -93,
+      "7": -94,
+      "8": 67,
+      "9": 3,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 0,
+      "1": 5120,
+      "2": 5,
+      "3": 50,
+      "4": 4,
+      "5": 0,
+      "6": 0,
+      "7": 230,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 12094627905543,
+      "1": 51200,
+      "2": 50,
+      "3": 63,
+      "4": 0,
+      "5": 1,
+      "6": 1,
+      "7": 3,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277775,
+      "1": 62464,
+      "2": 61,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-b",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAAA8=",
+      "5": [],
+      "6": [
+       "/QAACwAAAAAAAAD//gD0AA==",
+       "/QAACwAAAAEOHQAAAAAAHQ==",
+       "/QAACwAAAAAOHQAAAAAAHg==",
+       "/oAAAAAAAAACAAoAAAAADw=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 62464,
+   "own_ext_address": 10995116277775,
+   "attrs_fetched_individually": [
+    "0/53/0",
+    "0/53/1",
+    "0/53/3",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_151",
+   "name": "matter-18 (KAJPLATS E26 CWS globe 1100lm)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "KAJPLATS E26 CWS globe 1100lm",
+   "area_id": "area_06",
+   "node_id": 50,
+   "node_diagnostics": {
+    "network_type": "thread",
+    "node_type": "routing_end_device",
+    "available": false,
+    "network_name": "net-a",
+    "mac_address": "00:00:0a:00:00:00:00:10"
+   },
+   "attributes": {
+    "0/53/0": 15,
+    "0/53/1": 5,
+    "0/53/2": "net-a",
+    "0/53/3": 4660,
+    "0/53/7": [
+     {
+      "0": 10995116277761,
+      "1": 2,
+      "2": 4096,
+      "3": 212,
+      "4": 37,
+      "5": 2,
+      "6": -82,
+      "7": -81,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277763,
+      "1": 4,
+      "2": 6144,
+      "3": 90342,
+      "4": 51560,
+      "5": 1,
+      "6": -92,
+      "7": -92,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277766,
+      "1": 9,
+      "2": 9216,
+      "3": 232407,
+      "4": 142596,
+      "5": 3,
+      "6": -76,
+      "7": -76,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277764,
+      "1": 4,
+      "2": 12288,
+      "3": 636690,
+      "4": 103226,
+      "5": 3,
+      "6": -66,
+      "7": -66,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 12094627905537,
+      "1": 10,
+      "2": 29696,
+      "3": 355141,
+      "4": 106451,
+      "5": 2,
+      "6": -81,
+      "7": -82,
+      "8": 34,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277767,
+      "1": 6,
+      "2": 31744,
+      "3": 491,
+      "4": 42,
+      "5": 3,
+      "6": -56,
+      "7": -54,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277762,
+      "1": 10,
+      "2": 38912,
+      "3": 743,
+      "4": 46,
+      "5": 2,
+      "6": -80,
+      "7": -80,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 4,
+      "2": 59392,
+      "3": 322558,
+      "4": 108040,
+      "5": 3,
+      "6": -77,
+      "7": -79,
+      "8": 0,
+      "9": 0,
+      "10": true,
+      "11": true,
+      "12": true,
+      "13": false
+     }
+    ],
+    "0/53/8": [
+     {
+      "0": 10995116277761,
+      "1": 4096,
+      "2": 4,
+      "3": 31,
+      "4": 2,
+      "5": 2,
+      "6": 3,
+      "7": 2,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277763,
+      "1": 6144,
+      "2": 6,
+      "3": 31,
+      "4": 2,
+      "5": 1,
+      "6": 2,
+      "7": 4,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277766,
+      "1": 9216,
+      "2": 9,
+      "3": 31,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 10,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277764,
+      "1": 12288,
+      "2": 12,
+      "3": 31,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 4,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 12094627905537,
+      "1": 29696,
+      "2": 29,
+      "3": 12,
+      "4": 1,
+      "5": 2,
+      "6": 3,
+      "7": 10,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277767,
+      "1": 31744,
+      "2": 31,
+      "3": 12,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 6,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 10995116277776,
+      "1": 37888,
+      "2": 37,
+      "3": 63,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277762,
+      "1": 38912,
+      "2": 38,
+      "3": 31,
+      "4": 1,
+      "5": 2,
+      "6": 3,
+      "7": 10,
+      "8": true,
+      "9": true
+     },
+     {
+      "0": 0,
+      "1": 41984,
+      "2": 41,
+      "3": 12,
+      "4": 3,
+      "5": 0,
+      "6": 0,
+      "7": 80,
+      "8": true,
+      "9": false
+     },
+     {
+      "0": 10995116277765,
+      "1": 59392,
+      "2": 58,
+      "3": 31,
+      "4": 1,
+      "5": 3,
+      "6": 3,
+      "7": 4,
+      "8": true,
+      "9": true
+     }
+    ],
+    "0/51/0": [
+     {
+      "0": "net-a",
+      "1": true,
+      "2": null,
+      "3": null,
+      "4": "AAAKAAAAABA=",
+      "5": [],
+      "6": [
+       "/QAACgAAAAAAAAD//gCUAA==",
+       "/QAACgAAAAEOHQAAAAAAHw==",
+       "/QAACgAAAAAOHQAAAAAAIA==",
+       "/oAAAAAAAAACAAoAAAAAEA=="
+      ],
+      "7": 4
+     }
+    ]
+   },
+   "own_rloc16": 37888,
+   "own_ext_address": 10995116277776,
+   "attrs_fetched_individually": [
+    "0/53/1",
+    "0/53/7",
+    "0/53/8",
+    "0/51/0"
+   ]
+  },
+  {
+   "device_id": "dev_152",
+   "name": "matter-19 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_05",
+   "node_id": 29,
+   "shadow_of": "dev_135",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_153",
+   "name": "matter-20 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_19",
+   "node_id": 30,
+   "shadow_of": "dev_136",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_154",
+   "name": "matter-21 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_04",
+   "node_id": 31,
+   "shadow_of": "dev_137",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_155",
+   "name": "matter-22 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_13",
+   "node_id": 33,
+   "shadow_of": "dev_138",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_156",
+   "name": "matter-23 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_16",
+   "node_id": 34,
+   "shadow_of": "dev_139",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_157",
+   "name": "matter-24 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_01",
+   "node_id": 35,
+   "shadow_of": "dev_134",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_158",
+   "name": "matter-25 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_06",
+   "node_id": 38,
+   "shadow_of": "dev_140",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  },
+  {
+   "device_id": "dev_159",
+   "name": "matter-26 (ALPSTUGA air quality monitor)",
+   "manufacturer": "IKEA of Sweden",
+   "model": "ALPSTUGA air quality monitor",
+   "area_id": "area_03",
+   "node_id": 39,
+   "shadow_of": "dev_141",
+   "is_shadow_record": true,
+   "node_diagnostics": null,
+   "attributes": null
+  }
+ ]
+}

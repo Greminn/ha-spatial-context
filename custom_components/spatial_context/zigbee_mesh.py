@@ -130,6 +130,9 @@ async def async_get_network_map(
             "friendly_name": node.get("friendlyName", node["ieeeAddr"]),
             "device_id": ieee_to_device_id.get(node["ieeeAddr"]),
             "type": node.get("type"),
+            # Kept for the link store (links/z2m.py), which keys Zigbee
+            # nodes by NWK like the ZHA provider does.
+            "nwk": node.get("networkAddress"),
         }
         for node in nodes
     ]
