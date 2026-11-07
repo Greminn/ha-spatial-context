@@ -254,7 +254,7 @@
     "reload": "Reload",
     "dismiss": "Dismiss",
     "versionRestart": "Spatial Context was updated — restart Home Assistant to finish. Until then, some changes may not save.",
-    "versionReload": "This page is running an older Spatial Context panel than the one installed. Click Reload. If this message comes back, close the tab and open the panel again; in the Home Assistant app, use Settings › Companion App › Debugging › Reset frontend cache.",
+    "versionReload": "This page is running an older Spatial Context panel than the one installed. Select Reload. If this message comes back, close the tab and open the panel again. In the Home Assistant app, use Reset frontend cache in the Companion App settings.",
     "scaleDisagree": "Placed buildings give different scales. Check their sizes against the photo.",
     "scaleFromBuilding": "Scale (from {building}): 1 {unit} ≈ {value} units"
   },

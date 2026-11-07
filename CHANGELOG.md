@@ -22,6 +22,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators. Automations still run them as before, but a script started by a non-administrator is refused (#67, thanks cb2206).
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
+- The notice about an older panel has a **Reload** button that fetches the current panel, and the notice to restart Home Assistant only appears when the integration's own code changed, not for an update that only changes the panel (#73, thanks cb2206).
 
 ### Fixed
 - Going back to a group of devices after scrolling a long link list on a device's card no longer shows a blank card.
