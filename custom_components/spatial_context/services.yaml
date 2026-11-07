@@ -1,6 +1,107 @@
 get_map:
   name: Get map
   description: Returns the full spatial context map, including floors, rooms, walls, and devices.
+  fields:
+    floor:
+      required: false
+      example: "Main"
+      selector:
+        text:
+    room:
+      required: false
+      example: "Kitchen"
+      selector:
+        text:
+    compact:
+      required: false
+      selector:
+        boolean:
+    include_links:
+      required: false
+      selector:
+        boolean:
+query:
+  name: Query the spatial engine
+  description: Returns one of the AI outputs (the same as the LLM tools) — a home summary, one device's context, the path between two devices, weak links, or one room.
+  fields:
+    tool:
+      required: true
+      example: summary
+      selector:
+        select:
+          options:
+            - summary
+            - device_context
+            - path
+            - weak_links
+            - room
+    device:
+      required: false
+      example: "Hallway Motion"
+      selector:
+        text:
+    a:
+      required: false
+      selector:
+        text:
+    b:
+      required: false
+      selector:
+        text:
+    layer:
+      required: false
+      selector:
+        select:
+          options:
+            - zigbee
+            - thread
+            - wifi
+            - bluetooth
+    level:
+      required: false
+      selector:
+        text:
+    room:
+      required: false
+      selector:
+        text:
+update_settings:
+  name: Update AI and RF settings
+  description: Changes the settings the panel has no controls for yet. Fields left out keep their value.
+  fields:
+    llm_tools_enabled:
+      required: false
+      selector:
+        boolean:
+    floor_height_m:
+      required: false
+      selector:
+        number:
+          min: 1.5
+          max: 10
+          step: 0.1
+          unit_of_measurement: m
+    rf_path_loss_exponent:
+      required: false
+      selector:
+        number:
+          min: 1.6
+          max: 4
+          step: 0.1
+    rf_slab_loss_db:
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 40
+          unit_of_measurement: dB
+    weak_link_threshold_db:
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 60
+          unit_of_measurement: dB
 refresh_zigbee_mesh:
   name: Refresh Zigbee mesh
   description: Forces a fresh Zigbee2MQTT network scan and caches the result, so the panel's own "Load mesh" can serve it instantly. Intended for a scheduled/overnight automation, not interactive use (a scan can take 1–2 minutes).

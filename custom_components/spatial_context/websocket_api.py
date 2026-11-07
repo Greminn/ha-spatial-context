@@ -364,6 +364,19 @@ _SETTINGS_SCHEMA = {
     vol.Optional("weak_link_threshold_db", default=25): vol.All(
         vol.Coerce(int), vol.Range(min=0, max=60)
     ),
+    # No default: the panel does not know these yet (service/WS-only for
+    # now), so a save that leaves one out keeps the stored value instead of
+    # resetting it (see ws_save_settings).
+    vol.Optional("floor_height_m"): vol.All(
+        vol.Coerce(float), vol.Range(min=1.5, max=10)
+    ),
+    vol.Optional("llm_tools_enabled"): bool,
+    vol.Optional("rf_path_loss_exponent"): vol.All(
+        vol.Coerce(float), vol.Range(min=1.6, max=4.0)
+    ),
+    vol.Optional("rf_slab_loss_db"): vol.All(
+        vol.Coerce(float), vol.Range(min=0, max=40)
+    ),
 }
 
 
@@ -394,11 +407,18 @@ async def ws_save_settings(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Replace-save app-wide settings."""
+    """Save app-wide settings over the stored ones."""
     # Every schema key (a vol.Required/Optional marker; `.schema` is its
-    # name) — Optional ones are always present, filled from their default.
+    # name) that the message carries — Optional ones with a default are
+    # always present. A key the sender does not know (one without a
+    # default) keeps its stored value, so an older panel cannot reset it.
+    stored = await async_get_settings(hass)
     await async_save_settings(
-        hass, {key.schema: msg[key.schema] for key in _SETTINGS_SCHEMA}
+        hass,
+        {
+            **stored,
+            **{key.schema: msg[key.schema] for key in _SETTINGS_SCHEMA if key.schema in msg},
+        },
     )
     connection.send_result(msg["id"], {"success": True})
 

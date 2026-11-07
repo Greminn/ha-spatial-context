@@ -319,6 +319,19 @@ def _empty_settings() -> dict[str, Any]:
         # How many dB worse than the walls predict a Zigbee link may be
         # before the Connectivity Map flags it (#29). 0 turns the check off.
         "weak_link_threshold_db": 25,
+        # Height of one level, metres: a floor at HA `level` n sits at
+        # n x this, for distances between floors (spatial/model.py).
+        "floor_height_m": 3.0,
+        # Offer the spatial tools (spatial_context__summary, ...) to LLM
+        # conversation agents (llm.py). Off by default (#53): the layout says
+        # a lot about a home, so sharing it with an AI is an explicit choice.
+        "llm_tools_enabled": False,
+        # Path-loss exponent of the RF model (spatial/rf.py): 2.0 is free
+        # space, the panel's model; indoor paths are often 2.5-3.5.
+        "rf_path_loss_exponent": 2.0,
+        # Loss through one floor slab, dB, for links between levels (#27
+        # measured 10-17 dB).
+        "rf_slab_loss_db": 13,
     }
 
 

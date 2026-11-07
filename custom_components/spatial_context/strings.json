@@ -13,7 +13,85 @@
   "services": {
     "get_map": {
       "name": "Get map",
-      "description": "Returns the full spatial context map, including floors, rooms, walls, and devices."
+      "description": "Returns the full spatial context map, including floors, rooms, walls, and devices.",
+      "fields": {
+        "floor": {
+          "name": "Floor",
+          "description": "Only this floor (floor ID or name)."
+        },
+        "room": {
+          "name": "Room",
+          "description": "Only this room (room ID or name). Walls are left out."
+        },
+        "compact": {
+          "name": "Compact",
+          "description": "Round to 0.1 m and 1 dB, and leave out editor units and repeated labels."
+        },
+        "include_links": {
+          "name": "Include links",
+          "description": "Add the radio links between the exported devices, with distance, walls and predicted and measured signal."
+        }
+      }
+    },
+    "query": {
+      "name": "Query the spatial engine",
+      "description": "Returns one of the AI outputs (the same as the LLM tools): a home summary, one device's context, the path between two devices, weak links, or one room.",
+      "fields": {
+        "tool": {
+          "name": "Tool",
+          "description": "Which output: summary, device_context, path, weak_links or room."
+        },
+        "device": {
+          "name": "Device",
+          "description": "For device_context: device ID, short ID (d12) or name."
+        },
+        "a": {
+          "name": "Device A",
+          "description": "For path: the first device."
+        },
+        "b": {
+          "name": "Device B",
+          "description": "For path: the second device."
+        },
+        "layer": {
+          "name": "Layer",
+          "description": "For weak_links: only this radio layer."
+        },
+        "level": {
+          "name": "Level",
+          "description": "For weak_links: only links touching this level (floor ID, short ID or name)."
+        },
+        "room": {
+          "name": "Room",
+          "description": "For room: room ID, short ID (r3) or name."
+        }
+      }
+    },
+    "update_settings": {
+      "name": "Update AI and RF settings",
+      "description": "Changes the settings the panel has no controls for yet. Fields left out keep their value.",
+      "fields": {
+        "llm_tools_enabled": {
+          "name": "LLM tools",
+          "description": "Offer the spatial tools to conversation agents using the Home Assistant LLM API."
+        },
+        "floor_height_m": {
+          "name": "Floor height",
+          "description": "Height of one level, for distances between floors."
+        },
+        "rf_path_loss_exponent": {
+          "name": "Path-loss exponent",
+          "description": "2.0 is free space; indoor paths are often 2.5 to 3.5."
+        },
+        "rf_slab_loss_db": {
+          "name": "Floor loss",
+          "description": "Signal loss through one floor slab."
+        },
+        "weak_link_threshold_db": {
+          "name": "Weak-link threshold",
+          "description": "How many dB worse than predicted before a link counts as weak. 0 turns the check off."
+        }
+      }
     },
     "refresh_zigbee_mesh": {
       "name": "Refresh Zigbee mesh",

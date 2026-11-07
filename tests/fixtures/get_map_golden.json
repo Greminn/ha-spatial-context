@@ -1,0 +1,138 @@
+{
+ "exported_at": "2026-11-06T12:00:00+00:00",
+ "floors": [
+  {
+   "floor_id": "f1",
+   "name": "Top Floor",
+   "meters_per_unit": 0.03,
+   "rooms": [
+    {
+     "id": "r1",
+     "name": "Lounge",
+     "devices": [
+      {
+       "device_id": "d1",
+       "entity_id": "light.lamp",
+       "name": "Lamp",
+       "domain": "light",
+       "device_class": null,
+       "area_name": "Lounge",
+       "x": 50.123456,
+       "y": 25.5,
+       "x_m": 1.5037036799999999,
+       "y_m": 0.765,
+       "height_m": 1.25
+      },
+      {
+       "device_id": "d2",
+       "entity_id": "light.lamp",
+       "name": "Lamp",
+       "domain": "light",
+       "device_class": null,
+       "area_name": "Lounge",
+       "x": 150,
+       "y": 50,
+       "x_m": 4.5,
+       "y_m": 1.5,
+       "height_m": null
+      }
+     ]
+    },
+    {
+     "id": "r2",
+     "name": "Lounge",
+     "devices": []
+    },
+    {
+     "id": null,
+     "name": "Unassigned",
+     "devices": [
+      {
+       "device_id": "d3",
+       "entity_id": "light.lamp",
+       "name": "Garden",
+       "domain": "light",
+       "device_class": null,
+       "area_name": "Lounge",
+       "x": 500,
+       "y": 500,
+       "x_m": 15.0,
+       "y_m": 15.0,
+       "height_m": null
+      }
+     ]
+    }
+   ],
+   "walls": [
+    {
+     "id": "w1",
+     "material": "timber_frame",
+     "material_label": "Timber framed (drywall)",
+     "thickness_cm": 10,
+     "attenuation_db": 3.0,
+     "points": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       100
+      ]
+     ],
+     "points_m": [
+      [
+       3.0,
+       0.0
+      ],
+      [
+       3.0,
+       3.0
+      ]
+     ],
+     "openings": [
+      {
+       "type": "door",
+       "x": 100,
+       "y": 50,
+       "width": 20,
+       "x_m": 3.0,
+       "y_m": 1.5,
+       "width_m": 0.6
+      }
+     ]
+    },
+    {
+     "id": "w2",
+     "material": "concrete_block",
+     "material_label": "Concrete / block",
+     "thickness_cm": 25,
+     "attenuation_db": 15.0,
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       200,
+       0
+      ]
+     ],
+     "points_m": [
+      [
+       0.0,
+       0.0
+      ],
+      [
+       6.0,
+       0.0
+      ]
+     ],
+     "openings": []
+    }
+   ]
+  }
+ ],
+ "property_meters_per_unit": null,
+ "outdoor_devices": []
+}
