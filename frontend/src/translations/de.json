@@ -413,5 +413,19 @@
     "blue_grey": "Blaugrau",
     "black": "Schwarz",
     "white": "Weiß"
+  },
+  "appearance": {
+    "title": "Darstellung",
+    "theme": "Design",
+    "themeHint": "Hell oder dunkel nur für dieses Panel. „System“ folgt dem Home-Assistant-Design.",
+    "system": "System",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "planSheet": "Planhintergrund",
+    "planSheetHint": "Was hinter Grundriss-Bildern liegt. Automatisch: im hellen Modus ein weißes Blatt, im dunklen invertiert. Weiß: immer ein weißes Blatt, nie invertiert. Keiner: transparente Pläne zeigen die Zeichenfläche.",
+    "sheet_auto": "Automatisch",
+    "sheet_white": "Weiß",
+    "sheet_none": "Keiner",
+    "browserOnly": "Wird nur in diesem Browser gespeichert."
   }
 }

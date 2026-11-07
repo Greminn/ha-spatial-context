@@ -54,7 +54,8 @@ export const floorplanCanvasStyles = css`
     background: white;
   }
   /* Dark HA theme: the canvas takes the theme's own background and the
-   * (usually white) plan image is inverted into light lines on dark —
+   * (usually white) plan image is inverted into light lines on dark
+   * (unless the plan sheet is set to White, see .invert below) —
    * hue-rotate(180deg) keeps any colour in the plan close to its
    * original hue. The Background menu's opacity still applies. */
   :host([dark]) {
@@ -62,7 +63,12 @@ export const floorplanCanvasStyles = css`
      * (card colour) stand out from the canvas. */
     background: color-mix(in srgb, var(--sc-bg) 88%, white);
   }
-  :host([dark]) .bg-overlay img {
+  /* The plan sheet (see appearance.ts): no sheet lets a transparent plan
+   * show the canvas; inverted turns the plan into light lines on dark. */
+  .bg-overlay img.no-sheet {
+    background: transparent;
+  }
+  .bg-overlay img.invert {
     filter: invert(1) hue-rotate(180deg);
   }
   /* Door/window jambs were drawn dark-on-white. */

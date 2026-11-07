@@ -413,5 +413,19 @@
     "blue_grey": "Blue grey",
     "black": "Black",
     "white": "White"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "theme": "Theme",
+    "themeHint": "Light or dark for this panel only. System follows your Home Assistant theme.",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "planSheet": "Plan background",
+    "planSheetHint": "What sits behind floor plan images. Auto: a white sheet in light mode, inverted in dark mode. White: always a white sheet, never inverted. None: transparent plans show the canvas.",
+    "sheet_auto": "Auto",
+    "sheet_white": "White",
+    "sheet_none": "None",
+    "browserOnly": "Saved in this browser only."
   }
 }

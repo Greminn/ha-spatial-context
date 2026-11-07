@@ -229,7 +229,7 @@ export class PropertyCanvas extends LitElement {
       vb.y + (rect.height / 2 - offsetY) / scale,
       scale,
     );
-    const dark = this.hass?.themes?.darkMode ?? false;
+    const dark = this.dark;
     if (this._map) {
       this._map.setDark(dark);
       this._map.setStyleKind(anchor.style ?? "street");

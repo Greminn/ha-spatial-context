@@ -4,6 +4,7 @@ import { safeCustomElement } from "../define";
 import type { Settings } from "../types";
 import { localize } from "../i18n";
 import { selectStyles, sharedStyles, switchStyles } from "../styles";
+import { DEFAULT_APPEARANCE_PREFS, type AppearancePrefs } from "../appearance";
 
 const REPO = "https://github.com/Greminn/ha-spatial-context";
 const DOCS = "https://greminn.github.io/ha-spatial-context/";
@@ -210,6 +211,21 @@ export class SettingsPage extends LitElement {
    * report without leaving the page. */
   @property() haVersion = "";
 
+  /** This browser's appearance choice. Not part of the shared settings:
+   * reported as `appearance-change` and kept in localStorage. */
+  @property({ attribute: false }) appearance: AppearancePrefs =
+    DEFAULT_APPEARANCE_PREFS;
+
+  private _appearanceChange(patch: Partial<AppearancePrefs>) {
+    this.dispatchEvent(
+      new CustomEvent("appearance-change", {
+        detail: patch,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   private _change(patch: Partial<Settings>) {
     this.dispatchEvent(
       new CustomEvent("settings-change", {
@@ -319,7 +335,38 @@ export class SettingsPage extends LitElement {
   override render() {
     const s = this.settings;
     const coordinator = s.zigbee_coordinator_device_id;
+    const look = this.appearance;
     return html`<div class="page">
+      <div class="card">
+        <h2>${localize("appearance.title")}</h2>
+        ${this._row(
+          localize("appearance.theme"),
+          this._segmented(
+            look.appearance,
+            [
+              ["system", localize("appearance.system")],
+              ["light", localize("appearance.light")],
+              ["dark", localize("appearance.dark")],
+            ],
+            (appearance) => this._appearanceChange({ appearance }),
+          ),
+          localize("appearance.themeHint"),
+        )}
+        ${this._row(
+          localize("appearance.planSheet"),
+          this._segmented(
+            look.planSheet,
+            [
+              ["auto", localize("appearance.sheet_auto")],
+              ["white", localize("appearance.sheet_white")],
+              ["none", localize("appearance.sheet_none")],
+            ],
+            (planSheet) => this._appearanceChange({ planSheet }),
+          ),
+          localize("appearance.planSheetHint"),
+        )}
+      </div>
+
       <div class="card">
         <h2>${localize("settings.editing")}</h2>
         ${this._row(
