@@ -115,7 +115,10 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
 
         for pin in layout.get("pins", []):
             device = _export_device(pin, placeable_entities, floor_mpu)
-            room_devices.setdefault(pin.get("room_id"), []).append(device)
+            # A room_id whose room has since been deleted counts as no room,
+            # so the device still shows up (under "Unassigned").
+            room_id = pin.get("room_id")
+            room_devices[room_id if room_id in rooms_by_id else None].append(device)
 
         exported_rooms = [
             {

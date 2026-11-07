@@ -172,9 +172,13 @@ def _unifi_client_links(
 
     Same caveat as `_omada_links`: integration internals, not a public API,
     so everything is getattr-guarded and degrades to zero extra links.
-    Deduplicated against links already found.
+    Deduplicated against links already found — but an enabled tracker's
+    link from the attribute loop usually has no signal (UniFi's tracker
+    attributes carry none, and the same-device signal sensor rarely
+    exists), so this fills in that link's missing `rssi_dbm` from the
+    client's `signal` instead of dropping the reading.
     """
-    seen = {(link["source_device_id"], link["target_device_id"]) for link in existing}
+    seen = {(link["source_device_id"], link["target_device_id"]): link for link in existing}
     links: list[dict[str, Any]] = []
     for entry in hass.config_entries.async_entries("unifi"):
         if entry.state is not ConfigEntryState.LOADED:
@@ -201,16 +205,18 @@ def _unifi_client_links(
             rssi_dbm = signal if isinstance(signal, (int, float)) and signal < 0 else None
             for client_device_id in mac_to_device_ids.get(dr.format_mac(client_mac), []):
                 for ap_device_id in mac_to_device_ids.get(dr.format_mac(ap_mac), []):
-                    if (client_device_id, ap_device_id) in seen:
+                    found = seen.get((client_device_id, ap_device_id))
+                    if found is not None:
+                        if found.get("rssi_dbm") is None:
+                            found["rssi_dbm"] = rssi_dbm
                         continue
-                    seen.add((client_device_id, ap_device_id))
-                    links.append(
-                        {
-                            "source_device_id": client_device_id,
-                            "target_device_id": ap_device_id,
-                            "rssi_dbm": rssi_dbm,
-                        }
-                    )
+                    link = {
+                        "source_device_id": client_device_id,
+                        "target_device_id": ap_device_id,
+                        "rssi_dbm": rssi_dbm,
+                    }
+                    seen[(client_device_id, ap_device_id)] = link
+                    links.append(link)
     return links
 
 

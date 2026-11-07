@@ -151,6 +151,18 @@ class ExportTest(unittest.TestCase):
         data = asyncio.run(export.async_get_map_data(object()))
         self.assertEqual(data["floors"][0]["rooms"][0]["name"], "Lounge")
 
+    def test_a_device_in_a_deleted_room_is_exported_as_unassigned(self) -> None:
+        pins = [
+            {"device_id": "d1", "x": 100, "y": 50, "room_id": "r1"},
+            {"device_id": "d2", "x": 10, "y": 5, "room_id": "gone"},
+        ]
+        export = _load_export(dict(LAYOUT, pins=pins))
+        data = asyncio.run(export.async_get_map_data(object()))
+        rooms = data["floors"][0]["rooms"]
+        self.assertEqual([room["id"] for room in rooms], ["r1", None])
+        self.assertEqual(rooms[1]["name"], "Unassigned")
+        self.assertEqual([d["device_id"] for d in rooms[1]["devices"]], ["d2"])
+
 
 if __name__ == "__main__":
     unittest.main()
