@@ -171,6 +171,29 @@ class ScaleTest(unittest.TestCase):
         self.assertIsNone(storage.meters_per_unit(None))
         self.assertIsNone(storage.meters_per_unit({"points": [[5, 5], [5, 5]], "meters": 2}))
 
+    def test_a_malformed_stored_scale_reads_as_not_calibrated(self) -> None:
+        for scale in (
+            {"points": [[0, 0]], "meters": 2},
+            {"points": [[0, 0], [100, 0], [5, 5]], "meters": 2},
+            {"points": [[0, 0], [100]], "meters": 2},
+            {"points": [[0, 0], [float("nan"), 0]], "meters": 2},
+            {"points": [[0, 0], [100, 0]], "meters": 0},
+            {"points": [[0, 0], [100, 0]], "meters": float("inf")},
+            {"points": [[0, 0], [100, 0]]},
+        ):
+            self.assertIsNone(storage.meters_per_unit(scale), scale)
+
+    def test_bounds_skip_malformed_stored_points(self) -> None:
+        layout = {
+            "rooms": [{"points": [[0, 0], [10, 20], [1, 2, 3], None]}],
+            "walls": [{"points": [[float("inf"), 0], ["x", 1], [-5, 4]]}],
+        }
+        self.assertEqual(
+            storage.layout_bounds(layout),
+            {"min_x": -5, "min_y": 0, "max_x": 10, "max_y": 20},
+        )
+        self.assertIsNone(storage.layout_bounds({"rooms": [{"points": [[1]]}]}))
+
     def test_property_scale_comes_from_a_calibrated_building(self) -> None:
         floors = {
             "up": {

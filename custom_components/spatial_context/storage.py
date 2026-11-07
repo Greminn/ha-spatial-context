@@ -143,14 +143,30 @@ def _empty_property() -> dict[str, Any]:
     }
 
 
+def is_point(value: Any) -> bool:
+    """Whether `value` is an [x, y] pair of finite numbers. Saves are
+    validated (websocket_api.py), but a layout stored before that may hold
+    anything, and one bad point must not break the whole floor."""
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and all(
+            isinstance(v, (int, float))
+            and not isinstance(v, bool)
+            and math.isfinite(v)
+            for v in value
+        )
+    )
+
+
 def layout_bounds(layout: dict[str, Any]) -> dict[str, float] | None:
     """A floor's traced footprint extent (rooms + walls only, not pins), or
     None when nothing's been traced."""
     points: list[list[float]] = []
     for room in layout.get("rooms", []):
-        points.extend(room.get("points", []))
+        points.extend(p for p in room.get("points") or [] if is_point(p))
     for wall in layout.get("walls", []):
-        points.extend(wall.get("points", []))
+        points.extend(p for p in wall.get("points") or [] if is_point(p))
     if not points:
         return None
     xs = [p[0] for p in points]
@@ -212,11 +228,23 @@ def meters_per_unit(scale: dict | None) -> float | None:
     """Derive metres-per-stored-unit from a floor's two-point calibration segment."""
     if not scale:
         return None
-    (x1, y1), (x2, y2) = scale["points"]
+    points = scale.get("points")
+    meters = scale.get("meters")
+    # A malformed stored scale reads as "not calibrated", not an error.
+    if (
+        not isinstance(points, (list, tuple))
+        or len(points) != 2
+        or not all(map(is_point, points))
+        or not isinstance(meters, (int, float))
+        or not math.isfinite(meters)
+        or meters <= 0
+    ):
+        return None
+    (x1, y1), (x2, y2) = points
     unit_distance = math.hypot(x2 - x1, y2 - y1)
     if unit_distance == 0:
         return None
-    return scale["meters"] / unit_distance
+    return meters / unit_distance
 
 
 def property_meters_per_unit(

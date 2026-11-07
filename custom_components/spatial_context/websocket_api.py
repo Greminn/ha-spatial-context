@@ -8,6 +8,7 @@ whatever the sidebar shows, so each one checks for itself.
 from __future__ import annotations
 
 import logging
+import math
 
 import voluptuous as vol
 
@@ -32,8 +33,22 @@ _LOGGER = logging.getLogger(__name__)
 # Upper bounds on what a save may contain. A real home is nowhere near these;
 # they only stop one oversized message writing an unbounded document.
 _TEXT = vol.All(str, vol.Length(max=256))
-_POINTS = vol.All([[vol.Coerce(float)]], vol.Length(max=10000))
 _MAX_ITEMS = 5000
+
+
+def _finite(value: float) -> float:
+    """Refuse NaN and infinity, which float() accepts from a string ("nan",
+    "inf") and which would break every distance computed from them."""
+    if not math.isfinite(value):
+        raise vol.Invalid("must be a finite number")
+    return value
+
+
+_FLOAT = vol.All(vol.Coerce(float), _finite)
+# A point is exactly [x, y]; anything else breaks the bounds, the scale and
+# the export, which all unpack points as pairs.
+_POINT = vol.All([_FLOAT], vol.Length(min=2, max=2))
+_POINTS = vol.All([_POINT], vol.Length(max=10000))
 
 
 def _items(schema: dict) -> vol.All:
@@ -90,13 +105,11 @@ _ROOM_SCHEMA = {
     # so an existing room with none of these set keeps today's baked-in
     # default look (frontend applies the fallback, not this schema).
     vol.Optional("fill_color"): vol.Any(vol.Match(r"^#[0-9a-fA-F]{6}$"), None),
-    vol.Optional("fill_opacity"): vol.Any(vol.Coerce(float), None),
-    vol.Optional("border_opacity"): vol.Any(vol.Coerce(float), None),
+    vol.Optional("fill_opacity"): vol.Any(_FLOAT, None),
+    vol.Optional("border_opacity"): vol.Any(_FLOAT, None),
     vol.Optional("visible"): bool,
     # Hand-placed name label position (#33); null = automatic.
-    vol.Optional("label_position"): vol.Any(
-        None, vol.All([vol.Coerce(float)], vol.Length(min=2, max=2))
-    ),
+    vol.Optional("label_position"): vol.Any(None, _POINT),
 }
 
 _PIN_SCHEMA = {
@@ -109,14 +122,14 @@ _PIN_SCHEMA = {
     # longer resolves to any device (deleted integration, orphaned
     # registry entry) legitimately has none — never guessed at.
     vol.Optional("device_id"): vol.Any(_TEXT, None),
-    vol.Required("x"): vol.Coerce(float),
-    vol.Required("y"): vol.Coerce(float),
+    vol.Required("x"): _FLOAT,
+    vol.Required("y"): _FLOAT,
     vol.Optional("room_id"): vol.Any(_TEXT, None),
     vol.Optional("icon_override"): vol.Any(_TEXT, None),
     vol.Optional("label_override"): vol.Any(_TEXT, None),
     # Mounting height in metres above floor level — matters for e.g. mmWave
     # presence sensors, where low/high placement changes the detection cone.
-    vol.Optional("height_m"): vol.Any(vol.Coerce(float), None),
+    vol.Optional("height_m"): vol.Any(_FLOAT, None),
 }
 
 _WALL_SCHEMA = {
@@ -125,7 +138,7 @@ _WALL_SCHEMA = {
     # Optional, not Required — a wall saved before this field existed and
     # never individually re-edited since would round-trip through a save
     # without one, and that must not fail validation.
-    vol.Optional("thickness_cm"): vol.Any(vol.Coerce(float), None),
+    vol.Optional("thickness_cm"): vol.Any(_FLOAT, None),
     vol.Required("points"): _POINTS,
 }
 
@@ -133,15 +146,18 @@ _OPENING_SCHEMA = {
     vol.Required("id"): _TEXT,
     vol.Required("wallId"): _TEXT,
     vol.Required("type"): vol.In(["door", "window"]),
-    vol.Required("x"): vol.Coerce(float),
-    vol.Required("y"): vol.Coerce(float),
-    vol.Required("width"): vol.Coerce(float),
+    vol.Required("x"): _FLOAT,
+    vol.Required("y"): _FLOAT,
+    vol.Required("width"): _FLOAT,
 }
 
 _SCALE_SCHEMA = vol.Any(
     {
-        vol.Required("points"): _POINTS,
-        vol.Required("meters"): vol.Coerce(float),
+        # The two ends of a known distance, and that distance in metres.
+        vol.Required("points"): vol.All([_POINT], vol.Length(min=2, max=2)),
+        vol.Required("meters"): vol.All(
+            _FLOAT, vol.Range(min=0, min_included=False)
+        ),
     },
     None,
 )
@@ -162,10 +178,10 @@ _MAP_BACKGROUND_SCHEMA = vol.Any(
 
 _VIEW_BOX_SCHEMA = vol.Any(
     {
-        vol.Required("x"): vol.Coerce(float),
-        vol.Required("y"): vol.Coerce(float),
-        vol.Required("w"): vol.Coerce(float),
-        vol.Required("h"): vol.Coerce(float),
+        vol.Required("x"): _FLOAT,
+        vol.Required("y"): _FLOAT,
+        vol.Required("w"): _FLOAT,
+        vol.Required("h"): _FLOAT,
     },
     None,
 )
@@ -178,24 +194,24 @@ _PLACEMENT_SCHEMA = {
     vol.Optional("building_id"): vol.Any(_TEXT, None),
     vol.Required("floor_id"): _TEXT,
     vol.Optional("label_override"): vol.Any(_TEXT, None),
-    vol.Required("x"): vol.Coerce(float),
-    vol.Required("y"): vol.Coerce(float),
-    vol.Required("width"): vol.Coerce(float),
-    vol.Required("height"): vol.Coerce(float),
-    vol.Required("rotation_deg"): vol.Coerce(float),
+    vol.Required("x"): _FLOAT,
+    vol.Required("y"): _FLOAT,
+    vol.Required("width"): _FLOAT,
+    vol.Required("height"): _FLOAT,
+    vol.Required("rotation_deg"): _FLOAT,
     # width/height's locked ratio, captured from the building's traced
     # footprint at placement time (see registry_snapshot.py's
     # _content_bounds) — resize preserves this instead of letting the
     # rectangle be freely squashed/stretched away from the real shape.
-    vol.Required("aspect_ratio"): vol.Coerce(float),
+    vol.Required("aspect_ratio"): _FLOAT,
     # The floor-plan box this rectangle maps onto (see storage.py's
     # _empty_property) — null when the building had nothing traced yet.
     vol.Optional("source_bounds"): vol.Any(
         {
-            vol.Required("min_x"): vol.Coerce(float),
-            vol.Required("min_y"): vol.Coerce(float),
-            vol.Required("max_x"): vol.Coerce(float),
-            vol.Required("max_y"): vol.Coerce(float),
+            vol.Required("min_x"): _FLOAT,
+            vol.Required("min_y"): _FLOAT,
+            vol.Required("max_x"): _FLOAT,
+            vol.Required("max_y"): _FLOAT,
         },
         None,
     ),
@@ -208,10 +224,10 @@ _PLACEMENT_SCHEMA = {
         vol.Required("type"): "spatial_context/save_layout",
         vol.Required("floor_id"): _TEXT,
         vol.Required("background_image_id"): vol.Any(_TEXT, None),
-        vol.Required("background_opacity"): vol.Coerce(float),
-        vol.Required("background_offset_x"): vol.Coerce(float),
-        vol.Required("background_offset_y"): vol.Coerce(float),
-        vol.Required("background_scale"): vol.Coerce(float),
+        vol.Required("background_opacity"): _FLOAT,
+        vol.Required("background_offset_x"): _FLOAT,
+        vol.Required("background_offset_y"): _FLOAT,
+        vol.Required("background_scale"): _FLOAT,
         vol.Required("building_id"): vol.Any(_TEXT, None),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("rooms"): _items(_ROOM_SCHEMA),
@@ -290,10 +306,10 @@ async def ws_get_property_layout(
     {
         vol.Required("type"): "spatial_context/save_property_layout",
         vol.Required("background_image_id"): vol.Any(_TEXT, None),
-        vol.Required("background_opacity"): vol.Coerce(float),
-        vol.Required("background_offset_x"): vol.Coerce(float),
-        vol.Required("background_offset_y"): vol.Coerce(float),
-        vol.Required("background_scale"): vol.Coerce(float),
+        vol.Required("background_opacity"): _FLOAT,
+        vol.Required("background_offset_x"): _FLOAT,
+        vol.Required("background_offset_y"): _FLOAT,
+        vol.Required("background_scale"): _FLOAT,
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("placements"): _items(_PLACEMENT_SCHEMA),
         # Outdoor device pins — Optional so an older panel bundle's save
@@ -359,7 +375,9 @@ _SETTINGS_SCHEMA = {
     ),
     vol.Optional("auto_save", default=True): bool,
     vol.Optional("debug_logging", default=False): bool,
-    vol.Optional("hidden_device_ids", default=list): [str],
+    vol.Optional("hidden_device_ids", default=list): vol.All(
+        [_TEXT], vol.Length(max=_MAX_ITEMS)
+    ),
     vol.Optional("open_view", default="saved"): vol.In(["saved", "fit"]),
     vol.Optional("weak_link_threshold_db", default=25): vol.All(
         vol.Coerce(int), vol.Range(min=0, max=60)

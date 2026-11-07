@@ -155,6 +155,49 @@ class SaveLimitsTest(unittest.TestCase):
         with self.assertRaises(vol.Invalid):
             self._validate(self._layout(floor_id="f" * 257))
 
+    def test_a_point_must_be_exactly_two_numbers(self) -> None:
+        for points in ([[0]], [[0, 0, 0]], [[0, "x"]]):
+            room = {"id": "r", "name": "x", "points": points}
+            with self.assertRaises(vol.Invalid, msg=points):
+                self._validate(self._layout(rooms=[room]))
+
+    def test_nan_and_infinity_are_refused(self) -> None:
+        pin = {"id": "p1", "device_id": "abc", "x": 1, "y": 2}
+        for bad in ("nan", "inf", "-inf", float("nan"), float("inf")):
+            with self.assertRaises(vol.Invalid, msg=bad):
+                self._validate(self._layout(pins=[dict(pin, x=bad)]))
+            wall = {"id": "w1", "material": "glass", "points": [[0, 0], [bad, 0]]}
+            with self.assertRaises(vol.Invalid, msg=bad):
+                self._validate(self._layout(walls=[wall]))
+            with self.assertRaises(vol.Invalid, msg=bad):
+                self._validate(self._layout(background_scale=bad))
+
+    def test_the_scale_is_two_points_and_a_positive_distance(self) -> None:
+        good = {"points": [[0, 0], [100, 0]], "meters": 2}
+        self._validate(self._layout(scale=good))
+        for bad in (
+            dict(good, points=[[0, 0]]),
+            dict(good, points=[[0, 0], [1, 1], [2, 2]]),
+            dict(good, meters=0),
+            dict(good, meters=-1),
+            dict(good, meters="nan"),
+            dict(good, meters="inf"),
+        ):
+            with self.assertRaises(vol.Invalid, msg=bad):
+                self._validate(self._layout(scale=bad))
+
+    def test_hidden_devices_are_limited(self) -> None:
+        settings = {
+            "type": "spatial_context/save_settings",
+            "unit_system": "metric",
+            "zigbee_timeout_seconds": 180,
+        }
+        self.api.ws_save_settings.schema(dict(settings, hidden_device_ids=["a"] * 10))
+        with self.assertRaises(vol.Invalid):
+            self.api.ws_save_settings.schema(
+                dict(settings, hidden_device_ids=["a"] * (self.api._MAX_ITEMS + 1))
+            )
+
     def test_property_placements_are_limited_too(self) -> None:
         message = {
             "type": "spatial_context/save_property_layout",

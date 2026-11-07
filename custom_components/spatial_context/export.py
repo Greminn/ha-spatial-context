@@ -13,6 +13,7 @@ from .storage import (
     async_get_all_layouts,
     async_get_floor_layout,
     async_get_property_layout,
+    is_point,
     live_layouts,
     live_placements,
     meters_per_unit,
@@ -83,6 +84,12 @@ def _wall_attenuation_db(wall: dict) -> float:
         _WALL_MATERIALS[_DEFAULT_WALL_MATERIAL],
     )
     return material["attenuation_db_per_cm"] * _wall_thickness_cm(wall)
+
+
+def _wall_points(wall: dict) -> list:
+    """A wall's stored points, skipping any malformed one (a layout saved
+    before saves were validated) rather than failing the whole export."""
+    return [p for p in wall.get("points") or [] if is_point(p)]
 
 
 async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
@@ -158,9 +165,9 @@ async def async_get_map_data(hass: HomeAssistant) -> dict[str, Any]:
                 )["label"],
                 "thickness_cm": _wall_thickness_cm(wall),
                 "attenuation_db": _wall_attenuation_db(wall),
-                "points": wall["points"],
+                "points": _wall_points(wall),
                 "points_m": (
-                    [[px * floor_mpu, py * floor_mpu] for px, py in wall["points"]]
+                    [[px * floor_mpu, py * floor_mpu] for px, py in _wall_points(wall)]
                     if floor_mpu
                     else None
                 ),
