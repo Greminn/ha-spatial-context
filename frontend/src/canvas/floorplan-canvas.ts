@@ -2024,6 +2024,7 @@ export class FloorplanCanvas extends LitElement {
         "var(--sc-accent)",
         selected,
         this._pinLabel(pin),
+        !!pin.approximate && !live,
       );
     }
 
@@ -2039,6 +2040,7 @@ export class FloorplanCanvas extends LitElement {
       "var(--sc-accent)",
       selected,
       label,
+      group.pins.some((p) => p.approximate),
     );
   }
 
@@ -2050,8 +2052,18 @@ export class FloorplanCanvas extends LitElement {
     color: string,
     selected: boolean,
     label: string,
+    approximate = false,
   ) {
-    return this._pinIcons.renderMarker(x, y, r, icon, color, selected, label);
+    return this._pinIcons.renderMarker(
+      x,
+      y,
+      r,
+      icon,
+      color,
+      selected,
+      label,
+      approximate,
+    );
   }
 
   private _renderPendingTrace() {

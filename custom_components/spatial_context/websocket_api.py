@@ -117,6 +117,10 @@ _PIN_SCHEMA = {
     # Mounting height in metres above floor level — matters for e.g. mmWave
     # presence sensors, where low/high placement changes the detection cone.
     vol.Optional("height_m"): vol.Any(vol.Coerce(float), None),
+    # Set by bulk "place by area": the pin sits somewhere in the right room,
+    # not where the device really is. Cleared (key dropped) once the user
+    # drags or confirms it. Absent = a deliberately placed pin.
+    vol.Optional("approximate"): bool,
 }
 
 _WALL_SCHEMA = {
