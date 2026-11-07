@@ -75,9 +75,11 @@ import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
   bulkCounts,
   confirmPin,
+  devicesWithAreas,
   planBulkPlacement,
   unplacedDevices,
 } from "./bulk-place";
+import { areasWithoutRooms, seedRoomRects } from "./seed-rooms";
 import {
   RESET_PARTS,
   pinsToClear,
@@ -386,6 +388,62 @@ export class SpatialContextPanel extends LitElement {
     this._armedEntityId = null;
     this._applyPinPick(pins.map((p) => p.id));
   };
+
+  /** "Create rooms for this floor's areas" (see seed-rooms.ts): one
+   * named, area-linked placeholder square per area with no room yet, over
+   * the background (or the visible plan). One undo step. */
+  private _onSeedRooms = async () => {
+    this._moreOptionsPopoverOpen = false;
+    const floorId = this._currentFloorId;
+    if (this._view !== "floor" || !floorId) return;
+    const areas = areasWithoutRooms(this._areas, this._layout.rooms, floorId);
+    if (areas.length === 0) {
+      await this._notify(localize("setup.seedRoomsNone"));
+      return;
+    }
+    const deviceCounts = new Map<string, number>();
+    for (const d of devicesWithAreas(this._entities)) {
+      if (d.areaId) {
+        deviceCounts.set(d.areaId, (deviceCounts.get(d.areaId) ?? 0) + 1);
+      }
+    }
+    const rects = seedRoomRects({
+      areas,
+      deviceCounts,
+      bounds: this._canvas?.backgroundBounds() ??
+        this._canvas?.getViewBox() ?? { x: 0, y: 0, w: 1000, h: 700 },
+      unitsPerMeter: this._unitsPerMeter(),
+      existing: this._layout.rooms,
+    });
+    // An empty name follows the area's name (see room-name.ts).
+    const rooms = [
+      ...this._layout.rooms,
+      ...rects.map((r) => newRoom("", r.points, r.areaId)),
+    ];
+    debugLog.log("seed_rooms", { count: rects.length });
+    this._updateLayout({
+      rooms,
+      pins: reassignPinRooms(rooms, this._layout.pins),
+    });
+  };
+
+  /** Floor-only setup shortcuts in the header's ⋮ menu. */
+  private _renderSetupMenuItems() {
+    if (this._view !== "floor" || !this._currentFloorId) return nothing;
+    const missing = areasWithoutRooms(
+      this._areas,
+      this._layout.rooms,
+      this._currentFloorId,
+    ).length;
+    return html`<button
+      class="menu-item"
+      title=${localize("setup.seedRoomsHint")}
+      @click=${this._onSeedRooms}
+    >
+      <ha-icon icon="mdi:vector-square-plus"></ha-icon>
+      ${localize("setup.seedRooms", { count: missing })}
+    </button>`;
+  }
 
   private _onPinConfirmPosition = () => {
     const pin = this._selectedPin;
@@ -3454,6 +3512,7 @@ export class SpatialContextPanel extends LitElement {
           .open=${this._moreOptionsPopoverOpen}
           @toggle=${this._onToggleMoreOptionsPopover}
         >
+          ${this._renderSetupMenuItems()}
           <button
             class="menu-item"
             @click=${() => {

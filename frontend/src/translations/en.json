@@ -426,5 +426,10 @@
     "blue_grey": "Blue grey",
     "black": "Black",
     "white": "White"
+  },
+  "setup": {
+    "seedRooms": "Create rooms for this floor's areas ({count})",
+    "seedRoomsHint": "One placeholder room per Home Assistant area on this floor that has no room yet, linked to the area and sized by its device count. Drag and reshape them over the background.",
+    "seedRoomsNone": "Every Home Assistant area on this floor already has a room."
   }
 }

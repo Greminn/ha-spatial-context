@@ -433,6 +433,19 @@ export class FloorplanCanvas extends LitElement {
     };
   }
 
+  /** Where this floor's background image is drawn, in plan units — null
+   * with no background. "Create rooms for areas" lays its placeholders out
+   * over it. */
+  backgroundBounds(): ViewBox | null {
+    if (!this.backgroundImageUrl) return null;
+    return {
+      x: this.backgroundOffsetX,
+      y: this.backgroundOffsetY,
+      w: BASE_WIDTH * this.backgroundScale,
+      h: this._naturalHeight * this.backgroundScale,
+    };
+  }
+
   /** The live pan/zoom right now — read by panel.ts at Save time so the
    * current viewing angle gets persisted alongside everything else. */
   getViewBox(): ViewBox {
