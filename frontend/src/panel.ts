@@ -73,6 +73,15 @@ import {
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
+  bulkCounts,
+  confirmPin,
+  devicesWithAreas,
+  planBulkPlacement,
+  unplacedDevices,
+} from "./bulk-place";
+import { areasWithoutRooms, seedRoomRects } from "./seed-rooms";
+import { wallTolerance, wallsFromRooms } from "./walls-from-rooms";
+import {
   RESET_PARTS,
   pinsToClear,
   resetFloorParts,
@@ -333,6 +342,156 @@ export class SpatialContextPanel extends LitElement {
         .filter((id): id is string => id !== null),
     );
   }
+
+  /** Devices whose pin on this floor was bulk-placed and not confirmed. */
+  private get _approximateDeviceIds(): Set<string> {
+    return new Set(
+      this._layout.pins
+        .filter((p) => p.approximate && p.device_id)
+        .map((p) => p.device_id!),
+    );
+  }
+
+  private get _bulkCandidates() {
+    return unplacedDevices(
+      this._entities,
+      this._placedDeviceIds,
+      this._hiddenDeviceIds,
+      this._currentFloorId,
+    );
+  }
+
+  /** "Place by area" (see bulk-place.ts): every unplaced device of one
+   * area (or of every area linked to a room here) dropped inside its room,
+   * flagged approximate. One layout update, so one undo step; the new pins
+   * end up selected, ready to drag as a group. */
+  private _onBulkPlace = async (e: CustomEvent<{ areaId: string | null }>) => {
+    const spots = planBulkPlacement({
+      rooms: this._layout.rooms,
+      devices: this._bulkCandidates,
+      unitsPerMeter: this._unitsPerMeter(),
+      occupied: this._layout.pins.map((p) => [p.x, p.y]),
+      areaId: e.detail.areaId,
+    });
+    if (spots.length === 0) {
+      await this._notify(localize("picker.bulkNothing"));
+      return;
+    }
+    const pins = spots.map((spot) => ({
+      ...emptyPin(spot.deviceId, spot.x, spot.y, spot.roomId),
+      approximate: true,
+    }));
+    debugLog.log("bulk_place", {
+      count: pins.length,
+      scope: e.detail.areaId ? "area" : "floor",
+    });
+    this._updateLayout({ pins: [...this._layout.pins, ...pins] });
+    this._armedEntityId = null;
+    this._applyPinPick(pins.map((p) => p.id));
+  };
+
+  /** "Create rooms for this floor's areas" (see seed-rooms.ts): one
+   * named, area-linked placeholder square per area with no room yet, over
+   * the background (or the visible plan). One undo step. */
+  private _onSeedRooms = async () => {
+    this._moreOptionsPopoverOpen = false;
+    const floorId = this._currentFloorId;
+    if (this._view !== "floor" || !floorId) return;
+    const areas = areasWithoutRooms(this._areas, this._layout.rooms, floorId);
+    if (areas.length === 0) {
+      await this._notify(localize("setup.seedRoomsNone"));
+      return;
+    }
+    const deviceCounts = new Map<string, number>();
+    for (const d of devicesWithAreas(this._entities)) {
+      if (d.areaId) {
+        deviceCounts.set(d.areaId, (deviceCounts.get(d.areaId) ?? 0) + 1);
+      }
+    }
+    const rects = seedRoomRects({
+      areas,
+      deviceCounts,
+      bounds: this._canvas?.backgroundBounds() ??
+        this._canvas?.getViewBox() ?? { x: 0, y: 0, w: 1000, h: 700 },
+      unitsPerMeter: this._unitsPerMeter(),
+      existing: this._layout.rooms,
+    });
+    // An empty name follows the area's name (see room-name.ts).
+    const rooms = [
+      ...this._layout.rooms,
+      ...rects.map((r) => newRoom("", r.points, r.areaId)),
+    ];
+    debugLog.log("seed_rooms", { count: rects.length });
+    this._updateLayout({
+      rooms,
+      pins: reassignPinRooms(rooms, this._layout.pins),
+    });
+    // Some may land outside the current view; show them all.
+    await this.updateComplete;
+    this._canvas?.fitToScreen();
+  };
+
+  /** "Generate walls from room outlines" (see walls-from-rooms.ts): an
+   * interior wall per shared edge, an exterior one per outside edge,
+   * nothing where a wall already runs. One undo step. */
+  private _onGenerateWalls = async () => {
+    this._moreOptionsPopoverOpen = false;
+    if (this._view !== "floor" || !this._currentFloorId) return;
+    const generated = wallsFromRooms({
+      rooms: this._layout.rooms,
+      existingWalls: this._layout.walls,
+      tolerance: wallTolerance(this._unitsPerMeter()),
+    });
+    if (generated.length === 0) {
+      await this._notify(localize("setup.wallsNone"));
+      return;
+    }
+    debugLog.log("walls_from_rooms", {
+      exterior: generated.filter((w) => w.exterior).length,
+      interior: generated.filter((w) => !w.exterior).length,
+    });
+    this._updateLayout({
+      walls: [
+        ...this._layout.walls,
+        ...generated.map((w) => newWall(w.points, w.material)),
+      ],
+    });
+  };
+
+  /** Floor-only setup shortcuts in the header's ⋮ menu. */
+  private _renderSetupMenuItems() {
+    if (this._view !== "floor" || !this._currentFloorId) return nothing;
+    const missing = areasWithoutRooms(
+      this._areas,
+      this._layout.rooms,
+      this._currentFloorId,
+    ).length;
+    return html`<button
+        class="menu-item"
+        title=${localize("setup.seedRoomsHint")}
+        @click=${this._onSeedRooms}
+      >
+        <ha-icon icon="mdi:vector-square-plus"></ha-icon>
+        ${localize("setup.seedRooms", { count: missing })}
+      </button>
+      <button
+        class="menu-item"
+        title=${localize("setup.wallsHint")}
+        ?disabled=${this._layout.rooms.length === 0}
+        @click=${this._onGenerateWalls}
+      >
+        <ha-icon icon="mdi:wall"></ha-icon>
+        ${localize("setup.walls")}
+      </button>`;
+  }
+
+  private _onPinConfirmPosition = () => {
+    const pin = this._selectedPin;
+    if (!pin?.approximate) return;
+    this._updateLayout({
+      pins: this._layout.pins.map((p) => (p.id === pin.id ? confirmPin(p) : p)),
+    });
+  };
 
   private _shownRoomsKey: [Room[], AreaMeta[]] | null = null;
   private _shownRooms: Room[] = [];
@@ -2849,10 +3008,13 @@ export class SpatialContextPanel extends LitElement {
     e: CustomEvent<{ pinId: string; x: number; y: number }>,
   ) => {
     const roomId = findRoomForPoint(e.detail.x, e.detail.y, this._layout.rooms);
-    this._patchPin(e.detail.pinId, {
-      x: e.detail.x,
-      y: e.detail.y,
-      room_id: roomId,
+    // Dragged by hand: wherever it lands is now its real spot.
+    this._updateLayout({
+      pins: this._layout.pins.map((p) =>
+        p.id === e.detail.pinId
+          ? confirmPin({ ...p, x: e.detail.x, y: e.detail.y, room_id: roomId })
+          : p,
+      ),
     });
   };
 
@@ -2920,12 +3082,12 @@ export class SpatialContextPanel extends LitElement {
       if (!moving.has(p.id)) return p;
       const x = p.x + dx;
       const y = p.y + dy;
-      return {
+      return confirmPin({
         ...p,
         x,
         y,
         room_id: findRoomForPoint(x, y, this._layout.rooms),
-      };
+      });
     });
     // One layout update, so the whole group move is a single undo step.
     this._updateLayout({ pins });
@@ -3390,6 +3552,7 @@ export class SpatialContextPanel extends LitElement {
           .open=${this._moreOptionsPopoverOpen}
           @toggle=${this._onToggleMoreOptionsPopover}
         >
+          ${this._renderSetupMenuItems()}
           <button
             class="menu-item"
             @click=${() => {
@@ -3738,6 +3901,7 @@ export class SpatialContextPanel extends LitElement {
                           @pin-set-icon-click=${this._onPinSetIcon}
                           @pin-height-change=${this._onPinHeightChange}
                           @pin-delete-click=${this._onPinDelete}
+                          @pin-confirm-position-click=${this._onPinConfirmPosition}
                           @wall-material-change=${this._onWallMaterialChange}
                           @wall-thickness-change=${this._onWallThicknessChange}
                           @wall-edit-vertices-click=${this._onWallEditVertices}
@@ -3765,6 +3929,9 @@ export class SpatialContextPanel extends LitElement {
                               .areas=${this._areas}
                               .currentFloorId=${this._currentFloorId}
                               .linkedAreaIds=${this._outdoorAreaIdsOnCurrentFloor}
+                              .bulkCounts=${bulkCounts(this._layout.rooms, this._bulkCandidates)}
+                              .approximateDeviceIds=${this._approximateDeviceIds}
+                              @bulk-place=${this._onBulkPlace}
                               @entity-armed=${this._onEntityArmed}
                               @pin-locate=${this._onPickerPinLocate}
                               @pin-remove=${this._onPickerPinRemove}

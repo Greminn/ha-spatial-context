@@ -227,4 +227,7 @@ def _export_device(
         "x_m": pin["x"] * meters_per_unit if meters_per_unit else None,
         "y_m": pin["y"] * meters_per_unit if meters_per_unit else None,
         "height_m": pin.get("height_m"),
+        # Bulk-placed somewhere in its room and not confirmed yet: the room
+        # is right, the exact point is not.
+        "approximate": bool(pin.get("approximate", False)),
     }

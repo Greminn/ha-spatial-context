@@ -81,7 +81,8 @@
       "moveOutOfSpot": "Move out of this spot",
       "removeFromSpot": "Remove from this spot",
       "stackTitle": "{count} devices at this spot",
-      "backToGroup": "Back to group"
+      "backToGroup": "Back to group",
+      "confirmPosition": "Confirm position"
     },
     "wall": {
       "material": "Wall material",
@@ -117,7 +118,8 @@
       "links": "{count} links",
       "noLinks": "No links to other placed devices",
       "hide": "Hide details",
-      "show": "Show details"
+      "show": "Show details",
+      "deviceApproximate": "Device · approximate position"
     },
     "link": {
       "weak": "Weaker than the walls predict: expected about {predicted} dBm, measured about {measured} dBm ({gap} dB lower). The walls cost {walls} dB.",
@@ -212,7 +214,18 @@
     "title": "Place device",
     "hide": "Hide from this list",
     "unhide": "Show in this list",
-    "showHidden": "Hidden devices"
+    "showHidden": "Hidden devices",
+    "showApproximate": "Approximate positions",
+    "keepPlacing": "Keep placing",
+    "keepPlacingHint": "After each pin, pick the next unplaced device in this list automatically",
+    "approximateCount": "{count} approximate",
+    "approximateHint": "Placed automatically somewhere in their room. Drag a pin, or open it and choose Confirm position, once it is where the device really is.",
+    "placedApproximate": "≈ placed (approximate)",
+    "bulkArea": "Place {count} unplaced devices of {area} in its room",
+    "bulkAreaNone": "Nothing to place: every device of this area is placed, or no room on this floor is linked to it",
+    "bulkFloor": "Place all {count} unplaced devices on this floor by area",
+    "bulkFloorNone": "Link rooms to Home Assistant areas first: only devices of a linked area are placed",
+    "bulkNothing": "Nothing to place: no unplaced device belongs to an area that is linked to a room on this floor."
   },
   "iconPicker": {
     "title": "Choose an icon",
@@ -413,5 +426,13 @@
     "blue_grey": "Blue grey",
     "black": "Black",
     "white": "White"
+  },
+  "setup": {
+    "seedRooms": "Create rooms for this floor's areas ({count})",
+    "seedRoomsHint": "One placeholder room per Home Assistant area on this floor that has no room yet, linked to the area and sized by its device count. Drag and reshape them over the background.",
+    "seedRoomsNone": "Every Home Assistant area on this floor already has a room.",
+    "walls": "Generate walls from room outlines",
+    "wallsHint": "A wall along every room edge: timber framed (drywall) where two rooms meet, brick veneer on the outside. Edges that already have a wall are skipped. Change the exceptions in each wall's card.",
+    "wallsNone": "No walls to add: every room edge already has a wall."
   }
 }

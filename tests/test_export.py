@@ -137,6 +137,16 @@ class ExportTest(unittest.TestCase):
 
         self.assertEqual(data["outdoor_devices"], [])
 
+    def test_pins_say_whether_their_position_is_approximate(self) -> None:
+        export = _load_export()
+        data = asyncio.run(export.async_get_map_data(object()))
+        self.assertIs(data["floors"][0]["rooms"][0]["devices"][0]["approximate"], False)
+
+        pins = [dict(LAYOUT["pins"][0], approximate=True)]
+        export = _load_export(dict(LAYOUT, pins=pins))
+        data = asyncio.run(export.async_get_map_data(object()))
+        self.assertIs(data["floors"][0]["rooms"][0]["devices"][0]["approximate"], True)
+
     def test_uncalibrated_floor_has_no_real_units(self) -> None:
         export = _load_export(dict(LAYOUT, scale=None))
         data = asyncio.run(export.async_get_map_data(object()))

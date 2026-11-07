@@ -433,6 +433,19 @@ export class FloorplanCanvas extends LitElement {
     };
   }
 
+  /** Where this floor's background image is drawn, in plan units — null
+   * with no background. "Create rooms for areas" lays its placeholders out
+   * over it. */
+  backgroundBounds(): ViewBox | null {
+    if (!this.backgroundImageUrl) return null;
+    return {
+      x: this.backgroundOffsetX,
+      y: this.backgroundOffsetY,
+      w: BASE_WIDTH * this.backgroundScale,
+      h: this._naturalHeight * this.backgroundScale,
+    };
+  }
+
   /** The live pan/zoom right now — read by panel.ts at Save time so the
    * current viewing angle gets persisted alongside everything else. */
   getViewBox(): ViewBox {
@@ -2024,6 +2037,7 @@ export class FloorplanCanvas extends LitElement {
         "var(--sc-accent)",
         selected,
         this._pinLabel(pin),
+        !!pin.approximate && !live,
       );
     }
 
@@ -2039,6 +2053,7 @@ export class FloorplanCanvas extends LitElement {
       "var(--sc-accent)",
       selected,
       label,
+      group.pins.some((p) => p.approximate),
     );
   }
 
@@ -2050,8 +2065,18 @@ export class FloorplanCanvas extends LitElement {
     color: string,
     selected: boolean,
     label: string,
+    approximate = false,
   ) {
-    return this._pinIcons.renderMarker(x, y, r, icon, color, selected, label);
+    return this._pinIcons.renderMarker(
+      x,
+      y,
+      r,
+      icon,
+      color,
+      selected,
+      label,
+      approximate,
+    );
   }
 
   private _renderPendingTrace() {

@@ -81,7 +81,8 @@
       "moveOutOfSpot": "Von dieser Stelle wegbewegen",
       "removeFromSpot": "Von dieser Stelle entfernen",
       "stackTitle": "{count} Geräte an dieser Stelle",
-      "backToGroup": "Zurück zur Gruppe"
+      "backToGroup": "Zurück zur Gruppe",
+      "confirmPosition": "Position bestätigen"
     },
     "wall": {
       "material": "Wandmaterial",
@@ -117,7 +118,8 @@
       "wall": "Wand",
       "wallOpening": "In einer Wand",
       "hide": "Details ausblenden",
-      "show": "Details anzeigen"
+      "show": "Details anzeigen",
+      "deviceApproximate": "Gerät · ungefähre Position"
     },
     "link": {
       "weak": "Schwächer, als die Wände erwarten lassen: erwartet etwa {predicted} dBm, gemessen etwa {measured} dBm ({gap} dB weniger). Die Wände kosten {walls} dB.",
@@ -212,7 +214,18 @@
     "title": "Gerät platzieren",
     "hide": "In dieser Liste ausblenden",
     "unhide": "In dieser Liste anzeigen",
-    "showHidden": "Ausgeblendete Geräte"
+    "showHidden": "Ausgeblendete Geräte",
+    "showApproximate": "Ungefähre Positionen",
+    "keepPlacing": "Weiter platzieren",
+    "keepPlacingHint": "Nach jedem Pin automatisch das nächste noch nicht platzierte Gerät dieser Liste wählen",
+    "approximateCount": "{count} ungefähr",
+    "approximateHint": "Automatisch irgendwo in ihrem Raum platziert. Ziehen Sie einen Pin an die richtige Stelle oder öffnen Sie ihn und wählen Sie „Position bestätigen“.",
+    "placedApproximate": "≈ platziert (ungefähr)",
+    "bulkArea": "{count} nicht platzierte Geräte aus {area} in den zugehörigen Raum setzen",
+    "bulkAreaNone": "Nichts zu platzieren: Alle Geräte dieses Bereichs sind platziert, oder kein Raum auf dieser Etage ist mit ihm verknüpft",
+    "bulkFloor": "Alle {count} nicht platzierten Geräte dieser Etage nach Bereich platzieren",
+    "bulkFloorNone": "Verknüpfen Sie zuerst Räume mit Home-Assistant-Bereichen: Nur Geräte verknüpfter Bereiche werden platziert",
+    "bulkNothing": "Nichts zu platzieren: Kein nicht platziertes Gerät gehört zu einem Bereich, der mit einem Raum auf dieser Etage verknüpft ist."
   },
   "iconPicker": {
     "title": "Symbol auswählen",
@@ -413,5 +426,13 @@
     "blue_grey": "Blaugrau",
     "black": "Schwarz",
     "white": "Weiß"
+  },
+  "setup": {
+    "seedRooms": "Räume für die Bereiche dieser Etage anlegen ({count})",
+    "seedRoomsHint": "Ein Platzhalter-Raum für jeden Home-Assistant-Bereich dieser Etage, der noch keinen Raum hat – mit dem Bereich verknüpft und nach seiner Geräteanzahl bemessen. Anschließend über dem Hintergrund verschieben und anpassen.",
+    "seedRoomsNone": "Jeder Home-Assistant-Bereich dieser Etage hat bereits einen Raum.",
+    "walls": "Wände aus Raumumrissen erzeugen",
+    "wallsHint": "Eine Wand entlang jeder Raumkante: eine Holzständerwand (Trockenbau), wo zwei Räume aneinandergrenzen, Ziegelverblendung an der Außenseite. Kanten mit vorhandener Wand werden übersprungen. Ausnahmen in der Karte der jeweiligen Wand ändern.",
+    "wallsNone": "Keine Wände hinzuzufügen: Jede Raumkante hat bereits eine Wand."
   }
 }

@@ -136,6 +136,16 @@ class SaveLimitsTest(unittest.TestCase):
         wall = {"id": "w1", "material": "glass", "points": [[0, 0], [5, 0]]}
         self._validate(self._layout(rooms=[room], pins=[pin], walls=[wall]))
 
+    def test_an_approximate_pin_is_accepted_and_kept(self) -> None:
+        pin = {"id": "p1", "device_id": "abc", "x": 1, "y": 2, "approximate": True}
+        result = self.api.ws_save_layout.schema(self._layout(pins=[pin]))
+        self.assertIs(result["pins"][0]["approximate"], True)
+
+    def test_approximate_must_be_a_boolean(self) -> None:
+        pin = {"id": "p1", "device_id": "abc", "x": 1, "y": 2, "approximate": "yes"}
+        with self.assertRaises(vol.Invalid):
+            self._validate(self._layout(pins=[pin]))
+
     def test_too_many_rooms_are_refused(self) -> None:
         room = {"id": "r", "name": "x", "points": []}
         with self.assertRaises(vol.Invalid):
