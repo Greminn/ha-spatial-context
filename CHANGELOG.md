@@ -33,6 +33,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The **Not placed yet** filter in the device list no longer shows devices that are placed on another floor.
 - The panel now follows the Home Assistant language. The German translation was never shown before, and the last few English-only labels are translated (#70, thanks cb2206).
 - With UniFi, a Wi-Fi client's link keeps the signal strength UniFi reports, where before it was dropped for clients whose tracker is enabled (#65, thanks cb2206).
+- With UniFi, Wi-Fi clients whose tracker is disabled are linked to their access point again; before, none of them were (#72, thanks cb2206).
 - A device in a room that has since been deleted is now listed as unassigned in `get_map` and Export JSON, instead of missing (#66, thanks cb2206).
 - A save with malformed or non-finite points, or a bad scale, is refused, and a malformed point already stored no longer breaks the floor (#68, thanks cb2206).
 - A Zigbee device that has moved to a different parent is no longer drawn as still linked to the old one, for ZHA and Zigbee2MQTT (#69, thanks cb2206).
