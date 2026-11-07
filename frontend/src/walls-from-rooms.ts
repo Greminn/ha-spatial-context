@@ -76,7 +76,19 @@ function collinear(e: Edge, f: Edge, tolerance: number): boolean {
   );
 }
 
-/** Union-find over edges that lie on one line. */
+/** Whether f, projected onto e's direction, overlaps or touches e (gap of
+ * at most `tolerance`). Edges on one infinite line but far apart along it
+ * are separate walls, each at its own offset. */
+function alongOverlap(e: Edge, f: Edge, tolerance: number): boolean {
+  const t = (p: Pt) => p[0] * e.dx + p[1] * e.dy;
+  const e0 = Math.min(t(e.a), t(e.b));
+  const e1 = Math.max(t(e.a), t(e.b));
+  const f0 = Math.min(t(f.a), t(f.b));
+  const f1 = Math.max(t(f.a), t(f.b));
+  return f0 <= e1 + tolerance && e0 <= f1 + tolerance;
+}
+
+/** Union-find over edges that lie on one line and overlap or touch. */
 function groupCollinear(edges: Edge[], tolerance: number): Edge[][] {
   const parent = edges.map((_, i) => i);
   const find = (i: number): number => {
@@ -88,7 +100,10 @@ function groupCollinear(edges: Edge[], tolerance: number): Edge[][] {
   };
   for (let i = 0; i < edges.length; i++) {
     for (let j = i + 1; j < edges.length; j++) {
-      if (collinear(edges[i]!, edges[j]!, tolerance)) {
+      if (
+        collinear(edges[i]!, edges[j]!, tolerance) &&
+        alongOverlap(edges[i]!, edges[j]!, tolerance)
+      ) {
         parent[find(i)] = find(j);
       }
     }
@@ -104,38 +119,28 @@ function groupCollinear(edges: Edge[], tolerance: number): Edge[][] {
 }
 
 interface Line {
-  /** Unit direction. */
+  /** Unit direction, the length-weighted mean of the group's edges. */
   dx: number;
   dy: number;
-  /** Signed offset along the normal (-dy, dx). */
-  offset: number;
 }
 
 function lineOf(group: Edge[]): Line {
   let dx = 0;
   let dy = 0;
-  let total = 0;
   for (const e of group) {
     dx += e.dx * e.length;
     dy += e.dy * e.length;
-    total += e.length;
   }
   const n = Math.hypot(dx, dy) || 1;
-  dx /= n;
-  dy /= n;
-  // Length-weighted mid-line of every edge in the group.
-  let offset = 0;
-  for (const e of group) {
-    const mid: Pt = [(e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2];
-    offset += (mid[0] * -dy + mid[1] * dx) * e.length;
-  }
-  return { dx, dy, offset: offset / total };
+  return { dx: dx / n, dy: dy / n };
 }
 
 const along = (line: Line, p: Pt) => p[0] * line.dx + p[1] * line.dy;
-const pointAt = (line: Line, t: number): Pt => [
-  t * line.dx - line.offset * line.dy,
-  t * line.dy + line.offset * line.dx,
+/** Signed distance along the line's normal (-dy, dx). */
+const across = (line: Line, p: Pt) => p[0] * -line.dy + p[1] * line.dx;
+const pointAt = (line: Line, t: number, offset: number): Pt => [
+  t * line.dx - offset * line.dy,
+  t * line.dy + offset * line.dx,
 ];
 
 type Interval = [number, number];
@@ -161,28 +166,50 @@ export function subtractIntervals(
   return out;
 }
 
+export interface Span {
+  start: number;
+  end: number;
+  roomId: string;
+  /** Where this edge sits across the line (see `across`). */
+  offset?: number;
+}
+
+export interface Piece {
+  start: number;
+  end: number;
+  shared: boolean;
+  /** Mean offset of the edges covering it: an exterior wall stays on its
+   * room's edge, a shared one runs between the two faces. */
+  offset: number;
+}
+
 /** The pieces of one wall line: where only one room has an edge
  * (exterior) and where two or more do (shared, interior). Touching pieces
- * of the same kind merge. */
-export function classifyCoverage(
-  spans: { start: number; end: number; roomId: string }[],
-): { start: number; end: number; shared: boolean }[] {
+ * of the same kind and offset merge. */
+export function classifyCoverage(spans: Span[]): Piece[] {
   const cuts = [...new Set(spans.flatMap((s) => [s.start, s.end]))].sort(
     (a, b) => a - b,
   );
-  const out: { start: number; end: number; shared: boolean }[] = [];
+  const out: Piece[] = [];
   for (let i = 0; i + 1 < cuts.length; i++) {
     const a = cuts[i]!;
     const b = cuts[i + 1]!;
     const mid = (a + b) / 2;
-    const rooms = new Set(
-      spans.filter((s) => s.start <= mid && s.end >= mid).map((s) => s.roomId),
-    );
+    const covering = spans.filter((s) => s.start <= mid && s.end >= mid);
+    const rooms = new Set(covering.map((s) => s.roomId));
     if (rooms.size === 0) continue;
     const shared = rooms.size >= 2;
+    const offset =
+      covering.reduce((sum, s) => sum + (s.offset ?? 0), 0) / covering.length;
     const last = out[out.length - 1];
-    if (last && last.end === a && last.shared === shared) last.end = b;
-    else out.push({ start: a, end: b, shared });
+    if (
+      last &&
+      last.end === a &&
+      last.shared === shared &&
+      Math.abs(last.offset - offset) < 1e-9
+    ) {
+      last.end = b;
+    } else out.push({ start: a, end: b, shared, offset });
   }
   return out;
 }
@@ -223,6 +250,7 @@ export function wallsFromRooms(input: WallsFromRoomsInput): GeneratedWall[] {
         start: Math.min(t0, t1),
         end: Math.max(t0, t1),
         roomId: e.roomId,
+        offset: across(line, [(e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2]),
       };
     });
     // Existing walls on this line, as intervals along it.
@@ -246,7 +274,10 @@ export function wallsFromRooms(input: WallsFromRoomsInput): GeneratedWall[] {
       )) {
         if (b - a <= tolerance) continue;
         out.push({
-          points: [pointAt(line, a), pointAt(line, b)],
+          points: [
+            pointAt(line, a, piece.offset),
+            pointAt(line, b, piece.offset),
+          ],
           exterior: !piece.shared,
           material: piece.shared
             ? INTERIOR_WALL_MATERIAL

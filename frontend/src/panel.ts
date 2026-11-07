@@ -426,6 +426,9 @@ export class SpatialContextPanel extends LitElement {
       rooms,
       pins: reassignPinRooms(rooms, this._layout.pins),
     });
+    // Some may land outside the current view; show them all.
+    await this.updateComplete;
+    this._canvas?.fitToScreen();
   };
 
   /** "Generate walls from room outlines" (see walls-from-rooms.ts): an
