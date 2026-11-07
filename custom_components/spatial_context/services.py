@@ -17,7 +17,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Return the spatial map data."""
         return await async_get_map_data(hass)
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         "get_map",
         get_map_service,

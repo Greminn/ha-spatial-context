@@ -4,7 +4,7 @@ title: Automations and Actions
 
 # Automations and Actions
 
-Spatial Context registers two actions for use in automations and scripts.
+Spatial Context registers two actions for use in automations and scripts. Automations and scripts can always run them. Called directly by a user (from Developer Tools, or through the API with a user's token), they need an administrator account, the same as the panel.
 
 | Action | Effect |
 |---|---|
