@@ -104,5 +104,65 @@ class DebugLogTest(unittest.TestCase):
         self.assertEqual(set(report["floors"]["up"]), {"rooms", "walls", "openings", "pins", "has_scale", "has_background", "aligned"})
 
 
+class CodeFingerprintTest(unittest.TestCase):
+    """A restart is only asked for when backend code changed, not for a
+    panel-only release that just bumps the version."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        (self.root / "www").mkdir()
+        (self.root / "translations").mkdir()
+        (self.root / "__init__.py").write_text("x = 1\n")
+        (self.root / "services.yaml").write_text("get_map: {}\n")
+        (self.root / "translations" / "en.json").write_text("{}")
+        (self.root / "www" / "panel.js").write_text("old panel")
+        self._manifest("1.0.1-beta.4")
+        self.before = debug.code_fingerprint(self.root)
+
+    def _manifest(self, version: str, **extra) -> None:
+        (self.root / "manifest.json").write_text(json.dumps({"domain": "spatial_context", "version": version, **extra}))
+
+    def test_a_panel_only_release_keeps_the_fingerprint(self) -> None:
+        (self.root / "www" / "panel.js").write_text("new panel")
+        self._manifest("1.0.1-beta.5")
+        (self.root / "__pycache__").mkdir()
+        (self.root / "__pycache__" / "x.json").write_text("noise")
+        self.assertEqual(debug.code_fingerprint(self.root), self.before)
+
+    def test_python_services_translations_and_manifest_changes_change_it(self) -> None:
+        for change in (
+            lambda: (self.root / "__init__.py").write_text("x = 2\n"),
+            lambda: (self.root / "services.yaml").write_text("get_map: {fields: {}}\n"),
+            lambda: (self.root / "translations" / "en.json").write_text('{"a": 1}'),
+            lambda: self._manifest("1.0.1-beta.4", requirements=["x==1"]),
+        ):
+            before = debug.code_fingerprint(self.root)
+            change()
+            self.assertNotEqual(debug.code_fingerprint(self.root), before)
+
+    def test_version_info_asks_for_a_restart_only_when_the_code_differs(self) -> None:
+        hass = stubs.FakeHass(self._tmp.name)
+        hass.data = {"spatial_context": {"loaded_version": "1.0.1-beta.4"}}
+        running = debug._LOADED_CODE
+        self.addCleanup(setattr, debug, "_LOADED_CODE", running)
+        on_disk = debug.code_fingerprint()
+        debug._LOADED_CODE = on_disk
+        info = run(debug.async_get_version_info(hass))
+        self.assertFalse(info["restart_required"])
+        self.assertEqual(info["installed_code"], on_disk)
+        debug._LOADED_CODE = "0000000000000000"
+        self.assertTrue(run(debug.async_get_version_info(hass))["restart_required"])
+
+    def test_without_a_fingerprint_it_falls_back_to_versions(self) -> None:
+        hass = stubs.FakeHass(self._tmp.name)
+        hass.data = {"spatial_context": {"loaded_version": "0.0.1"}}
+        running = debug._LOADED_CODE
+        self.addCleanup(setattr, debug, "_LOADED_CODE", running)
+        debug._LOADED_CODE = None
+        self.assertTrue(run(debug.async_get_version_info(hass))["restart_required"])
+
+
 if __name__ == "__main__":
     unittest.main()

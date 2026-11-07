@@ -104,6 +104,7 @@ import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-page";
 import type { PropertyBuilding } from "./views/property-overlay";
 import { panelStyles } from "./panel-styles";
+import { panelBundleUrls, reloadFresh, restartRequired } from "./reload-fresh";
 
 /** The docs site's walkthrough, linked from the More options menu. */
 const GETTING_STARTED_URL =
@@ -1590,11 +1591,7 @@ export class SpatialContextPanel extends LitElement {
       notice = "restart";
     }
     if (info) {
-      if (
-        info.loaded_version &&
-        info.installed_version &&
-        info.loaded_version !== info.installed_version
-      ) {
+      if (restartRequired(info)) {
         notice = "restart";
       } else if (info.panel_build_id && info.panel_build_id !== __BUILD_ID__) {
         notice = "reload";
@@ -3454,6 +3451,15 @@ export class SpatialContextPanel extends LitElement {
                             : localize("panel.versionReload")
                         }</span
                       >
+                      ${
+                        this._versionNotice === "reload"
+                          ? html`<button
+                              @click=${() => void reloadFresh(panelBundleUrls(document))}
+                            >
+                              ${localize("panel.reload")}
+                            </button>`
+                          : nothing
+                      }
                       <button @click=${() => (this._versionNotice = null)}>
                         ${localize("panel.dismiss")}
                       </button>

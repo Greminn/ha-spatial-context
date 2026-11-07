@@ -247,9 +247,10 @@
   "panel": {
     "loading": "Spatial Context wird geladen…",
     "noFloors": "Keine Etagen gefunden. Fügen Sie Etagen unter Einstellungen → Bereiche → Etagen hinzu und öffnen Sie dieses Panel erneut.",
+    "reload": "Neu laden",
     "dismiss": "Schließen",
     "versionRestart": "Spatial Context wurde aktualisiert – starten Sie Home Assistant neu, um den Vorgang abzuschließen. Bis dahin werden manche Änderungen möglicherweise nicht gespeichert.",
-    "versionReload": "Diese Seite verwendet ein älteres Spatial-Context-Panel als das installierte. Laden Sie die Seite neu (in Safari: Option+Cmd+R).",
+    "versionReload": "Diese Seite verwendet ein älteres Spatial-Context-Panel als das installierte. Klicken Sie auf „Neu laden“. Erscheint die Meldung wieder, schließen Sie den Tab und öffnen Sie das Panel erneut; in der Home-Assistant-App: Einstellungen › Companion App › Debugging › Frontend-Cache zurücksetzen.",
     "scaleDisagree": "Die platzierten Gebäude ergeben unterschiedliche Maßstäbe. Prüfen Sie ihre Größen anhand des Fotos.",
     "scaleFromBuilding": "Maßstab (von {building}): 1 {unit} ≈ {value} Einheiten"
   },

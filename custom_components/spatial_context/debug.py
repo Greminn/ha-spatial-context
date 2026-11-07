@@ -16,6 +16,7 @@ Two things that are otherwise invisible from outside the browser:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -41,6 +42,11 @@ _BUILD_INFO = _COMPONENT_DIR / "www" / PANEL_FILENAME.replace(".js", ".build.jso
 _MANIFEST = _COMPONENT_DIR / "manifest.json"
 _LOADED_VERSION_KEY = "loaded_version"
 
+# Fingerprint of the backend code this Python process imported. Kept at
+# module level on purpose: reloading the config entry runs setup again, but
+# with the modules already imported, so it must not be recomputed then.
+_LOADED_CODE: str | None = None
+
 LOG_FILENAME = "spatial_context_debug.log"
 _LOG_MAX_BYTES = 1024 * 1024
 _REPORT_TAIL_LINES = 300
@@ -58,13 +64,43 @@ def _scrub(text: str) -> str:
     return _IPV4.sub("<ip>", _ORIGIN.sub("<origin>", text))
 
 
+def code_fingerprint(root: Path = _COMPONENT_DIR) -> str:
+    """A short hash of everything a restart would load: the Python files,
+    services.yaml, translations and the manifest without its version.
+
+    The panel bundle (www/) is left out. HA serves it fresh from disk, so a
+    release that only changes the panel needs a page reload, not a restart.
+    """
+    digest = hashlib.sha256()
+    files = sorted(
+        path
+        for path in root.rglob("*")
+        if path.is_file()
+        and path.suffix in (".py", ".yaml", ".json")
+        and "www" not in path.relative_to(root).parts
+        and "__pycache__" not in path.parts
+    )
+    for path in files:
+        data = path.read_bytes()
+        if path.name == "manifest.json" and path.parent == root:
+            manifest = json.loads(data)
+            manifest.pop("version", None)
+            data = json.dumps(manifest, sort_keys=True).encode()
+        digest.update(path.relative_to(root).as_posix().encode() + b"\0")
+        digest.update(data + b"\0")
+    return digest.hexdigest()[:16]
+
+
 async def async_record_loaded_version(hass: HomeAssistant) -> str:
     """Remember the version HA loaded at startup — the backend's real
     version until the next restart, whatever is on disk by then — and
-    return it."""
+    return it. The first call in this process also fingerprints the code."""
+    global _LOADED_CODE  # noqa: PLW0603 - one value per Python process, see above
     integration = await async_get_integration(hass, DOMAIN)
     version = str(integration.version)
     hass.data.setdefault(DOMAIN, {})[_LOADED_VERSION_KEY] = version
+    if _LOADED_CODE is None:
+        _LOADED_CODE = await hass.async_add_executor_job(code_fingerprint)
     return version
 
 
@@ -75,20 +111,43 @@ def _read_disk_versions() -> dict[str, str | None]:
         except (OSError, ValueError):
             return {}
 
+    try:
+        installed_code: str | None = code_fingerprint()
+    except (OSError, ValueError):
+        installed_code = None
     return {
         "installed_version": _json(_MANIFEST).get("version"),
         "panel_build_id": _json(_BUILD_INFO).get("build_id"),
+        "installed_code": installed_code,
     }
 
 
 async def async_get_version_info(hass: HomeAssistant) -> dict[str, Any]:
-    """{loaded_version, installed_version, panel_build_id} — the backend
-    HA is running vs. what's installed on disk now, and the build id of the
-    panel bundle on disk (the panel compares that with its own)."""
+    """{loaded_version, installed_version, panel_build_id, loaded_code,
+    installed_code, restart_required} — the backend HA is running vs. what's
+    installed on disk now, and the build id of the panel bundle on disk (the
+    panel compares that with its own).
+
+    `restart_required` is true only when the backend code on disk differs
+    from the code running. A new version number alone (a panel-only
+    release) doesn't need a restart. Without both fingerprints it falls back
+    to comparing versions.
+    """
     disk = await hass.async_add_executor_job(_read_disk_versions)
+    loaded_version = hass.data.get(DOMAIN, {}).get(_LOADED_VERSION_KEY)
+    if _LOADED_CODE and disk["installed_code"]:
+        restart_required = _LOADED_CODE != disk["installed_code"]
+    else:
+        restart_required = bool(
+            loaded_version
+            and disk["installed_version"]
+            and loaded_version != disk["installed_version"]
+        )
     return {
-        "loaded_version": hass.data.get(DOMAIN, {}).get(_LOADED_VERSION_KEY),
+        "loaded_version": loaded_version,
+        "loaded_code": _LOADED_CODE,
         **disk,
+        "restart_required": restart_required,
     }
 
 
