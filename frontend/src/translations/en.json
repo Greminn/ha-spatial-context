@@ -73,7 +73,9 @@
       "editVertices": "Edit vertices",
       "useAreaName": "Use area name “{name}”",
       "resetLabel": "Reset label position",
-      "delete": "Delete room"
+      "delete": "Delete room",
+      "new": "New Room",
+      "fallbackName": "Room"
     },
     "pin": {
       "setIcon": "Set icon",
@@ -81,7 +83,8 @@
       "moveOutOfSpot": "Move out of this spot",
       "removeFromSpot": "Remove from this spot",
       "stackTitle": "{count} devices at this spot",
-      "backToGroup": "Back to group"
+      "backToGroup": "Back to group",
+      "unknownDevice": "Unknown device"
     },
     "wall": {
       "material": "Wall material",
@@ -95,7 +98,8 @@
       "delete": "Delete"
     },
     "meshStub": {
-      "goToFloor": "Go to floor"
+      "goToFloor": "Go to floor",
+      "outside": "Outside"
     },
     "notCalibrated": "Not calibrated",
     "card": {

@@ -1,3 +1,4 @@
+import { localize } from "../i18n";
 import type { PlaceableEntity } from "../types";
 
 /** Mirrors registry_snapshot.py's _DOMAIN_PRIORITY exactly — keep both in
@@ -69,7 +70,10 @@ export function pinDisplayLabel(
   deviceId: string | null,
   entities: Iterable<PlaceableEntity>,
 ): string {
-  return pickDisplayEntity(deviceId, entities)?.device_name ?? "Unknown device";
+  return (
+    pickDisplayEntity(deviceId, entities)?.device_name ??
+    localize("canvas.pin.unknownDevice")
+  );
 }
 
 /** Which integration set up this device (e.g. "unifi", "esphome", "hue") —

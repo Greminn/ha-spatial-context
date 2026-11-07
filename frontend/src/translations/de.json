@@ -73,7 +73,9 @@
       "editVertices": "Eckpunkte bearbeiten",
       "useAreaName": "Bereichsnamen „{name}“ verwenden",
       "resetLabel": "Beschriftungsposition zurücksetzen",
-      "delete": "Raum löschen"
+      "delete": "Raum löschen",
+      "new": "Neuer Raum",
+      "fallbackName": "Raum"
     },
     "pin": {
       "setIcon": "Symbol festlegen",
@@ -81,7 +83,8 @@
       "moveOutOfSpot": "Von dieser Stelle wegbewegen",
       "removeFromSpot": "Von dieser Stelle entfernen",
       "stackTitle": "{count} Geräte an dieser Stelle",
-      "backToGroup": "Zurück zur Gruppe"
+      "backToGroup": "Zurück zur Gruppe",
+      "unknownDevice": "Unbekanntes Gerät"
     },
     "wall": {
       "material": "Wandmaterial",
@@ -95,7 +98,8 @@
       "delete": "Löschen"
     },
     "meshStub": {
-      "goToFloor": "Zur Etage"
+      "goToFloor": "Zur Etage",
+      "outside": "Außen"
     },
     "notCalibrated": "Nicht kalibriert",
     "card": {

@@ -98,7 +98,7 @@ import "./views/property-overlay";
 import "./views/icon-picker-dialog";
 import "./views/confirm-dialog";
 import type { ScDialog } from "./views/confirm-dialog";
-import { localize } from "./i18n";
+import { localize, setLanguage } from "./i18n";
 import { adoptAreaNames, roomName, withShownNames } from "./room-name";
 import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-page";
@@ -284,6 +284,7 @@ export class SpatialContextPanel extends LitElement {
 
   set hass(value: HomeAssistant) {
     this._hass = value;
+    setLanguage(value);
     if (!this._initialized) {
       this._initialized = true;
       void this._init();
@@ -2686,7 +2687,7 @@ export class SpatialContextPanel extends LitElement {
   private _onRoomTraceComplete = (
     e: CustomEvent<{ points: [number, number][] }>,
   ) => {
-    const room = newRoom("New Room", e.detail.points, null);
+    const room = newRoom(localize("canvas.room.new"), e.detail.points, null);
     const rooms = [...this._layout.rooms, room];
     this._updateLayout({
       rooms,

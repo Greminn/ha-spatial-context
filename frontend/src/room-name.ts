@@ -1,3 +1,4 @@
+import { localize } from "./i18n";
 import type { AreaMeta, Room } from "./types";
 
 /** A room saved with an empty name follows the Home Assistant area it is
@@ -7,7 +8,10 @@ import type { AreaMeta, Room } from "./types";
 export function roomName(room: Room, areas: AreaMeta[]): string {
   const typed = room.name.trim();
   if (typed) return typed;
-  return areas.find((a) => a.area_id === room.area_id)?.name ?? "Room";
+  return (
+    areas.find((a) => a.area_id === room.area_id)?.name ??
+    localize("canvas.room.fallbackName")
+  );
 }
 
 /** Rooms with their shown name filled in, for drawing on the plan. Returns

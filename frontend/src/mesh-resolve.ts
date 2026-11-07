@@ -23,6 +23,7 @@ import {
   lqiToQuality,
 } from "./canvas/mesh-colors";
 import { pinDisplayLabel } from "./canvas/device-display";
+import { localize } from "./i18n";
 import { selectZigbeeLinks, withCoordinatorDevice } from "./zigbee-links";
 import { floorToProperty, propertyToFloor } from "./canvas/property-mapping";
 import { rayBoxExit } from "./canvas/geometry";
@@ -461,7 +462,7 @@ export function meshStubsForFloor(ctx: MeshContext): ResolvedMeshStub[] {
         y: point.y,
         targetDeviceId: remoteDeviceId,
         targetFloorId: PROPERTY_LOCATION_ID,
-        targetFloorName: "Outside",
+        targetFloorName: localize("canvas.meshStub.outside"),
         targetLabel: pinLabel(ctx, outdoorPin),
         quality: link.quality,
         ...(link.detail ? { detail: link.detail } : {}),
