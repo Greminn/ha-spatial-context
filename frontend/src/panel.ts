@@ -74,7 +74,9 @@ import {
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
   BACKGROUND_ACCEPT,
+  cameraEntities,
   classifyBackgroundFile,
+  snapshotToFile,
   normalizeRotation,
   toUploadableImage,
   type PdfGlueModule,
@@ -2169,6 +2171,46 @@ export class SpatialContextPanel extends LitElement {
     }
   };
 
+  /** "Use a camera image": a camera entity's current snapshot (a robot
+   * vacuum's map, say) becomes the background, uploaded like a file. */
+  private _onCameraBackground = async () => {
+    this._backgroundPopoverOpen = false;
+    const cameras = cameraEntities(this._hass?.states ?? {});
+    if (cameras.length === 0) {
+      await this._notify(localize("menu.cameraNone"));
+      return;
+    }
+    const picked = await this._dialogEl?.choose({
+      title: localize("menu.cameraTitle"),
+      text: localize("menu.cameraChoose"),
+      options: cameras.map((c, i) => ({
+        key: c.entityId,
+        label: c.name,
+        hint: c.entityId,
+        checked: i === 0,
+      })),
+      confirmText: localize("menu.cameraUse"),
+    });
+    const entityId = picked?.[0];
+    if (!entityId) return;
+    let file: File;
+    try {
+      file = await snapshotToFile(
+        await this._client.fetchCameraSnapshot(entityId),
+        entityId,
+      );
+    } catch (err) {
+      await this._notify(
+        localize("errors.cameraFetch", {
+          entity: entityId,
+          error: (err as Error).message,
+        }),
+      );
+      return;
+    }
+    await this._handleBackgroundFile(file);
+  };
+
   /** Turns the floor's background about its centre (a sideways scan). */
   private _setBackgroundRotation(deg: number): void {
     this._updateLayout({ background_rotation_deg: normalizeRotation(deg) });
@@ -3217,6 +3259,14 @@ export class SpatialContextPanel extends LitElement {
         <button class="menu-item" @click=${() => this._fileInput?.click()}>
           <ha-icon icon="mdi:image-plus"></ha-icon>
           ${this._activeBackground.imageId ? localize("menu.replaceBackground") : localize("menu.uploadBackground")}
+        </button>
+        <button
+          class="menu-item"
+          title=${localize("menu.cameraHint")}
+          @click=${this._onCameraBackground}
+        >
+          <ha-icon icon="mdi:cctv"></ha-icon>
+          ${localize("menu.cameraBackground")}
         </button>
         ${
           this._view === "property" &&

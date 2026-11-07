@@ -271,7 +271,13 @@
     "rotation": "Rotation {deg}°",
     "rotateLeft": "Rotate 90° to the left",
     "rotateRight": "Rotate 90° to the right",
-    "straighten": "Straighten"
+    "straighten": "Straighten",
+    "cameraBackground": "Use a camera image",
+    "cameraHint": "Take the current image of a camera entity, such as a robot vacuum's map, as the background",
+    "cameraTitle": "Background from a camera",
+    "cameraChoose": "Pick the camera whose current image becomes this background. Robot vacuum maps are listed first. The image is copied once; it does not update by itself.",
+    "cameraUse": "Use image",
+    "cameraNone": "Home Assistant has no camera entities."
   },
   "network": {
     "zigbee": "Zigbee mesh",
@@ -304,7 +310,8 @@
     "retry": "Retry",
     "bgType": "The background must be a PNG, JPEG, GIF, SVG or PDF file.",
     "bgUpload": "Background image upload failed: {error}",
-    "bgConvert": "Couldn't read {name}: {error}"
+    "bgConvert": "Couldn't read {name}: {error}",
+    "cameraFetch": "Couldn't get an image from {entity}: {error}"
   },
   "dialog": {
     "ok": "OK",

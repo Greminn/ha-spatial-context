@@ -271,7 +271,13 @@
     "rotation": "Drehung {deg}°",
     "rotateLeft": "Um 90° nach links drehen",
     "rotateRight": "Um 90° nach rechts drehen",
-    "straighten": "Ausrichten"
+    "straighten": "Ausrichten",
+    "cameraBackground": "Kamerabild verwenden",
+    "cameraHint": "Das aktuelle Bild einer Kamera-Entität, etwa die Karte eines Saugroboters, als Hintergrund übernehmen",
+    "cameraTitle": "Hintergrund von einer Kamera",
+    "cameraChoose": "Wählen Sie die Kamera, deren aktuelles Bild zum Hintergrund wird. Karten von Saugrobotern stehen oben. Das Bild wird einmal kopiert und aktualisiert sich nicht von selbst.",
+    "cameraUse": "Bild verwenden",
+    "cameraNone": "Home Assistant hat keine Kamera-Entitäten."
   },
   "network": {
     "zigbee": "Zigbee-Mesh",
@@ -304,7 +310,8 @@
     "retry": "Erneut versuchen",
     "bgType": "Der Hintergrund muss eine PNG-, JPEG-, GIF-, SVG- oder PDF-Datei sein.",
     "bgUpload": "Hochladen des Hintergrundbilds fehlgeschlagen: {error}",
-    "bgConvert": "{name} konnte nicht gelesen werden: {error}"
+    "bgConvert": "{name} konnte nicht gelesen werden: {error}",
+    "cameraFetch": "Von {entity} konnte kein Bild abgerufen werden: {error}"
   },
   "dialog": {
     "ok": "OK",

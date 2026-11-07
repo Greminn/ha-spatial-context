@@ -284,3 +284,59 @@ export function normalizeRotation(deg: number): number {
   if (r <= -180) r += 360;
   return Math.round(r * 10) / 10;
 }
+
+// --- camera snapshots ----------------------------------------------------
+
+/** Camera names that are usually a robot vacuum's map rather than a
+ * video feed — listed first. */
+const MAP_CAMERA =
+  /map|vacuum|robot|valetudo|roborock|narwal|dreame|xiaomi|ecovacs|roomba/i;
+
+/** Every camera.* entity, map-like ones first, then by name. */
+export function cameraEntities(
+  states: Record<string, { attributes: Record<string, unknown> } | undefined>,
+): { entityId: string; name: string; isMap: boolean }[] {
+  return Object.keys(states)
+    .filter((id) => id.startsWith("camera.") && states[id])
+    .map((entityId) => {
+      const friendly = states[entityId]!.attributes["friendly_name"];
+      const name =
+        typeof friendly === "string" && friendly ? friendly : entityId;
+      return { entityId, name, isMap: MAP_CAMERA.test(`${entityId} ${name}`) };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isMap) - Number(a.isMap) || a.name.localeCompare(b.name),
+    );
+}
+
+/** The path HA serves a camera's current still image on. */
+export function cameraProxyPath(entityId: string): string {
+  return `/api/camera_proxy/${encodeURIComponent(entityId)}`;
+}
+
+/** A camera snapshot as an uploadable image file: PNG/JPEG/GIF as is,
+ * anything else (WebP, say) redrawn into a PNG. */
+export async function snapshotToFile(
+  blob: Blob,
+  entityId: string,
+): Promise<File> {
+  const stem = entityId.replace(/^camera\./, "") || "camera";
+  const type = blob.type.split(";")[0]!.trim().toLowerCase();
+  if (RASTER_TYPES.has(type)) {
+    const ext = type === "image/jpeg" ? "jpg" : type.slice("image/".length);
+    return new File([blob], `${stem}.${ext}`, { type });
+  }
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const out = await renderToPng(
+      { width: bitmap.width, height: bitmap.height },
+      async (ctx) => {
+        ctx.drawImage(bitmap, 0, 0);
+      },
+    );
+    return new File([out], `${stem}.png`, { type: "image/png" });
+  } finally {
+    bitmap.close();
+  }
+}
