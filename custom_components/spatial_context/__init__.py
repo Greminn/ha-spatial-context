@@ -21,7 +21,7 @@ from .frontend import (
 from .links.store import async_setup_link_store, async_start_link_refresh
 from .registry_snapshot import async_migrate_pin_device_ids
 from .services import async_setup_services
-from .storage import async_backup_layout
+from .storage import async_backup_layout, async_get_settings
 from .websocket_api import async_register_commands
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +39,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await async_setup_link_store(hass)
     except Exception:  # noqa: BLE001 - radio links are optional; never block setup
         _LOGGER.warning("Failed to load the stored Spatial Context radio links", exc_info=True)
+    # Prime the settings cache: llm.py's tools callback reads it synchronously.
+    await async_get_settings(hass)
 
     try:
         await async_register_static_paths(hass)

@@ -41,6 +41,17 @@ actions:
 
 Signal predictions use a rough model: free-space loss over the real distance, minus each wall's loss and 13 dB per floor. Zigbee only reports LQI, which is converted to dBm on a straight line; it is good for ranking links, not as a measurement.
 
+### Conversation Agents
+
+On Home Assistant 2026.11 and later the same answers are available as LLM tools (`spatial_context__summary` and so on) on the **Home Assistant** LLM API. They are off until turned on:
+
+```yaml
+actions:
+  - action: spatial_context.update_settings
+    data:
+      llm_tools_enabled: true
+```
+
 The radio model's settings are changed with `spatial_context.update_settings`: `floor_height_m` (default 3 m), `rf_path_loss_exponent` (default 2.0) and `rf_slab_loss_db` (default 13 dB).
 
 ## What an Agent Can Work Out

@@ -335,11 +335,23 @@ def _empty_settings() -> dict[str, Any]:
     }
 
 
+_SETTINGS_CACHE_KEY = f"{DOMAIN}_settings_cache"
+
+
 async def async_get_settings(hass: HomeAssistant) -> dict[str, Any]:
     """Return the stored app-wide settings, or defaults."""
     async with _lock(hass):
         data = await _async_load_all(hass)
-        return {**_empty_settings(), **(data.get("settings") or {})}
+        settings = {**_empty_settings(), **(data.get("settings") or {})}
+        hass.data[_SETTINGS_CACHE_KEY] = settings
+        return settings
+
+
+def cached_settings(hass: HomeAssistant) -> dict[str, Any]:
+    """The settings as last read or saved, for synchronous callers (the LLM
+    tools platform's `async_get_tools` is a callback and cannot await the
+    store). Defaults until the first read; __init__ reads them at setup."""
+    return hass.data.get(_SETTINGS_CACHE_KEY) or _empty_settings()
 
 
 async def async_save_settings(hass: HomeAssistant, settings: dict[str, Any]) -> None:
@@ -348,6 +360,7 @@ async def async_save_settings(hass: HomeAssistant, settings: dict[str, Any]) -> 
         data = await _async_load_all(hass)
         data["settings"] = settings
         await _store(hass).async_save(data)
+        hass.data[_SETTINGS_CACHE_KEY] = {**_empty_settings(), **settings}
 
 
 async def async_get_floor_layout(hass: HomeAssistant, floor_id: str) -> dict[str, Any]:
