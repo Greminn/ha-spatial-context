@@ -5,6 +5,7 @@ import { PROPERTY_LOCATION_ID } from "../types";
 import type { AreaMeta, FloorMeta, PlaceableEntity } from "../types";
 import { pickDisplayEntity } from "../canvas/device-display";
 import { isDevicePlaced } from "../picker-placement";
+import { nextToArm } from "../bulk-place";
 import { localize } from "../i18n";
 import { selectStyles, sharedStyles } from "../styles";
 import { entityPickerSidebarStyles } from "./entity-picker-sidebar-styles";
@@ -48,6 +49,15 @@ export class EntityPickerSidebar extends LitElement {
    * is linked to — counted as part of the current floor by the floor
    * filter, since that's where they've been drawn. */
   @property({ attribute: false }) linkedAreaIds: Set<string> = new Set();
+  /** Unplaced devices per area that has a room on this plan — what
+   * "place by area" would place (see bulk-place.ts). */
+  @property({ attribute: false }) bulkCounts: Map<string, number> = new Map();
+  /** Devices whose pin was bulk-placed and not yet confirmed. */
+  @property({ attribute: false }) approximateDeviceIds: Set<string> = new Set();
+
+  /** Keep placing: after a pin is placed, arm the next unplaced device in
+   * the current list. A per-browser preference, like the width. */
+  @state() private _keepArmed = EntityPickerSidebar._readKeepArmed();
 
   @state() private _search = "";
   /** null = "follow whichever floor is currently open" (the useful default
@@ -56,13 +66,15 @@ export class EntityPickerSidebar extends LitElement {
    * from the dropdown, overriding the follow-current-floor default. */
   @state() private _floorFilter: string | "all" | null = null;
   @state() private _areaFilter: string | null = null;
-  @state() private _placedFilter: "all" | "unplaced" | "placed" | "hidden" =
-    "all";
+  @state() private _placedFilter:
+    "all" | "unplaced" | "placed" | "approximate" | "hidden" = "all";
 
   // --- resizable width (per-browser, not shared — see #22) --------------
 
   private static readonly WIDTH_STORAGE_KEY =
     "spatial-context.entityPickerSidebarWidth";
+  private static readonly KEEP_ARMED_STORAGE_KEY =
+    "spatial-context.keepPlacing";
   private static readonly MIN_WIDTH = 240;
   private static readonly MAX_WIDTH = 600;
 
@@ -71,7 +83,88 @@ export class EntityPickerSidebar extends LitElement {
     document.removeEventListener("pointerdown", this._onOutsidePress, true);
   }
 
+  private static _readKeepArmed(): boolean {
+    try {
+      return (
+        localStorage.getItem(EntityPickerSidebar.KEEP_ARMED_STORAGE_KEY) === "1"
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private _toggleKeepArmed = () => {
+    this._keepArmed = !this._keepArmed;
+    try {
+      localStorage.setItem(
+        EntityPickerSidebar.KEEP_ARMED_STORAGE_KEY,
+        this._keepArmed ? "1" : "0",
+      );
+    } catch {
+      // Only this session remembers it then.
+    }
+  };
+
+  /** Keep placing: the armed device was just placed (the panel disarms
+   * after every pin), so arm the next unplaced row in the current list. */
+  private _maybeArmNext(changed: PropertyValues): void {
+    if (!this._keepArmed || !changed.has("armedEntityId")) return;
+    const previous = changed.get("armedEntityId") as string | null | undefined;
+    if (!previous || this.armedEntityId !== null) return;
+    const rows = this._filtered.map((d) => ({
+      entityId: d.primaryEntityId,
+      placed:
+        isDevicePlaced(
+          d.deviceId,
+          d.entities,
+          this.placedDeviceIds,
+          this.currentFloorId,
+        ) || this._blockedFloorName(d) !== null,
+    }));
+    const justPlaced = this._devices.find(
+      (d) => d.primaryEntityId === previous,
+    );
+    // Disarmed without placing a new pin (clicked the row again, Escape,
+    // or re-armed a device that was already placed): stop.
+    const before = changed.get("placedDeviceIds") as Set<string> | undefined;
+    if (
+      !justPlaced ||
+      !before ||
+      before.has(justPlaced.deviceId) ||
+      !this.placedDeviceIds.has(justPlaced.deviceId)
+    ) {
+      return;
+    }
+    const next = nextToArm(rows, previous);
+    if (!next) return;
+    this.dispatchEvent(
+      new CustomEvent("entity-armed", {
+        detail: { entityId: next },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private get _bulkTotal(): number {
+    let total = 0;
+    for (const n of this.bulkCounts.values()) total += n;
+    return total;
+  }
+
+  private _emitBulkPlace(areaId: string | null): void {
+    this._menuOpen = false;
+    this.dispatchEvent(
+      new CustomEvent("bulk-place", {
+        detail: { areaId },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   override updated(changed: PropertyValues): void {
+    this._maybeArmNext(changed);
     if (!changed.has("_menuOpen")) return;
     document.removeEventListener("pointerdown", this._onOutsidePress, true);
     if (this._menuOpen) {
@@ -272,6 +365,12 @@ export class EntityPickerSidebar extends LitElement {
         if (!area || !this._areaIsOnFloor(area, floorId)) return false;
       }
       if (
+        this._placedFilter === "approximate" &&
+        !this.approximateDeviceIds.has(d.deviceId)
+      ) {
+        return false;
+      }
+      if (
         this._placedFilter === "unplaced" ||
         this._placedFilter === "placed"
       ) {
@@ -302,6 +401,57 @@ export class EntityPickerSidebar extends LitElement {
         composed: true,
       }),
     );
+  }
+
+  /** A floor plan is open (not the Property tab, which has no rooms). */
+  private get _onFloorPlan(): boolean {
+    return (
+      this.currentFloorId !== null &&
+      this.currentFloorId !== PROPERTY_LOCATION_ID
+    );
+  }
+
+  private get _showMoreMenu(): boolean {
+    return this.placedDeviceIds.size > 0 || this._onFloorPlan;
+  }
+
+  /** "Place by area" (see bulk-place.ts): the filtered area into its room,
+   * or every linked area on this floor. Shown greyed out with nothing to
+   * place, so the feature can be found before any room is linked. */
+  private _renderBulkMenuItems() {
+    if (!this._onFloorPlan) return nothing;
+    const area = this._areaFilter
+      ? this.areas.find((a) => a.area_id === this._areaFilter)
+      : null;
+    const areaCount = area ? (this.bulkCounts.get(area.area_id) ?? 0) : 0;
+    const total = this._bulkTotal;
+    return html`
+      ${
+        area
+          ? html`<button
+              class="menu-item"
+              ?disabled=${areaCount === 0}
+              title=${areaCount === 0 ? localize("picker.bulkAreaNone") : ""}
+              @click=${() => this._emitBulkPlace(area.area_id)}
+            >
+              <ha-icon icon="mdi:map-marker-multiple"></ha-icon>
+              ${localize("picker.bulkArea", {
+                count: areaCount,
+                area: area.name,
+              })}
+            </button>`
+          : nothing
+      }
+      <button
+        class="menu-item"
+        ?disabled=${total === 0}
+        title=${total === 0 ? localize("picker.bulkFloorNone") : ""}
+        @click=${() => this._emitBulkPlace(null)}
+      >
+        <ha-icon icon="mdi:home-group-plus"></ha-icon>
+        ${localize("picker.bulkFloor", { count: total })}
+      </button>
+    `;
   }
 
   override render() {
@@ -397,7 +547,7 @@ export class EntityPickerSidebar extends LitElement {
             ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
           ></span>
           ${
-            this.placedDeviceIds.size > 0
+            this._showMoreMenu
               ? html`<button
                   class="more-button"
                   title=${localize("picker.more")}
@@ -433,6 +583,17 @@ export class EntityPickerSidebar extends LitElement {
                 ${localize("picker.showPlaced")}
               </option>
               ${
+                this.approximateDeviceIds.size > 0 ||
+                this._placedFilter === "approximate"
+                  ? html`<option
+                      value="approximate"
+                      ?selected=${this._placedFilter === "approximate"}
+                    >
+                      ${localize("picker.showApproximate")}
+                    </option>`
+                  : nothing
+              }
+              ${
                 this.hiddenDeviceIds.size > 0 || this._placedFilter === "hidden"
                   ? html`<option
                       value="hidden"
@@ -444,26 +605,63 @@ export class EntityPickerSidebar extends LitElement {
               }</select
             ><ha-icon class="chev" icon="mdi:menu-down"></ha-icon
           ></span>
+          ${
+            this._onFloorPlan
+              ? html`<button
+                  class="keep-armed ${this._keepArmed ? "on" : ""}"
+                  title=${localize("picker.keepPlacingHint")}
+                  aria-label=${localize("picker.keepPlacing")}
+                  aria-pressed=${this._keepArmed ? "true" : "false"}
+                  @click=${this._toggleKeepArmed}
+                >
+                  <ha-icon icon="mdi:repeat"></ha-icon>
+                  ${localize("picker.keepPlacing")}
+                </button>`
+              : nothing
+          }
         </div>
         ${
-          this._menuOpen && this.placedDeviceIds.size > 0
+          this.approximateDeviceIds.size > 0
+            ? html`<button
+                class="approx-chip"
+                title=${localize("picker.approximateHint")}
+                @click=${() =>
+                  (this._placedFilter =
+                    this._placedFilter === "approximate"
+                      ? "all"
+                      : "approximate")}
+              >
+                <ha-icon icon="mdi:map-marker-question-outline"></ha-icon>
+                ${localize("picker.approximateCount", {
+                  count: this.approximateDeviceIds.size,
+                })}
+              </button>`
+            : nothing
+        }
+        ${
+          this._menuOpen && this._showMoreMenu
             ? html`<div class="more-menu floating-panel">
-                <button
-                  class="menu-item danger"
-                  @click=${() => {
-                    this._menuOpen = false;
-                    this.dispatchEvent(
-                      new CustomEvent("clear-all-pins", {
-                        detail: { areaId: this._areaFilter },
-                        bubbles: true,
-                        composed: true,
-                      }),
-                    );
-                  }}
-                >
-                  <ha-icon icon="mdi:playlist-remove"></ha-icon>
-                  ${localize("picker.clearAll")}
-                </button>
+                ${this._renderBulkMenuItems()}
+                ${
+                  this.placedDeviceIds.size > 0
+                    ? html`<button
+                        class="menu-item danger"
+                        @click=${() => {
+                          this._menuOpen = false;
+                          this.dispatchEvent(
+                            new CustomEvent("clear-all-pins", {
+                              detail: { areaId: this._areaFilter },
+                              bubbles: true,
+                              composed: true,
+                            }),
+                          );
+                        }}
+                      >
+                        <ha-icon icon="mdi:playlist-remove"></ha-icon>
+                        ${localize("picker.clearAll")}
+                      </button>`
+                    : nothing
+                }
               </div>`
             : nothing
         }
@@ -536,7 +734,17 @@ export class EntityPickerSidebar extends LitElement {
                             ? html`<span class="meta">${subtitle}</span>`
                             : nothing
                       }
-                      ${placed ? html`<span class="meta">${localize("picker.placed")}</span>` : nothing}
+                      ${
+                        placed
+                          ? html`<span class="meta"
+                              >${localize(
+                                this.approximateDeviceIds.has(device.deviceId)
+                                  ? "picker.placedApproximate"
+                                  : "picker.placed",
+                              )}</span
+                            >`
+                          : nothing
+                      }
                     </span>
                     ${
                       !placed

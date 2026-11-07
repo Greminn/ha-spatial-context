@@ -39,6 +39,17 @@ export const pinStyles = css`
   .pin-icon path {
     fill: white;
   }
+  /* Bulk-placed, not yet confirmed (see bulk-place.ts): see-through with
+   * a dashed rim, so the pins still to fine-tune stand out. */
+  .pin-approx .pin-dot {
+    opacity: 0.55;
+    stroke: var(--warning-color, #ff9800);
+    stroke-dasharray: 3 2;
+  }
+  .pin-approx .pin-icon,
+  .pin-approx .pin-brand-icon {
+    opacity: 0.7;
+  }
 `;
 
 /** Which icon to draw for a placed device, per host canvas — holds that
@@ -105,10 +116,11 @@ export class PinIconResolver {
     color: string,
     selected: boolean,
     label: string,
+    approximate = false,
   ) {
     const iconSize = r * 1.1; // native mdi viewBox is 24x24, scaled to fit the dot
     return svg`
-      <g>
+      <g class=${approximate ? "pin-approx" : ""}>
         <title>${label}</title>
         <circle
           class="pin-dot ${selected ? "selected" : ""}"

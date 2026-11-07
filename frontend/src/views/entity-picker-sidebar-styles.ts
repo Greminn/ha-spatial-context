@@ -118,6 +118,42 @@ export const entityPickerSidebarStyles = css`
     gap: var(--ha-space-2, 8px);
     margin-top: var(--ha-space-2, 8px);
   }
+  .keep-armed {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--sc-h-field);
+    padding: 0 var(--ha-space-2, 8px);
+    border: 1px solid var(--sc-divider);
+    border-radius: var(--sc-r-control);
+    color: var(--sc-fg-secondary);
+    font-size: var(--sc-fs-small);
+  }
+  .keep-armed ha-icon,
+  .approx-chip ha-icon {
+    --mdc-icon-size: 16px;
+  }
+  .keep-armed.on {
+    border-color: var(--sc-accent);
+    background: color-mix(in srgb, var(--sc-accent) 16%, transparent);
+    color: var(--sc-accent);
+  }
+  .approx-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: var(--ha-space-2, 8px);
+    padding: 4px 10px;
+    border: 1px dashed var(--warning-color, #ff9800);
+    border-radius: 999px;
+    color: var(--sc-fg);
+    font-size: var(--sc-fs-small);
+  }
+  .more-menu .menu-item[disabled] {
+    opacity: 0.5;
+    cursor: default;
+  }
   .filters .select-wrap {
     flex: 1;
   }

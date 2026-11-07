@@ -720,7 +720,11 @@ export class CanvasOverlay extends LitElement {
       const pin = this.selectedPin;
       return this._card({
         title: this._pinLabel(pin),
-        subtitle: localize("canvas.card.device"),
+        subtitle: localize(
+          pin.approximate
+            ? "canvas.card.deviceApproximate"
+            : "canvas.card.device",
+        ),
         onClose: this._clearSelection,
         ...(this.canReturnToStack
           ? {
@@ -743,6 +747,15 @@ export class CanvasOverlay extends LitElement {
                   })}
               />`,
             )}
+            ${
+              pin.approximate
+                ? this._actionRow(
+                    "mdi:map-marker-check",
+                    localize("canvas.pin.confirmPosition"),
+                    () => this._fire("pin-confirm-position-click"),
+                  )
+                : nothing
+            }
             ${this._actionRow("mdi:shape", localize("canvas.pin.setIcon"), () =>
               this._fire("pin-set-icon-click"),
             )}
