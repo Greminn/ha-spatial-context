@@ -157,6 +157,24 @@ def async_get_wifi_mesh(hass: HomeAssistant) -> dict[str, Any]:
     return {"links": links}
 
 
+def _unifi_client_value(client: Any, raw_key: str, *attributes: str) -> Any:
+    """One field of an aiounifi client: the controller's raw dict first,
+    then the given attribute names.
+
+    aiounifi's typed properties don't use the controller's key names (the
+    AP is `access_point_mac`, not `ap_mac`), so `getattr(client, "ap_mac")`
+    is always None. The raw dict the controller sent is the stable source.
+    """
+    raw = getattr(client, "raw", None)
+    if isinstance(raw, dict) and raw.get(raw_key) not in (None, ""):
+        return raw[raw_key]
+    for attribute in attributes or (raw_key,):
+        value = getattr(client, attribute, None)
+        if value not in (None, ""):
+            return value
+    return None
+
+
 def _unifi_client_links(
     hass: HomeAssistant,
     mac_to_device_ids: dict[str, list[str]],
@@ -172,9 +190,13 @@ def _unifi_client_links(
 
     Same caveat as `_omada_links`: integration internals, not a public API,
     so everything is getattr-guarded and degrades to zero extra links.
-    Deduplicated against links already found.
+    Deduplicated against links already found — but an enabled tracker's
+    link from the attribute loop usually has no signal (UniFi's tracker
+    attributes carry none, and the same-device signal sensor rarely
+    exists), so this fills in that link's missing `rssi_dbm` from the
+    client's `signal` instead of dropping the reading.
     """
-    seen = {(link["source_device_id"], link["target_device_id"]) for link in existing}
+    seen = {(link["source_device_id"], link["target_device_id"]): link for link in existing}
     links: list[dict[str, Any]] = []
     for entry in hass.config_entries.async_entries("unifi"):
         if entry.state is not ConfigEntryState.LOADED:
@@ -189,28 +211,30 @@ def _unifi_client_links(
         except Exception:  # noqa: BLE001 - internals may change shape; never break the Wi-Fi layer
             continue
         for client in client_list:
-            if getattr(client, "is_wired", False):
+            if _unifi_client_value(client, "is_wired"):
                 continue
-            client_mac = getattr(client, "mac", None)
-            ap_mac = getattr(client, "ap_mac", None)
+            client_mac = _unifi_client_value(client, "mac")
+            ap_mac = _unifi_client_value(client, "ap_mac", "access_point_mac", "ap_mac")
             if not client_mac or not ap_mac:
                 continue
             # UniFi's `signal` is dBm (negative); its `rssi` is a positive
             # margin over noise, so only `signal` maps onto our dBm scale.
-            signal = getattr(client, "signal", None)
+            signal = _unifi_client_value(client, "signal")
             rssi_dbm = signal if isinstance(signal, (int, float)) and signal < 0 else None
             for client_device_id in mac_to_device_ids.get(dr.format_mac(client_mac), []):
                 for ap_device_id in mac_to_device_ids.get(dr.format_mac(ap_mac), []):
-                    if (client_device_id, ap_device_id) in seen:
+                    found = seen.get((client_device_id, ap_device_id))
+                    if found is not None:
+                        if found.get("rssi_dbm") is None:
+                            found["rssi_dbm"] = rssi_dbm
                         continue
-                    seen.add((client_device_id, ap_device_id))
-                    links.append(
-                        {
-                            "source_device_id": client_device_id,
-                            "target_device_id": ap_device_id,
-                            "rssi_dbm": rssi_dbm,
-                        }
-                    )
+                    link = {
+                        "source_device_id": client_device_id,
+                        "target_device_id": ap_device_id,
+                        "rssi_dbm": rssi_dbm,
+                    }
+                    seen[(client_device_id, ap_device_id)] = link
+                    links.append(link)
     return links
 
 
