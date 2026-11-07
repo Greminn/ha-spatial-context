@@ -930,6 +930,21 @@ export class CanvasOverlay extends LitElement {
               >${link.detail ?? link.quality}</span
             >`,
           )}
+          ${
+            link.weak
+              ? html`<div class="info-row">
+                  <ha-icon class="warning" icon="mdi:alert"></ha-icon>
+                  <span class="grow"
+                    >${localize("canvas.link.weak", {
+                      predicted: Math.round(link.weak.predictedDbm),
+                      measured: Math.round(link.weak.measuredDbm),
+                      gap: Math.round(link.weak.gapDb),
+                      walls: Math.round(link.weak.wallDb),
+                    })}</span
+                  >
+                </div>`
+              : nothing
+          }
         </div>`,
       });
     }

@@ -140,6 +140,10 @@ export const infoCardStyles = css`
   .info-row.action.active ha-icon {
     color: var(--sc-accent);
   }
+  /* Same colour as the weak-link triangle on the plan. */
+  .info-row ha-icon.warning {
+    color: var(--warning-color, #ffa600);
+  }
   .info-row .grow {
     flex: 1;
     min-width: 0;

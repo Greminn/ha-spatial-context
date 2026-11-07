@@ -15,6 +15,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - A **Move out of this spot** button on each device in that list, so a stacked device can be moved without deleting it (#47).
 - A warning triangle on a Zigbee link that reads much weaker than the walls between its two devices predict. Hover it for the expected and measured signal. It needs the floor's scale set. A **Flag weak links** setting chooses how big the gap must be (25 dB by default, 0 turns it off) (#29).
 - A device's card lists its links to devices that are not placed on any floor, marked "not placed on the plan" (#63).
+- A selected Zigbee link's card says when the link reads weaker than the walls predict, with the expected and measured signal (#29).
 
 ### Changed
 - Spatial Context needs Home Assistant 2026.10 or newer, and the listed minimum now says so.
