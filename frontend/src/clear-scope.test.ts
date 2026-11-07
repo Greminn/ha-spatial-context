@@ -72,6 +72,19 @@ describe("resetFloorParts", () => {
     expect(out.pins.every((p) => p.room_id === null)).toBe(true);
   });
 
+  it("straightens a rotated background it removes", () => {
+    const out = resetFloorParts(
+      { ...layout(), background_rotation_deg: 90 },
+      new Set(["background"]),
+    );
+    expect(out.background_rotation_deg).toBe(0);
+    const kept = resetFloorParts(
+      { ...layout(), background_rotation_deg: 90 },
+      new Set(["pins"]),
+    );
+    expect(kept.background_rotation_deg).toBe(90);
+  });
+
   it("can remove just the background image", () => {
     const out = resetFloorParts(layout(), new Set(["background"]));
     expect(out.background_image_id).toBeNull();

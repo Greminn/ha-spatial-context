@@ -96,6 +96,14 @@ export interface AlignOverlay {
   offsetY: number;
   scale: number;
   opacity: number;
+  /** The other floor's own background rotation. */
+  rotationDeg?: number;
+}
+
+/** A background image turned about its own centre (see
+ * FloorLayout.background_rotation_deg); empty when upright. */
+function rotateStyle(deg: number): string {
+  return deg ? ` transform: rotate(${deg}deg); transform-origin: 50% 50%;` : "";
 }
 
 type DownHit =
@@ -154,6 +162,8 @@ export class FloorplanCanvas extends LitElement {
   @property({ type: Number }) backgroundOffsetX = 0;
   @property({ type: Number }) backgroundOffsetY = 0;
   @property({ type: Number }) backgroundScale = 1;
+  /** Degrees clockwise the background is turned about its centre. */
+  @property({ type: Number }) backgroundRotationDeg = 0;
   @property({ attribute: false }) alignOverlay: AlignOverlay | null = null;
   /** The currently-selected floor's saved pan/zoom — applied (see
    * `updated()`) whenever this reference changes, i.e. on every floor
@@ -2386,7 +2396,7 @@ export class FloorplanCanvas extends LitElement {
           src=${this.backgroundImageUrl}
           style="width:${BASE_WIDTH}px; height:${this._naturalHeight}px; opacity:${
             this.backgroundOpacity
-          };"
+          };${rotateStyle(this.backgroundRotationDeg)}"
         />
       </div>
     `;
@@ -2413,7 +2423,7 @@ export class FloorplanCanvas extends LitElement {
           src=${this.alignOverlay.imageUrl}
           style="width:${BASE_WIDTH}px; height:${this._alignNaturalHeight}px; opacity:${
             this.alignOverlay.opacity
-          };"
+          };${rotateStyle(this.alignOverlay.rotationDeg ?? 0)}"
         />
       </div>
     `;

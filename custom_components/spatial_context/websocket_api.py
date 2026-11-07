@@ -233,6 +233,10 @@ _PLACEMENT_SCHEMA = {
         vol.Required("background_offset_x"): _FLOAT,
         vol.Required("background_offset_y"): _FLOAT,
         vol.Required("background_scale"): _FLOAT,
+        # Optional: a panel older than this field doesn't send it.
+        vol.Optional("background_rotation_deg", default=0.0): vol.All(
+            _FLOAT, vol.Range(min=-360, max=360)
+        ),
         vol.Required("building_id"): vol.Any(_TEXT, None),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("rooms"): _items(_ROOM_SCHEMA),
@@ -256,6 +260,7 @@ async def ws_save_layout(
         "background_offset_x": msg["background_offset_x"],
         "background_offset_y": msg["background_offset_y"],
         "background_scale": msg["background_scale"],
+        "background_rotation_deg": msg["background_rotation_deg"],
         "building_id": msg["building_id"],
         "view_box": msg["view_box"],
         "rooms": msg["rooms"],
