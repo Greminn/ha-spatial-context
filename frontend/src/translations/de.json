@@ -441,5 +441,10 @@
     "white": "Weiß",
     "none": "Keiner",
     "hint": "Was hinter dem Grundriss liegt. Automatisch: ein weißes Blatt, im dunklen Modus invertiert. Weiß: immer ein weißes Blatt, nie invertiert. Keiner: transparente Pläne zeigen die Zeichenfläche. Nur in diesem Browser gespeichert."
+  },
+  "setup": {
+    "seedRooms": "Räume für die Bereiche dieser Etage anlegen ({count})",
+    "seedRoomsHint": "Ein Platzhalter-Raum für jeden Home-Assistant-Bereich dieser Etage, der noch keinen Raum hat – mit dem Bereich verknüpft und nach seiner Geräteanzahl bemessen. Anschließend über dem Hintergrund verschieben und anpassen.",
+    "seedRoomsNone": "Jeder Home-Assistant-Bereich dieser Etage hat bereits einen Raum."
   }
 }

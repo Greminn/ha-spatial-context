@@ -441,5 +441,10 @@
     "white": "White",
     "none": "None",
     "hint": "What sits behind floor plan images. Auto: a white sheet, inverted in dark mode. White: always a white sheet, never inverted. None: transparent plans show the canvas. Saved in this browser only."
+  },
+  "setup": {
+    "seedRooms": "Create rooms for this floor's areas ({count})",
+    "seedRoomsHint": "One placeholder room per Home Assistant area on this floor that has no room yet, linked to the area and sized by its device count. Drag and reshape them over the background.",
+    "seedRoomsNone": "Every Home Assistant area on this floor already has a room."
   }
 }
