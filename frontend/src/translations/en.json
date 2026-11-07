@@ -267,7 +267,11 @@
     "debugReport": "Download debug report",
     "debugReportHint": "Versions, settings, layout counts and the recent debug log — safe to attach to a GitHub issue",
     "resetFloor": "Reset floor",
-    "resetProperty": "Reset property"
+    "resetProperty": "Reset property",
+    "rotation": "Rotation {deg}°",
+    "rotateLeft": "Rotate 90° to the left",
+    "rotateRight": "Rotate 90° to the right",
+    "straighten": "Straighten"
   },
   "network": {
     "zigbee": "Zigbee mesh",
@@ -298,8 +302,9 @@
     "propertySave": "Couldn't save the property view — reopen the Property tab to try again.",
     "saveFailed": "Couldn't save: {error} Your changes are still here — keep this tab open.",
     "retry": "Retry",
-    "bgType": "Background image must be a PNG, JPEG, or GIF file.",
-    "bgUpload": "Background image upload failed: {error}"
+    "bgType": "The background must be a PNG, JPEG, GIF, SVG or PDF file.",
+    "bgUpload": "Background image upload failed: {error}",
+    "bgConvert": "Couldn't read {name}: {error}"
   },
   "dialog": {
     "ok": "OK",

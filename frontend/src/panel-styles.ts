@@ -105,6 +105,22 @@ export const panelStyles = css`
     outline: none;
     border-color: var(--sc-accent);
   }
+  .rotate-buttons {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .rotate-buttons .icon-button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    color: var(--sc-fg-secondary);
+  }
+  .rotate-buttons .icon-button:hover {
+    background: var(--sc-hover);
+  }
   .hint {
     font-size: var(--sc-fs-small);
     color: var(--sc-fg-secondary);

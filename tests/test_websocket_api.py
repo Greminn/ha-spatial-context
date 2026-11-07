@@ -136,6 +136,16 @@ class SaveLimitsTest(unittest.TestCase):
         wall = {"id": "w1", "material": "glass", "points": [[0, 0], [5, 0]]}
         self._validate(self._layout(rooms=[room], pins=[pin], walls=[wall]))
 
+    def test_background_rotation_defaults_to_upright(self) -> None:
+        result = self.api.ws_save_layout.schema(self._layout())
+        self.assertEqual(result["background_rotation_deg"], 0.0)
+        result = self.api.ws_save_layout.schema(self._layout(background_rotation_deg=90))
+        self.assertEqual(result["background_rotation_deg"], 90.0)
+
+    def test_an_absurd_background_rotation_is_refused(self) -> None:
+        with self.assertRaises(vol.Invalid):
+            self._validate(self._layout(background_rotation_deg=720))
+
     def test_too_many_rooms_are_refused(self) -> None:
         room = {"id": "r", "name": "x", "points": []}
         with self.assertRaises(vol.Invalid):

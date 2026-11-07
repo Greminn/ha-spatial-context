@@ -73,6 +73,13 @@ import {
 } from "./canvas/geometry";
 import { largeUnitLabel, parseLarge, unitsPerDisplayUnit } from "./units";
 import {
+  BACKGROUND_ACCEPT,
+  classifyBackgroundFile,
+  normalizeRotation,
+  toUploadableImage,
+  type PdfGlueModule,
+} from "./background-file";
+import {
   RESET_PARTS,
   pinsToClear,
   resetFloorParts,
@@ -483,6 +490,7 @@ export class SpatialContextPanel extends LitElement {
         this._alignScale * target.background_offset_y + this._alignOffsetY,
       scale: this._alignScale * target.background_scale,
       opacity: 0.55,
+      rotationDeg: target.background_rotation_deg ?? 0,
     };
   }
 
@@ -2077,25 +2085,48 @@ export class SpatialContextPanel extends LitElement {
     void this._handleBackgroundFile(file);
   };
 
-  private static readonly _ACCEPTED_BACKGROUND_TYPES = new Set([
-    "image/png",
-    "image/jpeg",
-    "image/gif",
-  ]);
+  /** pdf.js, built separately into www/pdf/ and loaded on first use. */
+  private static _loadPdfGlue(): Promise<PdfGlueModule> {
+    return import(
+      /* @vite-ignore */ `/spatial_context/pdf/spatial-context-pdf.mjs?v=${__BUILD_ID__}`
+    ) as Promise<PdfGlueModule>;
+  }
 
   /** Shared by the file-input picker and canvas drag-and-drop — drag-and-drop
-   * bypasses the <input accept> restriction entirely, so the MIME check has
-   * to live here rather than only on the input element. */
+   * bypasses the <input accept> restriction entirely, so the type check has
+   * to live here rather than only on the input element. A PDF (page 1) or
+   * SVG is turned into a PNG first (see background-file.ts). */
   private async _handleBackgroundFile(file: File): Promise<void> {
-    if (!SpatialContextPanel._ACCEPTED_BACKGROUND_TYPES.has(file.type)) {
+    if (!classifyBackgroundFile(file)) {
       await this._notify(localize("errors.bgType"));
       return;
     }
+    let upload: File | null;
     try {
-      const imageId = await this._client.uploadBackgroundImage(file);
+      upload = await toUploadableImage(file, SpatialContextPanel._loadPdfGlue);
+    } catch (err) {
+      await this._notify(
+        localize("errors.bgConvert", {
+          name: file.name,
+          error: (err as Error).message,
+        }),
+      );
+      return;
+    }
+    if (!upload) return;
+    try {
+      const imageId = await this._client.uploadBackgroundImage(upload);
       const patch = { background_image_id: imageId, background_opacity: 0.85 };
       if (this._view === "property") this._updatePropertyLayout(patch);
-      else this._updateLayout(patch);
+      else {
+        this._updateLayout({
+          ...patch,
+          // A new image starts upright.
+          ...(this._layout.background_rotation_deg !== undefined
+            ? { background_rotation_deg: 0 }
+            : {}),
+        });
+      }
     } catch (err) {
       await this._notify(
         localize("errors.bgUpload", { error: (err as Error).message }),
@@ -2137,6 +2168,56 @@ export class SpatialContextPanel extends LitElement {
       this._updateLayout({ background_opacity });
     }
   };
+
+  /** Turns the floor's background about its centre (a sideways scan). */
+  private _setBackgroundRotation(deg: number): void {
+    this._updateLayout({ background_rotation_deg: normalizeRotation(deg) });
+  }
+
+  /** Rotate controls in the Background menu: quarter turns, and a slider
+   * for straightening a slightly skewed scan. Floors only. */
+  private _renderBackgroundRotation() {
+    if (this._view !== "floor" || !this._layout.background_image_id) {
+      return nothing;
+    }
+    const deg = this._layout.background_rotation_deg ?? 0;
+    return html`<div class="popover-row">
+        ${localize("menu.rotation", { deg: deg.toFixed(1) })}
+        <span class="rotate-buttons">
+          <button
+            class="icon-button"
+            title=${localize("menu.rotateLeft")}
+            aria-label=${localize("menu.rotateLeft")}
+            @click=${() => this._setBackgroundRotation(deg - 90)}
+          >
+            <ha-icon icon="mdi:rotate-left"></ha-icon>
+          </button>
+          <button
+            class="icon-button"
+            title=${localize("menu.rotateRight")}
+            aria-label=${localize("menu.rotateRight")}
+            @click=${() => this._setBackgroundRotation(deg + 90)}
+          >
+            <ha-icon icon="mdi:rotate-right"></ha-icon>
+          </button>
+        </span>
+      </div>
+      <label class="popover-row"
+        >${localize("menu.straighten")}
+        <input
+          type="range"
+          min="-180"
+          max="180"
+          step="0.5"
+          style="--pct:${((deg + 180) / 360) * 100}%"
+          .value=${String(deg)}
+          @input=${(e: Event) =>
+            this._setBackgroundRotation(
+              Number((e.target as HTMLInputElement).value),
+            )}
+        />
+      </label>`;
+  }
 
   private _onCancelPending = () => this._canvas?.cancelPending();
   private _onFinishWall = () => this._canvas?.finishPendingWall();
@@ -3130,7 +3211,7 @@ export class SpatialContextPanel extends LitElement {
           id="file-input"
           class="hidden-file-input"
           type="file"
-          accept="image/png,image/jpeg,image/gif"
+          accept=${BACKGROUND_ACCEPT}
           @change=${this._onFileInputChange}
         />
         <button class="menu-item" @click=${() => this._fileInput?.click()}>
@@ -3219,6 +3300,7 @@ export class SpatialContextPanel extends LitElement {
               </label>`
             : nothing
         }
+        ${this._renderBackgroundRotation()}
       </icon-popover>
     `;
   }
@@ -3625,6 +3707,7 @@ export class SpatialContextPanel extends LitElement {
                           .backgroundOffsetX=${this._layout.background_offset_x}
                           .backgroundOffsetY=${this._layout.background_offset_y}
                           .backgroundScale=${this._layout.background_scale}
+                          .backgroundRotationDeg=${this._layout.background_rotation_deg ?? 0}
                           .alignOverlay=${this._alignOverlay}
                           .initialViewBox=${
                             this._settings.open_view === "fit"
