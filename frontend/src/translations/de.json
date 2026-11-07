@@ -267,7 +267,11 @@
     "debugReport": "Debug-Bericht herunterladen",
     "debugReportHint": "Versionen, Einstellungen, Layout-Anzahlen und das aktuelle Debug-Protokoll – sicher an ein GitHub-Issue anzuhängen",
     "resetFloor": "Etage zurücksetzen",
-    "resetProperty": "Anwesen zurücksetzen"
+    "resetProperty": "Anwesen zurücksetzen",
+    "rotation": "Drehung {deg}°",
+    "rotateLeft": "Um 90° nach links drehen",
+    "rotateRight": "Um 90° nach rechts drehen",
+    "straighten": "Ausrichten"
   },
   "network": {
     "zigbee": "Zigbee-Mesh",
@@ -298,8 +302,9 @@
     "propertySave": "Die Anwesen-Ansicht konnte nicht gespeichert werden – öffnen Sie den Tab „Anwesen“ erneut.",
     "saveFailed": "Speichern fehlgeschlagen: {error} Deine Änderungen sind noch da — lass diesen Tab geöffnet.",
     "retry": "Erneut versuchen",
-    "bgType": "Das Hintergrundbild muss eine PNG-, JPEG- oder GIF-Datei sein.",
-    "bgUpload": "Hochladen des Hintergrundbilds fehlgeschlagen: {error}"
+    "bgType": "Der Hintergrund muss eine PNG-, JPEG-, GIF-, SVG- oder PDF-Datei sein.",
+    "bgUpload": "Hochladen des Hintergrundbilds fehlgeschlagen: {error}",
+    "bgConvert": "{name} konnte nicht gelesen werden: {error}"
   },
   "dialog": {
     "ok": "OK",

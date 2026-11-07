@@ -38,6 +38,10 @@ export function resetFloorParts(
     background_image_id: parts.has("background")
       ? null
       : layout.background_image_id,
+    // A new background starts upright.
+    ...(parts.has("background") && layout.background_rotation_deg !== undefined
+      ? { background_rotation_deg: 0 }
+      : {}),
   };
 }
 

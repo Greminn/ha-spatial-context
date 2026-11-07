@@ -105,6 +105,70 @@ const mapModule = {
   ].filter(Boolean),
 };
 
+const pdfDir = "../custom_components/spatial_context/www/pdf";
+
+/** Copies the files the lazily loaded PDF module loads by URL beside it:
+ * pdf.js's worker, and the wasm image decoders (JBIG2 for scanned
+ * black-and-white plans, OpenJPEG for JPEG 2000, QCMS for colour
+ * profiles) with their licences. */
+const copyPdfJsFiles = () => ({
+  name: "copy-pdfjs-files",
+  writeBundle() {
+    const dist = createRequire(import.meta.url)
+      .resolve("pdfjs-dist/package.json")
+      .replace(/package\.json$/, "");
+    mkdirSync(`${pdfDir}/wasm`, { recursive: true });
+    copyFileSync(
+      `${dist}legacy/build/pdf.worker.min.mjs`,
+      `${pdfDir}/pdf.worker.min.mjs`,
+    );
+    copyFileSync(`${dist}LICENSE`, `${pdfDir}/LICENSE`);
+    for (const file of [
+      "jbig2.wasm",
+      "openjpeg.wasm",
+      "qcms_bg.wasm",
+      "LICENSE_JBIG2",
+      "LICENSE_OPENJPEG",
+      "LICENSE_QCMS",
+      "LICENSE_PDFJS_JBIG2",
+      "LICENSE_PDFJS_OPENJPEG",
+      "LICENSE_PDFJS_QCMS",
+    ]) {
+      copyFileSync(`${dist}wasm/${file}`, `${pdfDir}/wasm/${file}`);
+    }
+  },
+});
+
+/** The PDF background module: pdf.js and two small calls, loaded only when
+ * a PDF is picked as a floor background (see background-file.ts). */
+const pdfModule = {
+  input: "src/pdf/pdf-glue.ts",
+  output: {
+    file: `${pdfDir}/spatial-context-pdf.mjs`,
+    format: "es",
+    sourcemap: isDev,
+    // pdf.js is one module; keep it in this one file.
+    inlineDynamicImports: true,
+  },
+  plugins: [
+    nodeResolve({ browser: true, extensions: [".js", ".ts", ".mjs"] }),
+    commonjs(),
+    typescript({
+      tsconfig: "./tsconfig.json",
+      noEmitOnError: !isDev,
+      compilerOptions: {
+        noEmit: false,
+        declaration: false,
+        sourceMap: isDev,
+        outDir: pdfDir,
+      },
+      outputToFilesystem: false,
+    }),
+    copyPdfJsFiles(),
+    !isDev && terser({ module: true, format: { comments: /^!/ } }),
+  ].filter(Boolean),
+};
+
 const panel = {
   input: "src/index.ts",
   output: {
@@ -145,4 +209,4 @@ const panel = {
   ].filter(Boolean),
 };
 
-export default [panel, mapModule];
+export default [panel, mapModule, pdfModule];
