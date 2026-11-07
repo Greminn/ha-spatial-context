@@ -319,14 +319,39 @@ def _empty_settings() -> dict[str, Any]:
         # How many dB worse than the walls predict a Zigbee link may be
         # before the Connectivity Map flags it (#29). 0 turns the check off.
         "weak_link_threshold_db": 25,
+        # Height of one level, metres: a floor at HA `level` n sits at
+        # n x this, for distances between floors (spatial/model.py).
+        "floor_height_m": 3.0,
+        # Offer the spatial tools (spatial_context__summary, ...) to LLM
+        # conversation agents (llm.py). Off by default (#53): the layout says
+        # a lot about a home, so sharing it with an AI is an explicit choice.
+        "llm_tools_enabled": False,
+        # Path-loss exponent of the RF model (spatial/rf.py): 2.0 is free
+        # space, the panel's model; indoor paths are often 2.5-3.5.
+        "rf_path_loss_exponent": 2.0,
+        # Loss through one floor slab, dB, for links between levels (#27
+        # measured 10-17 dB).
+        "rf_slab_loss_db": 13,
     }
+
+
+_SETTINGS_CACHE_KEY = f"{DOMAIN}_settings_cache"
 
 
 async def async_get_settings(hass: HomeAssistant) -> dict[str, Any]:
     """Return the stored app-wide settings, or defaults."""
     async with _lock(hass):
         data = await _async_load_all(hass)
-        return {**_empty_settings(), **(data.get("settings") or {})}
+        settings = {**_empty_settings(), **(data.get("settings") or {})}
+        hass.data[_SETTINGS_CACHE_KEY] = settings
+        return settings
+
+
+def cached_settings(hass: HomeAssistant) -> dict[str, Any]:
+    """The settings as last read or saved, for synchronous callers (the LLM
+    tools platform's `async_get_tools` is a callback and cannot await the
+    store). Defaults until the first read; __init__ reads them at setup."""
+    return hass.data.get(_SETTINGS_CACHE_KEY) or _empty_settings()
 
 
 async def async_save_settings(hass: HomeAssistant, settings: dict[str, Any]) -> None:
@@ -335,6 +360,7 @@ async def async_save_settings(hass: HomeAssistant, settings: dict[str, Any]) -> 
         data = await _async_load_all(hass)
         data["settings"] = settings
         await _store(hass).async_save(data)
+        hass.data[_SETTINGS_CACHE_KEY] = {**_empty_settings(), **settings}
 
 
 async def async_get_floor_layout(hass: HomeAssistant, floor_id: str) -> dict[str, Any]:

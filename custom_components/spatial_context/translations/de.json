@@ -13,11 +13,99 @@
   "services": {
     "get_map": {
       "name": "Karte abrufen",
-      "description": "Gibt die vollständige räumliche Kontextkarte zurück, einschließlich Etagen, Räumen, Wänden und Geräten."
+      "description": "Gibt die vollständige räumliche Kontextkarte zurück, einschließlich Etagen, Räumen, Wänden und Geräten.",
+      "fields": {
+        "floor": {
+          "name": "Etage",
+          "description": "Nur diese Etage (Etagen-ID oder Name)."
+        },
+        "room": {
+          "name": "Raum",
+          "description": "Nur dieser Raum (Raum-ID oder Name). Wände werden weggelassen."
+        },
+        "compact": {
+          "name": "Kompakt",
+          "description": "Auf 0,1 m und 1 dB runden und Editor-Einheiten sowie wiederholte Bezeichnungen weglassen."
+        },
+        "include_links": {
+          "name": "Verbindungen einschließen",
+          "description": "Die Funkverbindungen zwischen den exportierten Geräten mit Entfernung, Wänden sowie erwartetem und gemessenem Signal hinzufügen."
+        }
+      }
+    },
+    "query": {
+      "name": "Räumliche Abfrage",
+      "description": "Gibt eine der KI-Ausgaben zurück (dieselben wie die LLM-Tools): eine Übersicht, den Kontext eines Geräts, den Weg zwischen zwei Geräten, schwache Verbindungen oder einen Raum.",
+      "fields": {
+        "tool": {
+          "name": "Tool",
+          "description": "Welche Ausgabe: summary, device_context, path, weak_links oder room."
+        },
+        "device": {
+          "name": "Gerät",
+          "description": "Für device_context: Geräte-ID, Kurz-ID (d12) oder Name."
+        },
+        "a": {
+          "name": "Gerät A",
+          "description": "Für path: das erste Gerät."
+        },
+        "b": {
+          "name": "Gerät B",
+          "description": "Für path: das zweite Gerät."
+        },
+        "layer": {
+          "name": "Ebene",
+          "description": "Für weak_links: nur diese Funkebene."
+        },
+        "level": {
+          "name": "Etage",
+          "description": "Für weak_links: nur Verbindungen, die diese Etage berühren."
+        },
+        "room": {
+          "name": "Raum",
+          "description": "Für room: Raum-ID, Kurz-ID (r3) oder Name."
+        }
+      }
+    },
+    "update_settings": {
+      "name": "KI- und Funkeinstellungen ändern",
+      "description": "Ändert die Einstellungen, für die das Panel noch keine Bedienelemente hat. Weggelassene Felder behalten ihren Wert.",
+      "fields": {
+        "llm_tools_enabled": {
+          "name": "LLM-Tools",
+          "description": "Die räumlichen Tools Konversationsagenten über die Home-Assistant-LLM-API anbieten."
+        },
+        "floor_height_m": {
+          "name": "Etagenhöhe",
+          "description": "Höhe einer Etage, für Entfernungen zwischen Etagen."
+        },
+        "rf_path_loss_exponent": {
+          "name": "Pfadverlust-Exponent",
+          "description": "2,0 ist Freiraum; in Innenräumen oft 2,5 bis 3,5."
+        },
+        "rf_slab_loss_db": {
+          "name": "Deckenverlust",
+          "description": "Signalverlust durch eine Geschossdecke."
+        },
+        "weak_link_threshold_db": {
+          "name": "Schwellwert schwache Verbindung",
+          "description": "Um wie viele dB schlechter als erwartet eine Verbindung als schwach gilt. 0 schaltet die Prüfung aus."
+        }
+      }
     },
     "refresh_zigbee_mesh": {
       "name": "Zigbee-Mesh aktualisieren",
       "description": "Erzwingt einen neuen Zigbee2MQTT-Netzwerkscan und speichert das Ergebnis zwischen, damit „Mesh laden“ im Panel es sofort bereitstellen kann. Gedacht für eine zeitgesteuerte Automation (z. B. über Nacht), nicht für die interaktive Nutzung (ein Scan kann 1–2 Minuten dauern)."
+    },
+    "refresh_links": {
+      "name": "Funkverbindungen aktualisieren",
+      "description": "Liest die Funkverbindungen (ZHA, Zigbee2MQTT, Matter/Thread, UniFi-WLAN) neu in den Verbindungsspeicher von Spatial Context ein. Günstig: Es liest nur, was die Integrationen bereits vorhalten, und startet nie einen Zigbee-Scan, außer einer ersten Zigbee2MQTT-Netzwerkkarte, wenn noch keine abgerufen wurde. Läuft alle 30 Minuten von selbst.",
+      "fields": {
+        "layers": {
+          "name": "Ebenen",
+          "description": "Nur diese Ebenen aktualisieren. Leer lassen für alle."
+        }
+      }
     }
   }
 }
