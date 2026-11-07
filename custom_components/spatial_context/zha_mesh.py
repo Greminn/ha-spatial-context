@@ -27,8 +27,10 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 # zigpy's neighbor relationship names -> Z2M's numeric codes, which
-# `_merge_links` reads (0 = parent, 1 = child, 2 = sibling).
-_RELATIONSHIP = {"Parent": 0, "Child": 1}
+# `_merge_links` reads (0 = parent, 1 = child, 2 = sibling, 4 = previous
+# child). Sibling and NoneOfTheAbove are neighbors the reporter still hears,
+# so both count as siblings; a PreviousChild is dropped by `_merge_links`.
+_RELATIONSHIP = {"Parent": 0, "Child": 1, "PreviousChild": 4}
 
 
 def _gateway_proxy(hass: HomeAssistant) -> Any:

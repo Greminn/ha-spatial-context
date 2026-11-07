@@ -214,6 +214,11 @@ def _merge_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
         target_ieee = link["targetIeeeAddr"]
         if source_ieee == target_ieee:
             continue
+        # 4 = previous child: a device that has left this parent (rejoined
+        # elsewhere, or gone) but is still listed for a while. Not a live
+        # link, so it isn't drawn (#69).
+        if link.get("relationship") == _PREVIOUS_CHILD:
+            continue
         lqi = link.get("linkquality")
         if lqi is None:
             lqi = link.get("lqi")
@@ -261,6 +266,9 @@ def _merge_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
     return out
 
+
+# Neighbor-table relationship code for a former child (see _merge_links).
+_PREVIOUS_CHILD = 4
 
 # A reading at or below this is a stale neighbor-table entry, not a measured
 # link (confirmed on a live 800-pair network: 32 pairs had a 0 or 1, most with
