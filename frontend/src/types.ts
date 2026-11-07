@@ -115,6 +115,12 @@ export interface VersionInfo {
   installed_version: string | null;
   /** Build id of the panel bundle installed on disk. */
   panel_build_id: string | null;
+  /** Fingerprints of the backend code running and on disk. */
+  loaded_code?: string | null;
+  installed_code?: string | null;
+  /** True only when the backend code changed, so a restart is needed. A
+   *  panel-only release doesn't set it. Missing on older backends. */
+  restart_required?: boolean;
 }
 
 export type FloorOrder = "top_down" | "ground_up";
