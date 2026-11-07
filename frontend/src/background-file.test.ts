@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_RASTER_EDGE,
   MIN_RASTER_EDGE,
+  cameraEntities,
+  cameraProxyPath,
   classifyBackgroundFile,
   normalizeRotation,
   pngName,
@@ -145,5 +147,34 @@ describe("pngName / normalizeRotation", () => {
     expect(normalizeRotation(360)).toBe(0);
     expect(normalizeRotation(12.345)).toBe(12.3);
     expect(normalizeRotation(Number.NaN)).toBe(0);
+  });
+});
+
+describe("cameraEntities", () => {
+  it("lists cameras, vacuum maps first, then by name", () => {
+    const states = {
+      "camera.front_door": { attributes: { friendly_name: "Front Door" } },
+      "camera.vacuum_map": {
+        attributes: { friendly_name: "Vacuum Map" },
+      },
+      "camera.garage": { attributes: {} },
+      "light.kitchen": { attributes: { friendly_name: "Kitchen" } },
+      "camera.gone": undefined,
+    };
+    expect(cameraEntities(states)).toEqual([
+      {
+        entityId: "camera.vacuum_map",
+        name: "Vacuum Map",
+        isMap: true,
+      },
+      { entityId: "camera.garage", name: "camera.garage", isMap: false },
+      { entityId: "camera.front_door", name: "Front Door", isMap: false },
+    ]);
+  });
+
+  it("builds the camera proxy path", () => {
+    expect(cameraProxyPath("camera.vacuum_map")).toBe(
+      "/api/camera_proxy/camera.vacuum_map",
+    );
   });
 });
