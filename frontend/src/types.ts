@@ -94,6 +94,9 @@ export interface Settings {
   auto_save: boolean;
   /** Send panel events to the backend's debug log file (see debug.py). */
   debug_logging: boolean;
+  /** Register the read-only `GetSpatialMap` LLM API, so Home Assistant's MCP
+   * Server or a conversation agent can read the map (#53). Off by default. */
+  llm_api_enabled: boolean;
   /** Devices hidden from the Place device list (#43). Absent until the
    * backend reports it, so a panel newer than the running backend never
    * sends a field the backend's strict schema would reject. */

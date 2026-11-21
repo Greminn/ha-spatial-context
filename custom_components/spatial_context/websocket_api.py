@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant, callback
 
 from . import bluetooth_mesh, debug, registry_snapshot, wifi_mesh, zigbee_mesh
 from .export import async_get_map_data
+from .llm_api import async_sync_llm_api
 from .storage import (
     async_get_floor_layout,
     async_get_property_layout,
@@ -375,6 +376,7 @@ _SETTINGS_SCHEMA = {
     ),
     vol.Optional("auto_save", default=True): bool,
     vol.Optional("debug_logging", default=False): bool,
+    vol.Optional("llm_api_enabled", default=False): bool,
     vol.Optional("hidden_device_ids", default=list): vol.All(
         [_TEXT], vol.Length(max=_MAX_ITEMS)
     ),
@@ -418,6 +420,7 @@ async def ws_save_settings(
     await async_save_settings(
         hass, {key.schema: msg[key.schema] for key in _SETTINGS_SCHEMA}
     )
+    await async_sync_llm_api(hass)
     connection.send_result(msg["id"], {"success": True})
 
 

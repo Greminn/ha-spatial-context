@@ -335,6 +335,10 @@ def _empty_settings() -> dict[str, Any]:
         # Send panel events to <config>/spatial_context_debug.log (see
         # debug.py) — off unless someone is chasing a problem.
         "debug_logging": False,
+        # Register the "GetSpatialMap" LLM API so an assistant (the MCP Server,
+        # a conversation agent) can read the map (#53). Off until switched on,
+        # because the map describes the layout of the home.
+        "llm_api_enabled": False,
         # Devices hidden from the panel's Place device list (#43): HA devices
         # that are not worth placing, such as the extra device a router
         # integration adds for every client. Display only; the device and

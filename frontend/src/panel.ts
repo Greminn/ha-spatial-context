@@ -104,6 +104,13 @@ import { metersPerUnit, panMap, rotateMapTo, zoomMap } from "./map/map-camera";
 import "./views/settings-page";
 import type { PropertyBuilding } from "./views/property-overlay";
 import { panelStyles } from "./panel-styles";
+import {
+  PLAN_SHEETS,
+  PLAN_SHEET_ICONS,
+  readPlanSheet,
+  writePlanSheet,
+  type PlanSheet,
+} from "./appearance";
 import { panelBundleUrls, reloadFresh, restartRequired } from "./reload-fresh";
 
 /** The docs site's walkthrough, linked from the More options menu. */
@@ -181,6 +188,8 @@ export class SpatialContextPanel extends LitElement {
   /** The Connectivity Map's network layers: which is picked, and what each has loaded. */
   private _mesh = new MeshDataController(this, () => this._client);
   @state() private _backgroundPopoverOpen = false;
+  /** What sits behind floor plan images; saved per browser (appearance.ts). */
+  @state() private _planSheet: PlanSheet = readPlanSheet();
   @state() private _meshPopoverOpen = false;
   /** Shared across every viewer of the panel (see ha-client.ts's
    * getSettings/saveSettings) — not per-browser, same as floors/property. */
@@ -3112,6 +3121,11 @@ export class SpatialContextPanel extends LitElement {
     });
   }
 
+  private _onPlanSheetChange(value: PlanSheet) {
+    this._planSheet = value;
+    writePlanSheet(value);
+  }
+
   /** The Background menu — per floor (or Property tab), so it lives in the
    * controls row; each overlay slots it in as `row-end`. */
   private _renderBackgroundPopover() {
@@ -3215,6 +3229,33 @@ export class SpatialContextPanel extends LitElement {
                   @input=${this._onOpacityChange}
                 />
               </label>`
+            : nothing
+        }
+        ${
+          this._view === "floor" && this._activeBackground.imageId
+            ? html`<div class="menu-divider"></div>
+                <div class="menu-heading">${localize("planSheet.title")}</div>
+                ${PLAN_SHEETS.map(
+                  (option) =>
+                    html`<button
+                      class="menu-item ${option === this._planSheet ? "active" : ""}"
+                      @click=${() => this._onPlanSheetChange(option)}
+                    >
+                      <ha-icon icon=${PLAN_SHEET_ICONS[option]}></ha-icon>
+                      ${localize(`planSheet.${option}`)}
+                      ${
+                        option === this._planSheet
+                          ? html`<ha-icon
+                              class="trail"
+                              icon="mdi:check"
+                            ></ha-icon>`
+                          : nothing
+                      }
+                    </button>`,
+                )}
+                <span class="hint" style="padding: 4px 16px 8px"
+                  >${localize("planSheet.hint")}</span
+                >`
             : nothing
         }
       </icon-popover>
@@ -3618,6 +3659,7 @@ export class SpatialContextPanel extends LitElement {
                         <floorplan-canvas
                           @calibrate-scale-click=${this._onCalibrateScaleClick}
                           .dark=${this._hass?.themes?.darkMode ?? false}
+                          .planSheet=${this._planSheet}
                           .rooms=${this._roomsForCanvas}
                           .pins=${this._layout.pins}
                           .walls=${this._layout.walls}

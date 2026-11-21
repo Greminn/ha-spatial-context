@@ -67,6 +67,12 @@ export const panelStyles = css`
     padding: 6px var(--ha-space-4, 16px);
     font-size: var(--sc-fs-row);
   }
+  .menu-heading {
+    padding: 8px 16px 4px;
+    font-size: var(--sc-fs-caption);
+    font-weight: 500;
+    color: var(--sc-fg-secondary);
+  }
   .menu-divider {
     height: 1px;
     margin: 6px 0;

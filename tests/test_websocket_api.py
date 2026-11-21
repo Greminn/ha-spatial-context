@@ -90,6 +90,7 @@ class SaveLimitsTest(unittest.TestCase):
         for sibling in ("bluetooth_mesh", "debug", "registry_snapshot", "wifi_mesh", "zigbee_mesh"):
             stubs.stub(f"sc_ws_test.{sibling}")
         stubs.stub("sc_ws_test.export", async_get_map_data=None)
+        stubs.stub("sc_ws_test.llm_api", async_sync_llm_api=None)
         stubs.stub(
             "sc_ws_test.storage",
             **{
@@ -216,6 +217,19 @@ class SaveLimitsTest(unittest.TestCase):
         entries = [{"event": "e"}] * 201
         with self.assertRaises(vol.Invalid):
             self.api.ws_debug_log.schema({"type": "spatial_context/debug_log", "entries": entries})
+
+    def test_the_assistant_map_switch_is_off_unless_asked_for(self) -> None:
+        message = {
+            "type": "spatial_context/save_settings",
+            "unit_system": "metric",
+            "zigbee_timeout_seconds": 180,
+        }
+        self.assertFalse(self.api.ws_save_settings.schema(message)["llm_api_enabled"])
+        self.assertTrue(
+            self.api.ws_save_settings.schema({**message, "llm_api_enabled": True})["llm_api_enabled"]
+        )
+        with self.assertRaises(vol.Invalid):
+            self.api.ws_save_settings.schema({**message, "llm_api_enabled": "yes please"})
 
 
 if __name__ == "__main__":

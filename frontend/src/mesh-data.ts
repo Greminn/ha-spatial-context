@@ -102,8 +102,9 @@ export class MeshDataController implements ReactiveController {
   // Picking a layer shows it straight away wherever that's cheap: Wi-Fi is
   // read from entity states and Matter is a live subscription, both
   // near-instant, so they load on pick with no button. Zigbee only ever
-  // shows the backend's cache on pick (cache_only — never a scan); a real
-  // scan (~90s+) still needs an explicit Load/Refresh click (loadZigbee).
+  // shows the backend's cache on pick (cache_only); with no cache at all it
+  // starts a normal Load (which still prefers any cache the backend has) so
+  // the first pick isn't an empty map and a button. Refresh stays explicit.
   select(picked: NetworkType): void {
     // Tapping the layer that's already on turns the overlay off.
     const type = this.networkType === picked ? null : picked;
@@ -118,7 +119,16 @@ export class MeshDataController implements ReactiveController {
     if (type === "wifi") void this.refreshWifi();
     else if (type === "matter") void this.subscribeMatter();
     else if (type === "bluetooth") void this.subscribeBluetooth();
-    else if (type === "zigbee") void this._loadCachedZigbee();
+    else if (type === "zigbee") void this._showZigbeeOnPick();
+  }
+
+  /** The first pick of Zigbee mesh: show a warm cache if there is one,
+   * otherwise start the Load the button would have started. */
+  private async _showZigbeeOnPick(): Promise<void> {
+    await this._loadCachedZigbee();
+    if (this.networkType !== "zigbee") return;
+    if (this.zigbeeMesh || this.zigbeeLoading) return;
+    await this.refreshZigbee(false);
   }
 
   /** The Load / Refresh button. Reuses the exact same "already fetched

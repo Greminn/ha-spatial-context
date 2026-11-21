@@ -177,5 +177,70 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(len(wall["points_m"]), 2)
 
 
+def _two_floor_map() -> dict:
+    def floor(floor_id: str, name: str, rooms: list[str]) -> dict:
+        return {
+            "floor_id": floor_id,
+            "name": name,
+            "meters_per_unit": 0.02,
+            "rooms": [{"id": f"{floor_id}-{r}", "name": r, "devices": []} for r in rooms],
+            "walls": [{"id": f"{floor_id}-w"}],
+        }
+
+    return {
+        "exported_at": "2026-10-28T00:00:00+00:00",
+        "floors": [floor("up", "Top Floor", ["Lounge", "Study"]), floor("down", "Bottom Floor", ["Kitchen"])],
+        "property_meters_per_unit": 0.03,
+        "outdoor_devices": [{"device_id": "garden"}],
+    }
+
+
+class FilterMapTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.export = _load_export()
+        self.data = _two_floor_map()
+
+    def test_no_filter_returns_the_map_unchanged(self) -> None:
+        self.assertIs(self.export.filter_map_data(self.data), self.data)
+        self.assertIs(self.export.filter_map_data(self.data, "", "  "), self.data)
+
+    def test_a_floor_matches_by_name_without_regard_to_case(self) -> None:
+        result = self.export.filter_map_data(self.data, floor="top floor")
+        self.assertEqual([f["name"] for f in result["floors"]], ["Top Floor"])
+        self.assertEqual(len(result["floors"][0]["rooms"]), 2)
+        self.assertEqual(result["filtered_by"], {"floor": "top floor", "room": None})
+
+    def test_a_floor_also_matches_by_id(self) -> None:
+        result = self.export.filter_map_data(self.data, floor="DOWN")
+        self.assertEqual([f["name"] for f in result["floors"]], ["Bottom Floor"])
+
+    def test_a_room_keeps_its_floor_and_that_floors_walls(self) -> None:
+        result = self.export.filter_map_data(self.data, room="study")
+        self.assertEqual(len(result["floors"]), 1)
+        self.assertEqual([r["name"] for r in result["floors"][0]["rooms"]], ["Study"])
+        self.assertEqual(len(result["floors"][0]["walls"]), 1)
+
+    def test_a_filtered_map_leaves_out_the_outdoor_devices(self) -> None:
+        result = self.export.filter_map_data(self.data, floor="Top Floor")
+        self.assertNotIn("outdoor_devices", result)
+        self.assertEqual(result["property_meters_per_unit"], 0.03)
+
+    def test_an_unknown_floor_lists_the_real_ones(self) -> None:
+        with self.assertRaises(self.export.MapFilterError) as ctx:
+            self.export.filter_map_data(self.data, floor="Attic")
+        self.assertIn('"Top Floor"', str(ctx.exception))
+        self.assertIn('"Bottom Floor"', str(ctx.exception))
+
+    def test_an_unknown_room_lists_the_rooms_on_the_chosen_floor(self) -> None:
+        with self.assertRaises(self.export.MapFilterError) as ctx:
+            self.export.filter_map_data(self.data, floor="Bottom Floor", room="Lounge")
+        self.assertIn('"Kitchen"', str(ctx.exception))
+        self.assertNotIn('"Study"', str(ctx.exception))
+
+    def test_a_room_on_another_floor_than_the_one_named_is_not_found(self) -> None:
+        with self.assertRaises(self.export.MapFilterError):
+            self.export.filter_map_data(self.data, floor="Top Floor", room="Kitchen")
+
+
 if __name__ == "__main__":
     unittest.main()

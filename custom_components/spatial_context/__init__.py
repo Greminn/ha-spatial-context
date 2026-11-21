@@ -18,6 +18,7 @@ from .frontend import (
     async_register_sidebar_panel,
     async_register_static_paths,
 )
+from .llm_api import async_sync_llm_api
 from .registry_snapshot import async_migrate_pin_device_ids
 from .services import async_setup_services
 from .storage import async_backup_layout
@@ -33,6 +34,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     await async_backup_layout(hass, version)
     async_register_commands(hass)
     await async_setup_services(hass)
+    await async_sync_llm_api(hass)
     await async_migrate_pin_device_ids(hass)
 
     try:

@@ -238,3 +238,62 @@ def _export_device(
         "y_m": pin["y"] * meters_per_unit if meters_per_unit else None,
         "height_m": pin.get("height_m"),
     }
+
+
+class MapFilterError(ValueError):
+    """A floor or room name that matches nothing; the message lists what exists."""
+
+
+def _names(items: list[str]) -> str:
+    return ", ".join(f'"{item}"' for item in items) or "none"
+
+
+def filter_map_data(
+    data: dict[str, Any], floor: str | None = None, room: str | None = None
+) -> dict[str, Any]:
+    """Narrow a `get_map` result to one floor and/or one room.
+
+    Names match without regard to case; a floor also matches its id. With no
+    filter the map comes back unchanged. A filtered map drops the outdoor
+    devices (they belong to no floor), keeps the floor's walls so the room has
+    its surroundings, and says what it was filtered by.
+    """
+    floor = (floor or "").strip() or None
+    room = (room or "").strip() or None
+    if floor is None and room is None:
+        return data
+
+    floors = data["floors"]
+    if floor is not None:
+        wanted = floor.casefold()
+        floors = [
+            f
+            for f in floors
+            if f["name"].casefold() == wanted or str(f["floor_id"]).casefold() == wanted
+        ]
+        if not floors:
+            raise MapFilterError(
+                f'No floor named "{floor}". Floors: '
+                + _names([f["name"] for f in data["floors"]])
+            )
+
+    if room is not None:
+        wanted = room.casefold()
+        narrowed = []
+        for f in floors:
+            rooms = [r for r in f["rooms"] if r["name"].casefold() == wanted]
+            if rooms:
+                narrowed.append({**f, "rooms": rooms})
+        if not narrowed:
+            raise MapFilterError(
+                f'No room named "{room}". Rooms: '
+                + _names([r["name"] for f in floors for r in f["rooms"]])
+            )
+        floors = narrowed
+
+    return {
+        "exported_at": data["exported_at"],
+        "filtered_by": {"floor": floor, "room": room},
+        "floors": floors,
+        "property_meters_per_unit": data["property_meters_per_unit"],
+    }

@@ -446,6 +446,19 @@ export class SettingsPage extends LitElement {
       </div>
 
       <div class="card">
+        <h2>${localize("settings.assistants")}</h2>
+        ${this._row(
+          localize("settings.llmApi"),
+          this._switch(
+            s.llm_api_enabled,
+            localize("settings.llmApi"),
+            (llm_api_enabled) => this._change({ llm_api_enabled }),
+          ),
+          localize("settings.llmApiHint"),
+        )}
+      </div>
+
+      <div class="card">
         <h2>${localize("settings.troubleshooting")}</h2>
         ${this._row(
           localize("settings.debugLogging"),

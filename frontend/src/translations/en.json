@@ -174,6 +174,9 @@
     "weakLink": "Flag weak links",
     "weakLinkAria": "Zigbee link warning threshold in dB",
     "weakLinkHint": "How many dB weaker than the walls predict a Zigbee link can read before it gets a warning icon. 0 turns it off. The floor needs its scale set.",
+    "assistants": "AI Assistants",
+    "llmApi": "Let AI assistants read the map",
+    "llmApiHint": "Adds a read-only GetSpatialMap tool for Home Assistant's MCP Server and conversation agents. It shares your floors, rooms, walls and device names and positions with any assistant you connect",
     "troubleshooting": "Troubleshooting",
     "debugLogging": "Debug logging",
     "debugLoggingHint": "Writes spatial_context_debug.log in your config folder — ids and counts only",
@@ -418,5 +421,12 @@
     "blue_grey": "Blue grey",
     "black": "Black",
     "white": "White"
+  },
+  "planSheet": {
+    "title": "Plan background",
+    "auto": "Auto",
+    "white": "White",
+    "none": "None",
+    "hint": "What sits behind floor plan images. Auto: a white sheet, inverted in dark mode. White: always a white sheet, never inverted. None: transparent plans show the canvas. Saved in this browser only."
   }
 }

@@ -10,6 +10,8 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - **Reset floor** has a checkbox for each thing it can clear: rooms, walls, doors and windows, placed devices and the background image (#45). Choosing everything works as before.
 - An **Opening a view** setting: choose **Fit to screen** and every floor and the Property tab open fitted to the screen instead of at their saved view. Saved views are not changed (#48).
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
+- **Let AI assistants read the map** (Settings, AI Assistants). Off by default. When it is on, Spatial Context adds a read-only `GetSpatialMap` tool that Home Assistant's MCP Server and conversation agents can use, so an assistant such as ChatGPT can look up the current map without you exporting it. Pick it in the MCP Server's settings. It returns the whole map, or just one floor or room, and it is only available to administrators. It needs Home Assistant 2026.10 or newer (#53).
+- A **Plan background** choice in the Background menu: Auto, White (a white sheet that is never inverted in a dark theme) or None (a transparent plan shows the canvas). It is saved in this browser only (#74, thanks cb2206).
 - Click and drag to size a new building on the Property tab. Drag from one corner and the outline keeps the building's proportions. A plain click still places it at the default size (#56).
 - A **Back to group** arrow on a device's card, when you opened it from a list of devices at the same spot (#62).
 - A **Move out of this spot** button on each device in that list, so a stacked device can be moved without deleting it (#47).
@@ -22,6 +24,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The `spatial_context.get_map` and `spatial_context.refresh_zigbee_mesh` actions are limited to administrators. Automations still run them as before, but a script started by a non-administrator is refused (#67, thanks cb2206).
 - A room linked to an area now follows the area's name: rename the area in Home Assistant and the room follows. Type a name to override it, clear the box (or choose **Use area name**) to follow the area again. Rooms that already carry their area's name start following it (#52).
 - The Settings page is titled **Spatial Context Settings**, and its back arrow says **Back to Spatial Context**.
+- Picking **Zigbee mesh** on the Connectivity Map loads the mesh straight away instead of waiting for you to press Load. A cached map still shows first (#60).
 - The notice about an older panel has a **Reload** button that fetches the current panel, and the notice to restart Home Assistant only appears when the integration's own code changed, not for an update that only changes the panel (#73, thanks cb2206).
 
 ### Fixed
