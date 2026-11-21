@@ -12,6 +12,8 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The Home Assistant version is shown under About in Settings, so it is easy to include in a bug report.
 - **Let AI assistants read the map** (Settings, AI Assistants). Off by default. When it is on, Spatial Context adds a read-only `GetSpatialMap` tool that Home Assistant's MCP Server and conversation agents can use, so an assistant such as ChatGPT can look up the current map without you exporting it. Pick it in the MCP Server's settings. It returns the whole map, or just one floor or room, and it is only available to administrators. It needs Home Assistant 2026.10 or newer (#53).
 - A **Plan background** choice in the Background menu: Auto, White (a white sheet that is never inverted in a dark theme) or None (a transparent plan shows the canvas). It is saved in this browser only (#74, thanks cb2206).
+- **Bulk place by area** (Place mode, ⋮ menu): drops every unplaced device of the chosen area, or of every area linked to a room on the floor, inside its room. These pins are drawn dashed and see-through, marked approximate in `get_map`, until you drag them or choose **Confirm position** on the device card. A new **Keep placing** toggle arms the next unplaced device after each pin (#75, thanks cb2206).
+- **Create rooms for this floor's areas** (floor ⋮ menu): a placeholder room for each Home Assistant area on the floor that has none yet, named after the area and sized by its device count, ready to drag onto the real outline. **Generate walls from room outlines** then draws the walls from the rooms: stretches one room has become exterior walls, shared stretches become one interior wall. Each is one undo step (#77, thanks cb2206).
 - Click and drag to size a new building on the Property tab. Drag from one corner and the outline keeps the building's proportions. A plain click still places it at the default size (#56).
 - A **Back to group** arrow on a device's card, when you opened it from a list of devices at the same spot (#62).
 - A **Move out of this spot** button on each device in that list, so a stacked device can be moved without deleting it (#47).
@@ -28,6 +30,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The notice about an older panel has a **Reload** button that fetches the current panel, and the notice to restart Home Assistant only appears when the integration's own code changed, not for an update that only changes the panel (#73, thanks cb2206).
 
 ### Fixed
+- A Zigbee2MQTT home no longer logs Home Assistant "blocking call" warnings about ZHA when the map is read.
 - Going back to a group of devices after scrolling a long link list on a device's card no longer shows a blank card.
 - The first click-and-drag to size a new building no longer fails after choosing the building from the list (#56).
 - A ZHA coordinator with no enabled entities, such as the ZBT-2 or an SLZB-06 radio, is listed in the Place device list (#60).

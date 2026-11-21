@@ -123,6 +123,17 @@ class ZhaMeshTest(unittest.TestCase):
         ):
             self.assertEqual(zha_mesh.coordinator_device_ids(None), set())
 
+    def test_coordinator_device_ids_does_not_import_zha_when_it_is_not_loaded(
+        self,
+    ) -> None:
+        _, zha_mesh = _setup()
+        hass = types.SimpleNamespace(config=types.SimpleNamespace(components={"mqtt"}))
+        # No patching: reaching ZHA's modules would raise ImportError here and
+        # still be swallowed, so assert the guard itself.
+        with self.assertRaises(RuntimeError):
+            zha_mesh._gateway_proxy(hass)
+        self.assertEqual(zha_mesh.coordinator_device_ids(hass), set())
+
     def test_a_previous_child_is_not_a_live_link(self) -> None:
         zigbee_mesh, zha_mesh = _setup()
         infos = [

@@ -224,7 +224,7 @@ def _export_device(
     """
     device_id = pin.get("device_id")
     entity = registry_snapshot.pick_display_entity(device_id, placeable_entities)
-    return {
+    device = {
         "device_id": device_id,
         "entity_id": entity["entity_id"] if entity else None,
         "name": pin.get("label_override")
@@ -237,10 +237,12 @@ def _export_device(
         "x_m": pin["x"] * meters_per_unit if meters_per_unit else None,
         "y_m": pin["y"] * meters_per_unit if meters_per_unit else None,
         "height_m": pin.get("height_m"),
-        # Bulk-placed somewhere in its room and not confirmed yet: the room
-        # is right, the exact point is not.
-        "approximate": bool(pin.get("approximate", False)),
     }
+    # Bulk-placed somewhere in its room and not confirmed yet: the room is
+    # right, the exact point is not. Only present when true.
+    if pin.get("approximate"):
+        device["approximate"] = True
+    return device
 
 
 class MapFilterError(ValueError):

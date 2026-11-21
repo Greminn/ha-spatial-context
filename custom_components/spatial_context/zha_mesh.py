@@ -34,6 +34,12 @@ _RELATIONSHIP = {"Parent": 0, "Child": 1, "PreviousChild": 4}
 
 
 def _gateway_proxy(hass: HomeAssistant) -> Any:
+    # Importing ZHA's modules loads its radio libraries, which blocks the
+    # event loop, so never do it on a home that does not run ZHA (a Zigbee2MQTT
+    # home asks this on every map read).
+    if hass is not None and "zha" not in hass.config.components:
+        raise RuntimeError("ZHA is not loaded")
+
     from homeassistant.components.zha.helpers import get_zha_gateway_proxy
 
     return get_zha_gateway_proxy(hass)
