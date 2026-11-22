@@ -101,6 +101,9 @@ export interface Settings {
   /** Register the read-only `GetSpatialMap` LLM API, so Home Assistant's MCP
    * Server or a conversation agent can read the map (#53). Off by default. */
   llm_api_enabled: boolean;
+  /** The user has allowed "Use a camera image" to list the camera entities.
+   * Asked once, from the Background menu; Settings can take it back. */
+  camera_background_enabled: boolean;
   /** Devices hidden from the Place device list (#43). Absent until the
    * backend reports it, so a panel newer than the running backend never
    * sends a field the backend's strict schema would reject. */

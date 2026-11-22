@@ -128,6 +128,7 @@ export class HaClient {
       auto_save: settings.auto_save,
       debug_logging: settings.debug_logging,
       llm_api_enabled: settings.llm_api_enabled,
+      camera_background_enabled: settings.camera_background_enabled,
       ...(settings.open_view !== undefined
         ? { open_view: settings.open_view }
         : {}),
@@ -398,6 +399,7 @@ export function emptySettings(): Settings {
     auto_save: true,
     debug_logging: false,
     llm_api_enabled: false,
+    camera_background_enabled: false,
   };
 }
 

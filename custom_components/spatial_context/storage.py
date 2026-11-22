@@ -342,6 +342,9 @@ def _empty_settings() -> dict[str, Any]:
         # a conversation agent) can read the map (#53). Off until switched on,
         # because the map describes the layout of the home.
         "llm_api_enabled": False,
+        # "Use a camera image" lists every camera entity, so it asks once and
+        # remembers the answer here; Settings can switch it off again.
+        "camera_background_enabled": False,
         # Devices hidden from the panel's Place device list (#43): HA devices
         # that are not worth placing, such as the extra device a router
         # integration adds for every client. Display only; the device and

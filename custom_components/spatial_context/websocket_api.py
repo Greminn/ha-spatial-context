@@ -386,6 +386,7 @@ _SETTINGS_SCHEMA = {
     vol.Optional("auto_save", default=True): bool,
     vol.Optional("debug_logging", default=False): bool,
     vol.Optional("llm_api_enabled", default=False): bool,
+    vol.Optional("camera_background_enabled", default=False): bool,
     vol.Optional("hidden_device_ids", default=list): vol.All(
         [_TEXT], vol.Length(max=_MAX_ITEMS)
     ),

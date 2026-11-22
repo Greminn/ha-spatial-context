@@ -110,6 +110,7 @@ class OlderSavesTest(unittest.TestCase):
         self.assertEqual(settings["zigbee_timeout_seconds"], 180)
         self.assertTrue(settings["auto_save"])
         self.assertFalse(settings["llm_api_enabled"])
+        self.assertFalse(settings["camera_background_enabled"])
 
     def test_hidden_devices_default_to_none(self) -> None:
         hass = stubs.FakeHass()

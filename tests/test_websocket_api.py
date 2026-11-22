@@ -251,6 +251,25 @@ class SaveLimitsTest(unittest.TestCase):
         with self.assertRaises(vol.Invalid):
             self.api.ws_save_settings.schema({**message, "llm_api_enabled": "yes please"})
 
+    def test_the_camera_background_permission_is_off_unless_given(self) -> None:
+        message = {
+            "type": "spatial_context/save_settings",
+            "unit_system": "metric",
+            "zigbee_timeout_seconds": 180,
+        }
+        self.assertFalse(
+            self.api.ws_save_settings.schema(message)["camera_background_enabled"]
+        )
+        self.assertTrue(
+            self.api.ws_save_settings.schema(
+                {**message, "camera_background_enabled": True}
+            )["camera_background_enabled"]
+        )
+        with self.assertRaises(vol.Invalid):
+            self.api.ws_save_settings.schema(
+                {**message, "camera_background_enabled": "yes please"}
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

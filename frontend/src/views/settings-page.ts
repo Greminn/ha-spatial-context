@@ -446,6 +446,20 @@ export class SettingsPage extends LitElement {
       </div>
 
       <div class="card">
+        <h2>${localize("settings.backgrounds")}</h2>
+        ${this._row(
+          localize("settings.cameraBackground"),
+          this._switch(
+            s.camera_background_enabled,
+            localize("settings.cameraBackground"),
+            (camera_background_enabled) =>
+              this._change({ camera_background_enabled }),
+          ),
+          localize("settings.cameraBackgroundHint"),
+        )}
+      </div>
+
+      <div class="card">
         <h2>${localize("settings.assistants")}</h2>
         ${this._row(
           localize("settings.llmApi"),

@@ -2341,6 +2341,19 @@ export class SpatialContextPanel extends LitElement {
    * vacuum's map, say) becomes the background, uploaded like a file. */
   private _onCameraBackground = async () => {
     this._backgroundPopoverOpen = false;
+    // Listing cameras is asked once; Settings, Backgrounds takes it back.
+    if (!this._settings.camera_background_enabled) {
+      const allowed = await this._dialogEl?.confirm({
+        text: localize("menu.cameraAsk"),
+        confirmText: localize("menu.cameraAllow"),
+      });
+      if (!allowed) return;
+      this._onSettingsChange(
+        new CustomEvent("settings-change", {
+          detail: { camera_background_enabled: true },
+        }),
+      );
+    }
     const cameras = cameraEntities(this._hass?.states ?? {});
     if (cameras.length === 0) {
       await this._notify(localize("menu.cameraNone"));
