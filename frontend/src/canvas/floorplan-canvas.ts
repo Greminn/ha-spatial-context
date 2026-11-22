@@ -1281,7 +1281,7 @@ export class FloorplanCanvas extends LitElement {
       // Click inside a closed walled space to trace the room in one go
       // (#46). Shift, a click near a wall, or a space the walls do not
       // fully enclose all still start a hand trace.
-      if (!this._pendingTrace && !shiftKey && this.walls.length >= 3) {
+      if (!this._pendingTrace && !shiftKey && this.walls.length > 0) {
         const nearWall = this.walls.some(
           (w) =>
             pointToPolylineDistance(image.x, image.y, w.points) <=
