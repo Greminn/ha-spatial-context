@@ -23,6 +23,7 @@ import {
   clamp,
   distance,
   edgeMidpoints,
+  findTopRoomAt,
   nearestPointOnClosedPolygon,
   nearestPointOnPolyline,
   openingEndpoints,
@@ -799,9 +800,7 @@ export class FloorplanCanvas extends LitElement {
     if (opening) return { type: "opening", opening };
     const wall = findWallAt(this.walls, image.x, image.y, hitR);
     if (wall) return { type: "wall", wall };
-    const room = this.rooms.find(
-      (r) => r.points.length >= 3 && pointInPolygon(image.x, image.y, r.points),
-    );
+    const room = findTopRoomAt(image.x, image.y, this.rooms);
     if (room) return { type: "room", room };
     return { type: "empty" };
   }
@@ -1294,6 +1293,25 @@ export class FloorplanCanvas extends LitElement {
               this.walls,
               wallTolerance(this._unitsPerMeterOrNull()),
             );
+        const tol = wallTolerance(this._unitsPerMeterOrNull());
+        // The same outline is already a room: select it, no duplicate.
+        const twin = region
+          ? this.rooms.find(
+              (r) =>
+                r.points.length === region.length &&
+                region.every((p) =>
+                  r.points.some(
+                    (q) => Math.hypot(p[0] - q[0], p[1] - q[1]) <= tol,
+                  ),
+                ),
+            )
+          : null;
+        if (twin) {
+          this.dispatchEvent(
+            new CustomEvent("room-select", { detail: { roomId: twin.id } }),
+          );
+          return;
+        }
         if (region && region.length >= 3) {
           this.dispatchEvent(
             new CustomEvent("room-trace-complete", {

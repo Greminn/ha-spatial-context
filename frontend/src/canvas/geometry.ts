@@ -69,6 +69,22 @@ export function findRoomForPoint(
   return null;
 }
 
+/** The room drawn on top at the point: rooms are painted in list order, so
+ * the last one that contains it is the one the user sees and clicks. */
+export function findTopRoomAt(
+  x: number,
+  y: number,
+  rooms: Room[],
+): Room | null {
+  for (let i = rooms.length - 1; i >= 0; i--) {
+    const room = rooms[i]!;
+    if (room.points.length >= 3 && pointInPolygon(x, y, room.points)) {
+      return room;
+    }
+  }
+  return null;
+}
+
 /** Recomputes every pin's `room_id` against the current room geometry.
  * `room_id` is purely derived from where a pin sits, never a user choice
  * (there is no manual room picker anywhere in the UI) — so it must be

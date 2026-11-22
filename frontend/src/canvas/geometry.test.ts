@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRoomForPoint,
+  findTopRoomAt,
   pointInPolygon,
   rayBoxExit,
   reassignPinRooms,
@@ -81,5 +82,30 @@ describe("rayBoxExit", () => {
   it("has no exit for a stationary ray or one pointing away from the edge it is on", () => {
     expect(rayBoxExit(10, 10, 0, 0, box)).toBeNull();
     expect(rayBoxExit(100, 10, 1, 0, box)).toBeNull();
+  });
+});
+
+describe("findTopRoomAt", () => {
+  const big = room("big", [
+    [0, 0],
+    [100, 0],
+    [100, 100],
+    [0, 100],
+  ]);
+  const small = room("small", [
+    [60, 60],
+    [100, 60],
+    [100, 100],
+    [60, 100],
+  ]);
+
+  it("picks the room drawn last where two overlap", () => {
+    expect(findTopRoomAt(80, 80, [big, small])?.id).toBe("small");
+    expect(findTopRoomAt(80, 80, [small, big])?.id).toBe("big");
+  });
+
+  it("picks the only room at a point, or none", () => {
+    expect(findTopRoomAt(10, 10, [big, small])?.id).toBe("big");
+    expect(findTopRoomAt(500, 500, [big, small])).toBeNull();
   });
 });
