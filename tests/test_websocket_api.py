@@ -150,6 +150,11 @@ class SaveLimitsTest(unittest.TestCase):
     def test_background_rotation_defaults_to_upright(self) -> None:
         result = self.api.ws_save_layout.schema(self._layout())
         self.assertEqual(result["background_rotation_deg"], 0.0)
+        self.assertIs(result["background_from_camera"], False)
+        result = self.api.ws_save_layout.schema(
+            self._layout(background_from_camera=True)
+        )
+        self.assertIs(result["background_from_camera"], True)
         result = self.api.ws_save_layout.schema(self._layout(background_rotation_deg=90))
         self.assertEqual(result["background_rotation_deg"], 90.0)
 

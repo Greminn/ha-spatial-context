@@ -58,6 +58,9 @@ export class HaClient {
       ...(layout.background_rotation_deg !== undefined
         ? { background_rotation_deg: layout.background_rotation_deg }
         : {}),
+      ...(layout.background_from_camera !== undefined
+        ? { background_from_camera: layout.background_from_camera }
+        : {}),
       building_id: layout.building_id,
       view_box: layout.view_box,
       rooms: layout.rooms,

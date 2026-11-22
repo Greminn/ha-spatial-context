@@ -2264,7 +2264,10 @@ export class SpatialContextPanel extends LitElement {
    * bypasses the <input accept> restriction entirely, so the type check has
    * to live here rather than only on the input element. A PDF (page 1) or
    * SVG is turned into a PNG first (see background-file.ts). */
-  private async _handleBackgroundFile(file: File): Promise<void> {
+  private async _handleBackgroundFile(
+    file: File,
+    fromCamera = false,
+  ): Promise<void> {
     if (!classifyBackgroundFile(file)) {
       await this._notify(localize("errors.bgType"));
       return;
@@ -2292,6 +2295,9 @@ export class SpatialContextPanel extends LitElement {
           // A new image starts upright.
           ...(this._layout.background_rotation_deg !== undefined
             ? { background_rotation_deg: 0 }
+            : {}),
+          ...(this._layout.background_from_camera !== undefined || fromCamera
+            ? { background_from_camera: fromCamera }
             : {}),
         });
       }
@@ -2387,7 +2393,7 @@ export class SpatialContextPanel extends LitElement {
       );
       return;
     }
-    await this._handleBackgroundFile(file);
+    await this._handleBackgroundFile(file, true);
   };
 
   /** Turns the floor's background about its centre (a sideways scan). */
@@ -3538,7 +3544,9 @@ export class SpatialContextPanel extends LitElement {
             : nothing
         }
         ${
-          this._view === "floor" && this._activeBackground.imageId
+          this._view === "floor" &&
+          this._activeBackground.imageId &&
+          !this._layout.background_from_camera
             ? html`<div class="menu-divider"></div>
                 <div class="menu-heading">${localize("planSheet.title")}</div>
                 ${PLAN_SHEETS.map(
@@ -3967,7 +3975,7 @@ export class SpatialContextPanel extends LitElement {
                         <floorplan-canvas
                           @calibrate-scale-click=${this._onCalibrateScaleClick}
                           .dark=${this._hass?.themes?.darkMode ?? false}
-                          .planSheet=${this._planSheet}
+                          .planSheet=${this._layout.background_from_camera ? "white" : this._planSheet}
                           .rooms=${this._roomsForCanvas}
                           .pins=${this._layout.pins}
                           .walls=${this._layout.walls}

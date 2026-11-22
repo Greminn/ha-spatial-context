@@ -90,6 +90,9 @@ def _empty_floor() -> dict[str, Any]:
         # Degrees clockwise the background image is turned about its own
         # centre — for a scan or PDF that came in sideways or skewed.
         "background_rotation_deg": 0.0,
+        # True when the background is a camera snapshot (not a floor plan),
+        # so the panel can skip the plan-only background options.
+        "background_from_camera": False,
         # Which "building" this floor belongs to — null until Align Floors
         # links two floors together (see websocket_api.py's set_building_id
         # and panel.ts's _onAlignApply). Two floors sharing a non-null

@@ -100,6 +100,7 @@ class OlderSavesTest(unittest.TestCase):
         self.assertEqual(layout["rooms"][0]["name"], "Lounge")
         self.assertEqual(layout["background_scale"], 1.0)
         self.assertEqual(layout["background_rotation_deg"], 0.0)
+        self.assertIs(layout["background_from_camera"], False)
         self.assertIsNone(layout["building_id"])
 
     def test_a_missing_settings_key_falls_back_to_its_default(self) -> None:

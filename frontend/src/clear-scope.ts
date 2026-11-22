@@ -42,6 +42,9 @@ export function resetFloorParts(
     ...(parts.has("background") && layout.background_rotation_deg !== undefined
       ? { background_rotation_deg: 0 }
       : {}),
+    ...(parts.has("background") && layout.background_from_camera !== undefined
+      ? { background_from_camera: false }
+      : {}),
   };
 }
 

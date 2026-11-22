@@ -175,6 +175,9 @@ export interface FloorLayout {
    * centre (a scan or PDF that came in sideways). Absent until the backend
    * reports it, so an older backend's strict schema never sees it. */
   background_rotation_deg?: number;
+  /** The background is a camera snapshot, not a plan: the plan-only
+   * options (white sheet, dark-mode invert) do not apply. */
+  background_from_camera?: boolean;
   /** Which "building" this floor belongs to — null until Align Floors
    * links it to another floor. Two floors sharing a non-null building_id
    * share one coordinate system (e.g. Top Floor + Bottom Floor of the

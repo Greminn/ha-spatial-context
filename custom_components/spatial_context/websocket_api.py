@@ -237,6 +237,7 @@ _PLACEMENT_SCHEMA = {
         vol.Optional("background_rotation_deg", default=0.0): vol.All(
             _FLOAT, vol.Range(min=-360, max=360)
         ),
+        vol.Optional("background_from_camera", default=False): bool,
         vol.Required("building_id"): vol.Any(_TEXT, None),
         vol.Required("view_box"): _VIEW_BOX_SCHEMA,
         vol.Required("rooms"): _items(_ROOM_SCHEMA),
@@ -261,6 +262,7 @@ async def ws_save_layout(
         "background_offset_y": msg["background_offset_y"],
         "background_scale": msg["background_scale"],
         "background_rotation_deg": msg["background_rotation_deg"],
+        "background_from_camera": msg["background_from_camera"],
         "building_id": msg["building_id"],
         "view_box": msg["view_box"],
         "rooms": msg["rooms"],
