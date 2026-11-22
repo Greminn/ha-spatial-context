@@ -33,6 +33,7 @@ Notes for each release are also on the [releases page](https://github.com/Gremin
 - The notice about an older panel has a **Reload** button that fetches the current panel, and the notice to restart Home Assistant only appears when the integration's own code changed, not for an update that only changes the panel (#73, thanks cb2206).
 
 ### Fixed
+- Where two rooms overlap, clicking selects the room drawn on top, so the top room can be selected and deleted without removing the one under it.
 - A Zigbee2MQTT home no longer logs Home Assistant "blocking call" warnings about ZHA when the map is read.
 - Going back to a group of devices after scrolling a long link list on a device's card no longer shows a blank card.
 - The first click-and-drag to size a new building no longer fails after choosing the building from the list (#56).
