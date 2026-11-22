@@ -57,6 +57,8 @@ import { localize } from "../i18n";
 import { sharedStyles } from "../styles";
 import { floorplanCanvasStyles } from "./floorplan-canvas-styles";
 import { planSheetStyle, type PlanSheet } from "../appearance";
+import { enclosedRegion } from "../enclosed-room";
+import { wallTolerance } from "../walls-from-rooms";
 
 /** Fixed logical coordinate space width every floor's rooms/pins are stored in,
  * independent of the uploaded background image's actual pixel resolution. */
@@ -1257,6 +1259,16 @@ export class FloorplanCanvas extends LitElement {
     }
   }
 
+  /** Plan units per metre once the floor is calibrated, else null. */
+  private _unitsPerMeterOrNull(): number | null {
+    if (!this.scale) return null;
+    const [[x1, y1], [x2, y2]] = this.scale.points;
+    const units = Math.hypot(x2 - x1, y2 - y1);
+    return units > 0 && this.scale.meters > 0
+      ? units / this.scale.meters
+      : null;
+  }
+
   private _handleClick(
     clientX: number,
     clientY: number,
@@ -1266,6 +1278,31 @@ export class FloorplanCanvas extends LitElement {
 
     if (this.mode === "trace") {
       const closeThreshold = this._pxToUnits(HIT_RADIUS_PX);
+      // Click inside a closed walled space to trace the room in one go
+      // (#46). Shift, a click near a wall, or a space the walls do not
+      // fully enclose all still start a hand trace.
+      if (!this._pendingTrace && !shiftKey && this.walls.length >= 3) {
+        const nearWall = this.walls.some(
+          (w) =>
+            pointToPolylineDistance(image.x, image.y, w.points) <=
+            closeThreshold * 2,
+        );
+        const region = nearWall
+          ? null
+          : enclosedRegion(
+              [image.x, image.y],
+              this.walls,
+              wallTolerance(this._unitsPerMeterOrNull()),
+            );
+        if (region && region.length >= 3) {
+          this.dispatchEvent(
+            new CustomEvent("room-trace-complete", {
+              detail: { points: region },
+            }),
+          );
+          return;
+        }
+      }
       const trace = this._pendingTrace ?? startTrace();
       const {
         point: [sx, sy],

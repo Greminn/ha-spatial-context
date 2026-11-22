@@ -30,7 +30,7 @@
     },
     "hint": {
       "closeRoom": "Nahe dem Start klicken, um den Raum zu schließen.",
-      "addPoints": "Klicken, um Punkte hinzuzufügen.",
+      "addPoints": "In die Wände klicken, um den Raum zu füllen, oder Punkte setzen.",
       "addWallPoints": "Klicken, um Punkte hinzuzufügen.",
       "addWallPointsFinish": "Klicken, um Punkte hinzuzufügen, dann „Fertig“.",
       "scaleFirst": "Den ersten Punkt einer bekannten Strecke anklicken.",

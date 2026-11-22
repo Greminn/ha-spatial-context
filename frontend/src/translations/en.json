@@ -30,7 +30,7 @@
     },
     "hint": {
       "closeRoom": "Click near the start to close the room.",
-      "addPoints": "Click to add points.",
+      "addPoints": "Click inside walls to fill the room, or click to add points.",
       "addWallPoints": "Click to add points.",
       "addWallPointsFinish": "Click to add points, then Finish.",
       "scaleFirst": "Click the first point of a known distance.",
